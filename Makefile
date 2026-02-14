@@ -10,7 +10,7 @@ CONFIG_DIR := $(CURDIR)/config
 DEFAULT_SYSTEM ?= ser8
 DEFAULT_USER ?= orka
 
-.PHONY: all init install-system reconfigure-system reconfigure-home install-orka-packages channel-update guix-pull clean
+.PHONY: all init install-system reconfigure-system reconfigure-home install-user-packages channel-update guix-pull clean
 
 all: reconfigure-system reconfigure-home
 
@@ -26,10 +26,11 @@ reconfigure-system:
 	sudo guix system reconfigure --channels=channels/channels-lock.scm $(CONFIG_DIR)/systems/$(DEFAULT_SYSTEM)/configuration.scm
 
 reconfigure-home:
-	@echo "Reconfiguring Guix Home for $(DEFAULT_USER) on $(DEFAULT_SYSTEM)..."
-	guix home reconfigure --channels=channels/channels-lock.scm -L $(CONFIG_DIR)/modules -L $(CONFIG_DIR)/util -L $(CONFIG_DIR)/packages $(CONFIG_DIR)/users/$(DEFAULT_USER)/home.scm
+	@echo "Reconfiguring Guix Home for $(DEFAULT_USER)..."
+	guix home reconfigure --channels=channels/channels-lock.scm -L $(CONFIG_DIR)/home-services -L $(CONFIG_DIR)/util -L $(CONFIG_DIR)/packages $(CONFIG_DIR)/users/$(DEFAULT_USER)/home.scm
+	$(MAKE) install-user-packages
 
-install-orka-packages:
+install-user-packages:
 	@echo "Installing extra packages for user $(DEFAULT_USER)..."
 	guix package -p $(HOME)/.guix-profiles/$(DEFAULT_USER)-extra -f $(CONFIG_DIR)/users/$(DEFAULT_USER)/manifest.scm
 
