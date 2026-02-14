@@ -5,7 +5,7 @@ PROFILE_DIR = $(CURDIR)/env
 GUIX_PULLED_CMD ?= $(PROFILE_DIR)/profile/bin/guix
 
 # Path to our config directory (relative to Makefile)
-CONFIG_DIR := $(CURDIR)/config
+CONFIG_DIR := $(CURDIR)/raynet-guix
 
 # Base guix time-machine command with common load paths
 GUIX_TM_BASE = guix time-machine --debug=4 \
