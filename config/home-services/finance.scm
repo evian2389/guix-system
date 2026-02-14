@@ -1,4 +1,4 @@
-(define-module (daviwil home-services finance)
+(define-module (config modules finance)
 
   #:use-module (gnu home services)
   #:use-module (gnu services)

@@ -1,5 +1,5 @@
-(define-module (daviwil home-services emacs)
-  #:use-module (daviwil packages emacs)
+(define-module (config home-services emacs)
+  #:use-module (config packages emacs)
   #:use-module (gnu packages)
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages emacs-xyz)

@@ -1,4 +1,4 @@
-(define-module (daviwil packages emacs)
+(define-module (config packages emacs)
   #:use-module (gnu packages emacs-xyz)
   #:use-module (gnu packages emacs-build)
   #:use-module (guix packages)

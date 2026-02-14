@@ -1,4 +1,4 @@
-(define-module (daviwil home-services video)
+(define-module (config home-services video)
   #:use-module (gnu packages video)
   #:use-module (gnu home services))
 
