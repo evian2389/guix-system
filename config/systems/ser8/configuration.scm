@@ -1,124 +1,99 @@
 (define-module (config systems ser8 configuration)
   #:use-module (gnu)
   #:use-module (gnu system)
-  #:use-module (gnu services)
-  #:use-module (gnu services audio)     ; For PipeWire
-  #:use-module (gnu services desktop)
-  #:use-module (config home-services games)   ; For Steam support service
-  #:use-module (gnu services udev)      ; For udev service type
-  #:use-module (gnu services xorg)
   #:use-module (gnu system uuid)
   #:use-module (gnu system file-systems)
   #:use-module (gnu system mapped-devices)
-  #:use-module (gnu home)
-  #:use-module (config users orka home))
+  #:use-module (nongnu packages linux)
+  #:use-module (nongnu packages firmware)
+  #:use-module (srfi srfi-1)                 ;; For 'filter'
+  #:use-module (ice-9 match)                 ;; For 'match-lambda'
+  #:use-module (ice-9 format)                ;; For 'format'
+  #:use-module (config systems base-system))
 
-(operating-system
-  (host-name "ser8")
-  (timezone "Asia/Seoul")
-  (locale "ko_KR.utf8")
+;; This is the machine-specific configuration for 'ser8'.
+;; It inherits all the common settings from 'base-system.scm' and just
+;; provides the details unique to this hardware.
+(define btrfs-subvolumes
+  (map (match-lambda
+         ((subvol . mount-point)
+          (file-system
+            (device (file-system-label "guixroot"))
+            (mount-point mount-point)
+            (type "btrfs")
+            (options (format #f "subvol=~a,compress=zstd,noatime,discard=async,space_cache=v2" subvol))
+            (dependencies mapped-devices))))
+       '(("@" . "/")
+         ("@boot" . "/boot")
+         ("@home" . "/home")
+         ("@gnu"  . "/gnu")
+         ("@data" . "/data")
+         ("@var"  . "/var")
+         ("@var_log" . "/var/log")
+         ("@opt"  . "/opt")
+         ("@swap" . "/swap"))))
 
-  (bootloader (bootloader-configuration
-                (bootloader grub-efi-bootloader)
-                (target "/boot/efi")))
+(define data-fs
+  (car
+   (filter
+    (lambda (x) (equal? (file-system-mount-point x) "/data"))
+    btrfs-subvolumes)))
 
-  (mapped-devices
-   (list (mapped-device
-           (source (uuid "YOUR_LUKS_PARTITION_UUID_HERE"))
-           (target "enc")
-           (type luks-device-mapping))))
-
-  (file-systems
-   (cons*
+(define ser8-file-systems
+  (append
+   btrfs-subvolumes
+   (list
+    ;; persist all system data to data
     (file-system
-      (device (file-system-label "guixroot")) ; Btrfs filesystem on the unlocked device
-      (mount-point "/")
-      (type "btrfs")
-      (options "subvol=@,compress=zstd,noatime,discard=async,space_cache=v2")
-      (dependencies mapped-devices))
+      (device "/data/system/var/lib")
+      (type "none")
+      (mount-point "/var/lib")
+      (flags '(bind-mount))
+      ;; (options "bind")
+      (dependencies (list data-fs)))
     (file-system
-      (device (file-system-label "guixroot"))
-      (mount-point "/boot")
-      (type "btrfs")
-      (options "subvol=@boot,compress=zstd,noatime,discard=async,space_cache=v2")
-      (dependencies mapped-devices))
-    (file-system
-      (device (file-system-label "guixroot"))
-      (mount-point "/home")
-      (type "btrfs")
-      (options "subvol=@home,compress=zstd,noatime,discard=async,space_cache=v2")
-      (dependencies mapped-devices))
-    (file-system
-      (device (file-system-label "guixroot"))
-      (mount-point "/gnu")
-      (type "btrfs")
-      (options "subvol=@gnu,compress=zstd,noatime,discard=async,space_cache=v2")
-      (dependencies mapped-devices))
-    (file-system
-      (device (file-system-label "guixroot"))
-      (mount-point "/data")
-      (type "btrfs")
-      (options "subvol=@data,compress=zstd,noatime,discard=async,space_cache=v2")
-      (dependencies mapped-devices))
-    (file-system
-      (device (file-system-label "guixroot"))
-      (mount-point "/var")
-      (type "btrfs")
-      (options "subvol=@var,compress=zstd,noatime,discard=async,space_cache=v2")
-      (dependencies mapped-devices))
-    (file-system
-      (device (file-system-label "guixroot"))
-      (mount-point "/var/log")
-      (type "btrfs")
-      (options "subvol=@var_log,compress=zstd,noatime,discard=async,space_cache=v2")
-      (dependencies mapped-devices))
-    (file-system
-      (device (file-system-label "guixroot"))
-      (mount-point "/opt")
-      (type "btrfs")
-      (options "subvol=@opt,compress=zstd,noatime,discard=async,space_cache=v2")
-      (dependencies mapped-devices))
-    (file-system
-      (device (file-system-label "guixroot"))
-      (mount-point "/swap")
-      (type "btrfs")
-      (options "subvol=@swap,compress=zstd,noatime,discard=async,space_cache=v2")
-      (dependencies mapped-devices))
-    (file-system
-      (device (uuid "YOUR_EFI_PARTITION_UUID_HERE" 'fat32))
       (mount-point "/boot/efi")
-      (type "vfat"))
-    %base-file-systems))
+      (type "vfat")
+      (device (uuid "YOUR_EFI_PARTITION_UUID_HERE" 'fat32))) ;;TODO check UUIDs
+    (file-system
+                (mount-point "/tmp")
+                (device "none")
+                (type "tmpfs")
+                (flags '(no-dev no-suid no-atime))
+                (check? #f))
+      %base-file-systems))) ;; Add %base-file-systems to the end
 
-  (swap-devices (list "/swap/swapfile"))
+(base-operating-system
+ #:hostname "ser8"
 
-  (users (cons* (user-account
-                  (name "orka")
-                  (comment "Orka")
-                  (group "users")
-                  (home-directory "/home/orka")
-                  (supplementary-groups '("wheel" "netdev" "audio" "video"))
-                  ;; Replace the placeholder below with the hash generated from the guile command
-                  (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0")
-                  (email "evian2389@gmail.com"))
-                %base-user-accounts))
+ #:bootloader
+ (bootloader-configuration
+   (bootloader grub-efi-bootloader)
+   (target "/boot/efi"))
 
-  (packages
-   (append
-    (list
-     ;; Add system-wide packages here
-     )
-    %base-packages))
+ #:firmware
+ (list linux-firmware amd-firmware)
 
-  (services
-   (cons*
-    (service pipewire-service-type)      ; Explicitly set PipeWire as the audio server
-    steam-support-service                 ; For Steam controller udev rules
-    (service gnome-desktop-service-type)
-    (service gdm-service-type) ; Display manager for GNOME
-    (home-environment-service-type
-     orka-home-environment)
-    %base-services))
+ #:mapped-devices
+ (list (mapped-device
+         (source (uuid "YOUR_LUKS_PARTITION_UUID_HERE"))
+         (target "enc")
+         (type luks-device-mapping)))
 
-  (keyboard-layout (keyboard-layout "kr"))
-  (operating-system-user-accounts %base-user-accounts))
+ #:file-systems ser8-file-systems
+
+ #:swap-devices (list "/swap/swapfile")
+
+ #:packages (append (list bluez
+                           bluez-alsa
+                           brightnessctl
+                           exfat-utils
+                           fuse-exfat
+                           git
+                           gvfs    ;; Enable user mounts
+                           intel-media-driver/nonfree
+                           libva-utils
+                           ntfs-3g
+                           stow
+                           vim)
+                       %base-packages))

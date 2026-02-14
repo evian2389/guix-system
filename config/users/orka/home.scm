@@ -13,7 +13,7 @@
  (inherit common-home-environment)
  (packages
   (append
-   (list "vim")                            ; emacs is now handled by home-emacs-config-service-type
+   (list "rust" "rust-analyzer")                            ; emacs is now handled by home-emacs-config-service-type
    %base-packages))
  (services
   (list

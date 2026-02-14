@@ -42,7 +42,7 @@ fi
 sudo mkfs.fat -F32 "$EFI_PARTITION"
 
 # Create the LUKS container
-sudo cryptsetup luksFormat --type luks2 --pbkdf argon2id "$LUKS_PARTITION"
+sudo cryptsetup luksFormat --type luks2 --pbkdf pbkdf2 "$LUKS_PARTITION"
 sudo cryptsetup luksOpen "$LUKS_PARTITION" enc
 
 # Create the Btrfs filesystem

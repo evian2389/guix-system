@@ -69,7 +69,7 @@ To use these configurations for a **fresh installation** on a new drive, follow 
 4.  **Generate User Password Hash**:
     *   In your terminal, generate a password hash for the `orka` user (replace `"YOUR_PASSWORD_HERE"` with your desired password):
         ```bash
-        guile -c '(use-modules (gnu home user)) (display (crypt "YOUR_PASSWORD_HERE" (make-salt)))'
+        guile -c '(display (crypt "YOURPASSWORD" "$6$randomsalt")) (newline)'
         ```
     *   **Copy the full password hash output.**
 
@@ -82,6 +82,7 @@ To use these configurations for a **fresh installation** on a new drive, follow 
 6.  **Initial System Installation**:
     *   With the disk prepared and `configuration.scm` updated, perform the initial installation:
         ```bash
+        herd start cow-store /mnt
         sudo make install-system
         ```
 
