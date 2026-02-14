@@ -1,5 +1,6 @@
 (define-module (raynet-guix systems base-system)
   #:use-module (gnu system)
+  #:use-module (gnu system mapped-devices) ; Moved for potential order dependency
   #:use-module (gnu services)
   #:use-module (gnu services audio)
   #:use-module (gnu services desktop)
@@ -10,7 +11,6 @@
   #:use-module (nongnu packages games)       ;; For steam-devices-udev-rules
   #:use-module (raynet-guix home-services games)
   #:use-module (gnu home)
-  #:use-module (gnu system mapped-devices)
   #:use-module (raynet-guix users orka home))
 
 (define* (base-operating-system #:key hostname

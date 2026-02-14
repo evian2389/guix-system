@@ -14,6 +14,12 @@
 ;; This is the machine-specific configuration for 'ser8'.
 ;; It inherits all the common settings from 'base-system.scm' and just
 ;; provides the details unique to this hardware.
+(define ser8-mapped-devices
+  (list (mapped-device
+         (source (uuid "YOUR_LUKS_PARTITION_UUID_HERE"))
+         (target "enc")
+         (type luks-device-mapping))))
+
 (define btrfs-subvolumes
   (map (match-lambda
          ((subvol . mount-point)
@@ -22,7 +28,7 @@
             (mount-point mount-point)
             (type "btrfs")
             (options (format #f "subvol=~a,compress=zstd,noatime,discard=async,space_cache=v2" subvol))
-            (dependencies mapped-devices))))
+            (dependencies ser8-mapped-devices))))
        '(("@" . "/")
          ("@boot" . "/boot")
          ("@home" . "/home")
@@ -74,11 +80,7 @@
  #:firmware
  (list linux-firmware amd-firmware)
 
- #:mapped-devices
- (list (mapped-device
-         (source (uuid "YOUR_LUKS_PARTITION_UUID_HERE"))
-         (target "enc")
-         (type luks-device-mapping)))
+ #:mapped-devices ser8-mapped-devices
 
  #:file-systems ser8-file-systems
 
