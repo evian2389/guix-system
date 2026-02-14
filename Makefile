@@ -7,12 +7,14 @@ GUIX_PULLED_CMD ?= $(PROFILE_DIR)/profile/bin/guix
 # Path to our config directory (relative to Makefile)
 CONFIG_DIR := $(CURDIR)/config
 
-# Set the Guile load path so Guix can find our custom modules.
-# This is more robust than using the -L flag with sudo.
-GUILE_LOAD_PATH = $(CONFIG_DIR):$(CONFIG_DIR)/home-services:$(CONFIG_DIR)/util:$(CONFIG_DIR)/packages
-
 # Use 'guix time-machine' for reproducible builds based on the lock file.
-GUIX_TM = GUILE_LOAD_PATH=$(GUILE_LOAD_PATH) guix time-machine -C channels/channels-lock.scm --
+# Pass custom module load paths directly to time-machine.
+GUIX_TM = guix time-machine \
+	-L $(CONFIG_DIR) \
+	-L $(CONFIG_DIR)/home-services \
+	-L $(CONFIG_DIR)/util \
+	-L $(CONFIG_DIR)/packages \
+	-C channels/channels-lock.scm --
 
 # Default system and user for initial setup (can be overridden)
 DEFAULT_SYSTEM ?= ser8
