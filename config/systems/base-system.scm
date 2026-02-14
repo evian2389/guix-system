@@ -1,5 +1,4 @@
 (define-module (config systems base-system)
-  #:use-module (gnu)
   #:use-module (gnu system)
   #:use-module (gnu services)
   #:use-module (gnu services audio)
@@ -16,9 +15,9 @@
                                      firmware
                                      bootloader
                                      mapped-devices
-                                                                          file-systems
-                                                                          swap-devices
-                                                                          #:packages (packages %base-packages))
+                                     file-systems
+                                     swap-devices
+                                     #:packages (packages %base-packages))
                                        (operating-system
                                          (host-name hostname)
                                          (timezone "Asia/Seoul")
@@ -29,15 +28,6 @@
                                          (file-systems file-systems)
                                          (swap-devices swap-devices)
                                          (firmware firmware)
-                                         (users (cons* (user-account
-                                                         (name "orka")
-                                                         (comment "Orka")
-                                                         (group "users")
-                                                         (home-directory "/home/orka")
-                                                         (supplementary-groups '("wheel" "netdev" "audio" "video"))
-                                                         (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0")
-                                                         (email "evian2389@gmail.com"))
-                                                       %base-user-accounts))
                                          (packages packages)
     (services
      (append (list
@@ -73,4 +63,13 @@
       %base-services))
 
     (keyboard-layout (keyboard-layout "kr"))
-    (operating-system-user-accounts %base-user-accounts)))
+    (operating-system-user-accounts
+     (cons* (user-account
+             (name "orka")
+             (comment "Orka")
+             (group "users")
+             (home-directory "/home/orka")
+             (supplementary-groups '("wheel" "netdev" "audio" "video"))
+             (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0")
+             (email "evian2389@gmail.com"))
+            %base-user-accounts))))
