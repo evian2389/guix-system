@@ -1,0 +1,6 @@
+# Helix editor configuration managed by Guix Home
+theme = "tokyonight"
+
+[editor]
+line-number = "relative"
+mouse = false
