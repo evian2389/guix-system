@@ -1,6 +1,4 @@
 (define-module (raynet-guix users common)
-  #:use-module (gnu)
-  #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services shells) ; Added for zsh
   #:use-module (gnu packages fcitx5) ; Added for fcitx5
@@ -10,7 +8,6 @@
   #:use-module (raynet-guix home-services video)      ; For home-video-service-type
   #:use-module (selected-guix-works packages fonts) ; For font-nerd-fonts-jetbrains-mono
   #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding
-  #:use-module (guix)
   #:use-module (gnu services)
   #:export (common-home-environment))
 
@@ -35,9 +32,7 @@
       ("XMODIFIERS" . "@im=fcitx")))
    (services
     (list
-     (service home-shell-profile-service-type
-              (home-shell-profile-configuration
-               (shell zsh))) ; Configured zsh as default shell
+     (service home-zsh-service-type)
      (service home-video-service-type)      ; For ffmpeg and v4l-utils
      ;; Add common home services here
      ))))
