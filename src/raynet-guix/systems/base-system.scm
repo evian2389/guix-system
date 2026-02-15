@@ -39,11 +39,13 @@
     (bootloader bootloader)
     (mapped-devices mapped-devices)
     (file-systems file-systems)
-    (swap-devices (map (lambda (device)
-                         (if (string? device)
-                             (swap-space (target device))
-                             device))
-                       swap-devices))
+    (swap-devices
+     (let ((device->swap-space
+            (lambda (device)
+              (if (string? device)
+                  (swap-space (target device))
+                  device))))
+       (map device->swap-space swap-devices)))
     (firmware firmware)
     (packages packages)
     (services
