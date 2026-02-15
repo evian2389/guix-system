@@ -10,6 +10,7 @@
   #:use-module (raynet-guix home-services emacs)      ; For home-emacs-config-service-type
   #:use-module (raynet-guix home-services finance)    ; For home-finance-service-type
   #:use-module (srfi srfi-1)
+  #:use-module (guix utils)
   #:use-module (raynet-guix users common))
 
 (define orka-home-environment
@@ -20,7 +21,9 @@
     (service home-games-service-type)
     (service home-emacs-config-service-type)
     (service home-finance-service-type)
+    ;;(service home-files-service-type
+    ;;         `(( ".bashrc" . ,(local-file (string-append (dirname (current-filename)) "/files/bashrc")))))
     (service home-dotfiles-service-type
               (home-dotfiles-configuration
-               (source-directory ".")
-               (directories '("config/users/orka/files")))))))
+               (source-directory (string-append (dirname (current-filename)) "/files"))
+               (directories (list ".config")))))))

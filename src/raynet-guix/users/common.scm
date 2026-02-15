@@ -6,6 +6,8 @@
   #:use-module (gnu home services desktop)
   #:use-module (gnu packages fcitx5) ; Added for fcitx5
   #:use-module (gnu packages admin) ; For htop
+  #:use-module (gnu packages version-control) ; For git
+  #:use-module (gnu packages shells) ; For zsh
   #:use-module (gnu packages rust)
   #:use-module (gnu packages video)
   #:use-module (raynet-guix home-services video)      ; For home-video-service-type
@@ -20,17 +22,17 @@
    (packages
     (append extra-packages
             (list
-             "git"
-             "rust"
-             "htop"    ; Moved back to common
-             "zsh"
-             "mpv"
-             "fcitx5"
-             "fcitx5-hangul"
-             "fcitx5-gtk"  ; For GTK integration
-             "fcitx5-qt"
-             "font-nerd-fonts-jetbrains-mono"
-             "font-nerd-font-d2coding")))      ; Added D2Coding Nerd Font
+             git
+             rust
+             htop    ; Moved back to common
+             zsh
+             mpv
+             fcitx5
+             fcitx5-hangul
+             fcitx5-gtk  ; For GTK integration
+             fcitx5-qt
+             font-nerd-fonts-jetbrains-mono
+             font-nerd-font-d2coding)))      ; Added D2Coding Nerd Font
    (services
     (append extra-services
             (list
