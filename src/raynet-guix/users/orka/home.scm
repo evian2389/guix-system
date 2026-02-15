@@ -25,5 +25,5 @@
     ;;         `(( ".bashrc" . ,(local-file (string-append (dirname (current-filename)) "/files/bashrc")))))
     (service home-dotfiles-service-type
               (home-dotfiles-configuration
-               (source-directory (string-append (dirname (current-filename)) "/files"))
+               (source-directory "./src/raynet-guix/users/orka/files")
                (directories (list ".config")))))))
