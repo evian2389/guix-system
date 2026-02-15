@@ -1,6 +1,8 @@
 (define-module (raynet-guix systems base-system)
   #:export (base-operating-system)
   #:use-module (gnu system)
+  #:use-module (gnu system keyboard)
+  #:use-module (gnu system accounts)
   #:use-module (gnu system mapped-devices) ; Moved for potential order dependency
   #:use-module (gnu services)
   #:use-module (gnu services base)
@@ -9,9 +11,11 @@
   #:use-module (gnu services ssh)            ;; For openssh-service-type
   #:use-module (gnu services guix)           ;; For guix-service-type
   #:use-module (guix store)                  ;; For plain-file
+  #:use-module (gnu packages linux)
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
   #:use-module (raynet-guix home-services games)
   #:use-module (gnu home)
+  #:use-module (nongnu packages linux)
   #:use-module (raynet-guix users orka home))
 
 (define* (base-operating-system #:key hostname
@@ -69,6 +73,5 @@
              (group "users")
              (home-directory "/home/orka")
              (supplementary-groups '("wheel" "netdev" "audio" "video"))
-             (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0")
-             (email "evian2389@gmail.com"))
+             (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0"))
             %base-user-accounts))))
