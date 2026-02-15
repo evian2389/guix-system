@@ -1,7 +1,7 @@
 # Makefile for Guix Configurations
 
 PROFILE_DIR = $(CURDIR)/env
-SRC_DIR = $(CURDIR)/src
+SRC_DIR = $(abspath $(CURDIR)/src)
 # Dynamically determine Guile version, fallback to 3.0 if guile executable not found.
 # This assumes guile is available in the project-local profile after 'guix pull'.
 # GUILE_BIN := $(PROFILE_DIR)/profile/bin/guile
@@ -61,11 +61,11 @@ install-system: guix-pull channel-update
 	@echo "DEBUG: GUILE_LOAD_PATH = ${GUILE_LOAD_PATH}"
 	@echo "DEBUG: CURDIR = $(CURDIR)"
 	@echo "DEBUG: CONFIG_DIR = $(CONFIG_DIR)"
-	sudo -E $(GUIX_TM) system init $(CONFIG_DIR)/systems/$(DEFAULT_SYSTEM)/configuration.scm /mnt
+	$(GUIX_TM) system init $(CONFIG_DIR)/systems/$(DEFAULT_SYSTEM)/configuration.scm /mnt
 
 reconfigure-system:
 	@echo "Reconfiguring Guix System for $(DEFAULT_SYSTEM)..."
-	sudo -E $(GUIX_TM) system reconfigure $(CONFIG_DIR)/systems/$(DEFAULT_SYSTEM)/configuration.scm
+	$(GUIX_TM) system reconfigure $(CONFIG_DIR)/systems/$(DEFAULT_SYSTEM)/configuration.scm
 
 reconfigure-home:
 	@echo "Reconfiguring Guix Home for $(DEFAULT_USER)..."
@@ -106,7 +106,7 @@ clean:
 
 # Target to start the cow-store service
 cow-store:
-	sudo herd start cow-store ${ROOT_MOUNT_POINT}
+	herd start cow-store ${ROOT_MOUNT_POINT}
 
 # Utility target to create a 'target' directory
 target:
