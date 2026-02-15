@@ -19,8 +19,8 @@ GUIX_PULLED_CMD ?= $(PROFILE_DIR)/profile/bin/guix
 CONFIG_DIR := $(SRC_DIR)/raynet-guix
 
 # Base guix time-machine command with common load paths
-# Rely on system's GUILE_LOAD_PATH for Guix modules, and add project root via -L.
-GUIX_TM_BASE = guix time-machine --debug=4 -L $(SRC_DIR)
+# Explicitly set GUILE_LOAD_PATH for guix time-machine, prepending $(SRC_DIR).
+GUIX_TM_BASE = GUILE_LOAD_PATH=$(SRC_DIR):$(GUILE_LOAD_PATH) guix time-machine --debug=4 -L $(SRC_DIR)
 
 # Use 'guix time-machine' for reproducible builds based on the lock file.
 # Pass custom module load paths directly to time-machine.
