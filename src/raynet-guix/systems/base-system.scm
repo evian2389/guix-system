@@ -10,6 +10,8 @@
   #:use-module (gnu services linux)
   #:use-module (gnu services audio)
   #:use-module (gnu services desktop)
+  #:use-module (gnu services xorg)
+  #:use-module (gnu services networking)
   #:use-module (gnu services ssh)            ;; For openssh-service-type
   #:use-module (gnu services guix)           ;; For guix-service-type
   #:use-module (guix gexp)                  ;; For plain-file
@@ -18,6 +20,7 @@
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
   #:use-module (raynet-guix home-services games)
   #:use-module (gnu home)
+  #:use-module (gnu home services)
   #:use-module (nongnu packages linux)
   #:use-module (raynet-guix users orka home))
 
@@ -61,6 +64,7 @@
         (service openssh-service-type)      ;; Enable OpenSSH server
         ;; Add udev rules for Steam devices
         (udev-rules-service 'steam-devices steam-devices-udev-rules)
+        (service network-manager-service-type)
         (service gnome-desktop-service-type)
         (service gdm-service-type)
         (home-environment-service-type
