@@ -13,6 +13,7 @@
   #:use-module (gnu services desktop)
   #:use-module (gnu services xorg)
   #:use-module (gnu services networking)
+  #:use-module (gnu services dbus)
   #:use-module (gnu services ssh)            ;; For openssh-service-type
   #:use-module (gnu services guix)           ;; For guix-service-type
   #:use-module (guix gexp)                  ;; For plain-file
@@ -53,6 +54,7 @@
       (append
        (list (service openssh-service-type)      ;; Enable OpenSSH server
              (service elogind-service-type)
+             (service dbus-service-type)
              ;; Add udev rules for Steam devices
              (udev-rules-service 'steam-devices steam-devices-udev-rules)
              (service wpa-supplicant-service-type)
