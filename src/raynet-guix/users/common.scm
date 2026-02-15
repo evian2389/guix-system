@@ -1,4 +1,5 @@
 (define-module (raynet-guix users common)
+  #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services shells) ; Added for zsh
   #:use-module (gnu packages fcitx5) ; Added for fcitx5
@@ -26,13 +27,13 @@
         "fcitx5-qt"
         "font-nerd-fonts-jetbrains-mono"
         "font-nerd-font-d2coding"))      ; Added D2Coding Nerd Font
-   (session-variables
-    '(("GTK_IM_MODULE" . "fcitx")
-      ("QT_IM_MODULE" . "fcitx")
-      ("XMODIFIERS" . "@im=fcitx")))
    (services
     (list
      (service home-zsh-service-type)
+     (service home-environment-variables-service-type
+              '(("GTK_IM_MODULE" . "fcitx")
+                ("QT_IM_MODULE" . "fcitx")
+                ("XMODIFIERS" . "@im=fcitx")))
      (service home-video-service-type)      ; For ffmpeg and v4l-utils
      ;; Add common home services here
      ))))
