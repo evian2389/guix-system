@@ -3,6 +3,7 @@
   #:use-module (gnu system)
   #:use-module (gnu system mapped-devices) ; Moved for potential order dependency
   #:use-module (gnu services)
+  #:use-module (gnu services base)
   #:use-module (gnu services audio)
   #:use-module (gnu services desktop)
   #:use-module (gnu services ssh)            ;; For openssh-service-type
@@ -19,7 +20,7 @@
                                      mapped-devices
                                      file-systems
                                      swap-devices
-                                     #:packages (packages %base-packages))
+                                     (packages %base-packages))
                                        (operating-system
                                          (host-name hostname)
                                          (timezone "Asia/Seoul")
@@ -61,7 +62,7 @@
       %base-services))
 
     (keyboard-layout (keyboard-layout "kr"))
-    (operating-system-user-accounts
+    (users
      (cons* (user-account
              (name "orka")
              (comment "Orka")

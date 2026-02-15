@@ -78,7 +78,7 @@
    (target "/boot/efi"))
 
  #:firmware
- (list linux-firmware amd-firmware)
+ (list linux-firmware amdgpu-firmware)
 
  #:mapped-devices ser8-mapped-devices
 

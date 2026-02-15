@@ -23,4 +23,5 @@
    (service home-finance-service-type)
    (service home-dotfiles-service-type
             (home-dotfiles-configuration
+             (source-directory ".")
              (directories '("config/users/orka/files")))))))
