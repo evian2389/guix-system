@@ -67,8 +67,9 @@
         (service network-manager-service-type)
         (service gnome-desktop-service-type)
         (service gdm-service-type)
-        (home-environment-service-type
-         orka-home-environment))
+        (service guix-home-service-type
+         `(("orka" ,orka-home-environment))) ;; Use the alist format
+         )
       %base-services))
 
     (keyboard-layout (keyboard-layout "kr"))
