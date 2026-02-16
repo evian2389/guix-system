@@ -94,8 +94,7 @@ sudo swapon /mnt/swap/swapfile
 export TMPDIR=/mnt/data/raynet-guix/tmp
 mkdir -p $TMPDIR
 
-export GUIX_PROFILE="/mnt/data/guix_system/env/profile"
-. "$GUIX_PROFILE/etc/profile"
+
 
 # Get the UUIDs for configuration.scm
 echo "========================================================================"
@@ -123,5 +122,6 @@ echo "========================================================================"
 # 3. BUILD YOUR SYSTEM:
 #    Once configuration.scm is updated, run:
 #    make cow-store
-#    sudo make install-system
+#    make init
+#    make install-system
 # ========================================================================
