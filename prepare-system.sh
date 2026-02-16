@@ -61,7 +61,7 @@ sudo btrfs subvolume create @home
 sudo btrfs subvolume create @gnu
 sudo btrfs subvolume create @data
 sudo btrfs subvolume create @var
-sudo btrfs subvolume create @var_log
+sudo btrfs subvolume create @var-log
 sudo btrfs subvolume create @opt
 sudo btrfs subvolume create @swap
 
@@ -81,7 +81,7 @@ sudo mount -o $BTRFS_OPTS,subvol=@home /dev/mapper/enc /mnt/home
 sudo mount -o $BTRFS_OPTS,subvol=@gnu /dev/mapper/enc /mnt/gnu
 sudo mount -o $BTRFS_OPTS,subvol=@data /dev/mapper/enc /mnt/data
 sudo mount -o $BTRFS_OPTS,subvol=@var /dev/mapper/enc /mnt/var
-sudo mount -o $BTRFS_OPTS,subvol=@var_log /dev/mapper/enc /mnt/var/log
+sudo mount -o $BTRFS_OPTS,subvol=@var-log /dev/mapper/enc /mnt/var/log
 sudo mount -o $BTRFS_OPTS,subvol=@opt /dev/mapper/enc /mnt/opt
 sudo mount -o $BTRFS_OPTS,subvol=@swap /dev/mapper/enc /mnt/swap
 
