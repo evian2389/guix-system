@@ -22,11 +22,11 @@
 ;; This is the machine-specific configuration for 'ser8'.
 ;; It inherits all the common settings from 'base-system.scm' and just
 ;; provides the details unique to this hardware.
-(define ser8-mapped-devices
-  (list (mapped-device
-         (source (uuid "672ede9b-bded-4f19-9f89-b758927e975f"))
-         (target "enc")
-         (type luks-device-mapping))))
+;(define ser8-mapped-devices
+;  (list (mapped-device
+;         (source (uuid "672ede9b-bded-4f19-9f89-b758927e975f"))
+;         (target "enc")
+;         (type luks-device-mapping))))
 
 (define btrfs-subvolumes
   (map (match-lambda
@@ -35,15 +35,16 @@
             (device (file-system-label "guixroot"))
             (mount-point mount-point)
             (type "btrfs")
-            (options (format #f "subvol=~a,compress=zstd,noatime,discard=async,space_cache=v2" subvol))
-            (dependencies ser8-mapped-devices))))
+            (flags '(no-atime))
+            (options (format #f "subvol=~a,compress=zstd,discard=async,space_cache=v2" subvol))
+            )))
        '(("@" . "/")
          ("@boot" . "/boot")
          ("@home" . "/home")
          ("@gnu"  . "/gnu")
          ("@data" . "/data")
          ("@var"  . "/var")
-         ("@var_log" . "/var/log")
+         ("@var-log" . "/var/log")
          ("@opt"  . "/opt")
          ("@swap" . "/swap"))))
 
