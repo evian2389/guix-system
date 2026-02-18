@@ -26,12 +26,28 @@
   #:use-module (nongnu packages linux)
   #:use-module (raynet-guix users orka home))
 
+(define (nonguix-substitute-service config)
+  (guix-configuration
+    (inherit config)
+    (substitute-urls
+     (append (list "https://substitutes.nonguix.org"
+                   "https://nonguix-proxy.ditigal.xyz"
+                   "https://berlin-guix.jing.rocks"
+                   "https://bordeaux-guix.jing.rocks"
+                   "https://mirrors.sjtug.sjtu.edu.cn/guix"
+                   "https://mirrors.sjtug.sjtu.edu.cn/guix-bordeaux")
+             %default-substitute-urls))
+    (authorized-keys
+     (append (list (plain-file "nonguix.pub"
+                               "(public-key (ecc (curve Ed25519) (q #C1FD53E5D4CE971933EC50C9F307AE2171A2D3B52C804642A7A35F84F3A4EA98#)))"))
+                   %default-authorized-guix-keys))))
+
 (define* (base-operating-system #:key hostname
                                  firmware
                                  bootloader
                                  ;;mapped-devices
                                  file-systems
-                                 kernel-arguments
+                                 (kernel-arguments %default-kernel-arguments)
                                  swap-devices
                                  (packages %base-packages))
   (operating-system
@@ -50,36 +66,18 @@
                   device))))
        (map device->swap-space swap-devices)))
     (firmware firmware)
-    (kernel-arguments %default-kernel-arguments)
-    (packages packages)
+    (kernel-arguments kernel-arguments)
+    (packages (cons zsh packages))
     (services
       (append
        (list (service openssh-service-type)      ;; Enable OpenSSH server
-             (service elogind-service-type)
+             (service gnome-desktop-service-type)
              ;; Add udev rules for Steam devices
              (udev-rules-service 'steam-devices steam-devices-udev-rules)
-             (service wpa-supplicant-service-type)
-             (service network-manager-service-type)
-             (service gnome-desktop-service-type)
-             (service gdm-service-type)
              (service guix-home-service-type
               `(("orka" ,orka-home-environment)))) ;; Use the alist format
-       (modify-services %base-services
-         (guix-service-type config =>
-           (guix-configuration
-             (inherit config)
-             (substitute-urls
-              (append (list "https://substitutes.nonguix.org"
-                            "https://nonguix-proxy.ditigal.xyz"
-                            "https://berlin-guix.jing.rocks"
-                            "https://bordeaux-guix.jing.rocks"
-                            "https://mirrors.sjtug.sjtu.edu.cn/guix"
-                            "https://mirrors.sjtug.sjtu.edu.cn/guix-bordeaux")
-                      %default-substitute-urls))
-             (authorized-keys
-              (append (list (plain-file "nonguix.pub"
-                                        "(public-key (ecc (curve Ed25519) (q #C1FD53E5D4CE971933EC50C9F307AE2171A2D3B52C804642A7A35F84F3A4EA98#)))"))
-                            %default-authorized-guix-keys)))))))
+       (modify-services %desktop-services
+         (guix-service-type config => (nonguix-substitute-service config)))))
 
     (keyboard-layout (keyboard-layout "kr"))
     (users
@@ -88,6 +86,7 @@
                (comment "Orka")
                (group "users")
                (home-directory "/home/orka")
+               (shell (file-append zsh "/bin/zsh")) ;; Set zsh as default login shell
                (supplementary-groups '("wheel" "netdev" "audio" "video"))
                (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0"))
               %base-user-accounts)))

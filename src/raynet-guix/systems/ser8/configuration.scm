@@ -85,7 +85,7 @@
 
 ;; This safely adds your subvolume flag to the Guix defaults
  #:kernel-arguments
- (append '("rootflags=subvol=@"))
+ (append '("rootflags=subvol=@") %default-kernel-arguments)
 
  #:bootloader
  (bootloader-configuration
