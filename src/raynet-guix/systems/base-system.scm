@@ -16,7 +16,6 @@
   #:use-module (gnu services dbus)
   #:use-module (gnu services ssh)            ;; For openssh-service-type
   #:use-module (gnu services guix)           ;; For guix-service-type
-  #:use-module (gnu services home)           ;; For guix-home-service-type
   #:use-module (guix gexp)                  ;; For plain-file
   #:use-module (guix store)
   #:use-module (gnu packages base)           ;; For libc/nscd

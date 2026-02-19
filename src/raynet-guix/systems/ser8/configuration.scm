@@ -8,6 +8,8 @@
   #:use-module (gnu packages admin)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages file-systems)
+  #:use-module (gnu packages bash)
+  #:use-module (gnu packages shells)
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages video)
   #:use-module (gnu packages vim)
@@ -79,7 +81,7 @@
                 (type "tmpfs")
                 (flags '(no-dev no-suid no-atime))
                 (check? #f)))
-      )) ;; Add %base-file-systems to the end
+   %base-file-systems)) ;; Add %base-file-systems to the end
 
 (base-operating-system
  #:hostname "ser8"
@@ -102,7 +104,8 @@
 
  #:swap-devices (list "/swap/swapfile")
 
- #:packages (append (list bluez
+ #:packages (append (list bash
+                           bluez
                            brightnessctl
                            exfatprogs
                            git
@@ -110,5 +113,6 @@
                            libva-utils
                            ntfs-3g
                            stow
-                           vim)
+                           vim
+                           zsh)
                        %base-packages))

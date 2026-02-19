@@ -92,7 +92,7 @@ mount -o nodatacow,compress=none,subvol=@swap $GUIX_ROOT_DEVICE /mnt/swap
 
 # Mount the EFI partition
 mkdir -p /mnt/boot/efi
-mount "$EFI_PARTITION" /mnt/boot/efi
+mount $EFI_PARTITION_DEVICE /mnt/boot/efi
 
 
 # Create the swapfile

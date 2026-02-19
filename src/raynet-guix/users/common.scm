@@ -38,8 +38,8 @@
     (append extra-services
             (list
              (service home-dbus-service-type)
-             (service home-pipewire-service-type)
-             (service home-zsh-service-type)
+             (service home-pipewire-service-type (home-pipewire-configuration))
+             (service home-zsh-service-type (home-zsh-configuration))
              (simple-service 'common-environment-variables
                              home-environment-variables-service-type
                              '(("GTK_IM_MODULE" . "fcitx")

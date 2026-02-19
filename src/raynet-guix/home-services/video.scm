@@ -1,4 +1,5 @@
 (define-module (raynet-guix home-services video)
+  #:use-module (gnu services)
   #:use-module (gnu packages video)
   #:use-module (gnu home services))
 
