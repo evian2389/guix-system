@@ -86,7 +86,10 @@
                 (type "tmpfs")
                 (flags '(no-dev no-suid no-atime))
                 (check? #f)))
-   %base-file-systems)) ;; Add %base-file-systems to the end
+   (filter (lambda (fs)
+             (not (member (file-system-mount-point fs)
+                          '("/" "/tmp"))))
+           %base-file-systems))) ;; Filter %base-file-systems to avoid duplicates
 
 (base-operating-system
  #:hostname "ser8"
