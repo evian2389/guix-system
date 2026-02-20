@@ -63,9 +63,7 @@ btrfs subvolume create @boot
 btrfs subvolume create @home
 btrfs subvolume create @gnu
 btrfs subvolume create @data
-btrfs subvolume create @var
 btrfs subvolume create @var-log
-btrfs subvolume create @opt
 btrfs subvolume create @swap
 
 
@@ -77,17 +75,19 @@ umount /mnt
 # Mount the subvolumes with compression
 BTRFS_OPTS="rw,noatime,compress=zstd,discard=async,space_cache=v2"
 mount -o $BTRFS_OPTS,subvol=@ $GUIX_ROOT_DEVICE /mnt
-mkdir -p /mnt/{boot,home,gnu,data,var,opt,swap}
+mkdir -p /mnt/{boot,home,gnu,data,swap}
 mount -o $BTRFS_OPTS,subvol=@boot $GUIX_ROOT_DEVICE /mnt/boot
 mount -o $BTRFS_OPTS,subvol=@home $GUIX_ROOT_DEVICE /mnt/home
 mount -o $BTRFS_OPTS,subvol=@gnu $GUIX_ROOT_DEVICE /mnt/gnu
 mount -o $BTRFS_OPTS,subvol=@data $GUIX_ROOT_DEVICE /mnt/data
-mount -o $BTRFS_OPTS,subvol=@var $GUIX_ROOT_DEVICE /mnt/var
+
+mkdir -p /mnt/data/system/var/lib
+mkdir -p /mnt/var/lib
+mount --bind /mnt/data/system/var/lib /mnt/var/lib
 
 mkdir -p /mnt/var/log
 
 mount -o $BTRFS_OPTS,subvol=@var-log $GUIX_ROOT_DEVICE /mnt/var/log
-mount -o $BTRFS_OPTS,subvol=@opt $GUIX_ROOT_DEVICE /mnt/opt
 mount -o nodatacow,compress=none,subvol=@swap $GUIX_ROOT_DEVICE /mnt/swap
 
 # Mount the EFI partition
@@ -95,8 +95,9 @@ mkdir -p /mnt/boot/efi
 mount $EFI_PARTITION_DEVICE /mnt/boot/efi
 
 
+
 # Create the swapfile
-btrfs filesystem mkswapfile --size 64g --uuid clear @swap/swapfile
+btrfs filesystem mkswapfile --size 64g --uuid clear /mnt/swap/swapfile
 
 # Activate the swapfile
 swapon /mnt/swap/swapfile
