@@ -5,15 +5,19 @@
   #:use-module (gnu packages vim)   ; neovim
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
+  #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (px packages editors)         ; for antigravity
+  #:use-module (saayix packages terminals)         ; for antigravity
   #:export (orka-manifest))
 
 (define orka-manifest
   (packages->manifest
    (list google-chrome-stable
          antigravity
+         firefox
          mpv
          helix
+         ghostty
          neovim)))
 
 orka-manifest

@@ -65,7 +65,7 @@ install-system:
 
 reconfigure-system:
 	@echo "Reconfiguring Guix System for $(DEFAULT_SYSTEM)..."
-	$(GUIX_TM) system reconfigure $(CONFIG_DIR)/systems/$(DEFAULT_SYSTEM)/configuration.scm
+	sudo $(GUIX_TM) system reconfigure $(CONFIG_DIR)/systems/$(DEFAULT_SYSTEM)/configuration.scm
 
 reconfigure-home:
 	@echo "Reconfiguring Guix Home for $(DEFAULT_USER)..."
