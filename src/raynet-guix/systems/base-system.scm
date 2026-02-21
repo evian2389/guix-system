@@ -91,6 +91,10 @@
              (service plasma-desktop-service-type)
              ;; Add udev rules for Steam devices
              (udev-rules-service 'steam-devices steam-devices-udev-rules)
+             (service subids-service-type
+                      (subids-configuration
+                       (subuids (list (subid-range (name "orka") (start 100000) (count 65536))))
+                       (subgids (list (subid-range (name "orka") (start 100000) (count 65536))))))
              (service guix-home-service-type
               `(("orka" ,orka-home-environment)))) ;; Use the alist format
        (modify-services %desktop-services

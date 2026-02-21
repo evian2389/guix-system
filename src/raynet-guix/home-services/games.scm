@@ -7,14 +7,15 @@
   #:use-module (gnu packages gl)
   #:use-module (gnu packages vulkan)
   #:use-module (gnu home services)
-  #:use-module (nongnu packages game-client))
+  #:use-module (nongnu packages game-client)
+  )
 
 ;;
 ;; Home-level service for installing the Steam package.
 ;;
 
 (define (home-games-profile-service config)
-  (list steam))
+  (list))
 
 (define-public home-games-service-type
   (service-type (name 'home-games)

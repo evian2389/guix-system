@@ -1,11 +1,14 @@
 (define-module (raynet-guix packages base-utils)
   #:use-module (gnu packages version-control)
+  #:use-module (gnu packages file-systems)
   #:use-module (gnu packages commencement)
   #:use-module (gnu packages llvm)
   #:use-module (gnu packages base)
   #:use-module (gnu packages cmake)
   #:use-module (gnu packages autotools)
   #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages package-management)
+  #:use-module (gnu packages containers)
   #:use-module (gnu packages gdb)
   #:use-module (gnu packages node)
   #:use-module (gnu packages python)
@@ -34,6 +37,11 @@
     go
     rust
     sed
+    flatpak
+    podman
+    slirp4netns
+    fuse-overlayfs
+    distrobox
     coreutils))
 
 (define system-tools

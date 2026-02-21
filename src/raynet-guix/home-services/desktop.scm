@@ -106,7 +106,8 @@
         (specification->package+output "bind" "utils")))
 
 (define (home-desktop-environment-variables config)
-  '(("_JAVA_AWT_WM_NONREPARENTING" . "1")))
+  '(("_JAVA_AWT_WM_NONREPARENTING" . "1")
+    ("XDG_DATA_DIRS" . "$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS")))
 
 (define home-desktop-service-type
   (service-type (name 'home-desktop)

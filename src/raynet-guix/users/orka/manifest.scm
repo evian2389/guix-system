@@ -11,8 +11,7 @@
 
 (define orka-manifest
   (packages->manifest
-   (list google-chrome-stable
-         antigravity
+   (list antigravity
          firefox
          mpv
          helix
