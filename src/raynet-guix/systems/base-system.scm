@@ -97,6 +97,8 @@
          (guix-service-type config => (nonguix-substitute-service config)))))
 
     (keyboard-layout (keyboard-layout "kr"))
+    (groups (cons (user-group (name "render") (system? #t))
+                  %base-groups))
     (users
       (cons* (user-account
                (name "orka")
@@ -104,7 +106,10 @@
                (group "users")
                (home-directory "/home/orka")
                (shell (file-append zsh "/bin/zsh")) ;; Set zsh as default login shell
-               (supplementary-groups '("wheel" "netdev" "audio" "video"))
+               ;; User Groups: Your user account must be part of the video and lp
+               ;; (sometimes required for specific compute tasks) groups to have
+               ;; permission to access the /dev/dri/ device files.
+               (supplementary-groups '("wheel" "netdev" "audio" "video" "render" "lp"))
                (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0"))
               %base-user-accounts)))
   )

@@ -125,7 +125,7 @@ NEXT STEPS:
 	guile -c '(use-modules (gnu home user)) (display (crypt "YOUR_PASSWORD_HERE" (make-salt)))'
 
 2. UPDATE CONFIGURATION.SCM:
-	Edit 'config/systems/ser8/configuration.scm'.
+	Edit 'src/raynet-guix/systems/ser8/configuration.scm'.
 	- Replace "YOUR_LUKS_PARTITION_UUID_HERE" with the LUKS UUID printed above.
 	- Replace "YOUR_EFI_PARTITION_UUID_HERE" with the UUID of your EFI partition (e.g., from 'blkid /dev/sda1').
 	- Replace "YOUR_PASSWORD_HASH_HERE" with the hash you generated in step 1.

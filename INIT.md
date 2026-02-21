@@ -21,6 +21,11 @@ https://fedoramagazine.org/working-with-btrfs-general-concepts/
 guix shell parted git make #btrfs-progfs
 sudo parted -l
 DISK=/dev/sda
+
+# Note: Your user account must be part of the video and lp (sometimes required
+# for specific compute tasks) groups to have permission to access the /dev/dri/
+# device files. This is already configured for the 'orka' user in base-system.scm.
+
 # or
 # DISK=/dev/nvme0n1
 sudo parted $DISK
@@ -55,9 +60,7 @@ sudo btrfs subvolume create @boot
 sudo btrfs subvolume create @home
 sudo btrfs subvolume create @gnu
 sudo btrfs subvolume create @data
-sudo btrfs subvolume create @var
-sudo btrfs subvolume create @var_log
-sudo btrfs subvolume create @opt
+sudo btrfs subvolume create @var-log
 sudo btrfs subvolume create @swap
 
 # Create the swapfile
@@ -70,15 +73,20 @@ sudo umount /mnt
 # Mount the subvolumes with compression
 BTRFS_OPTS="rw,noatime,compress=zstd,discard=async,space_cache=v2"
 sudo mount -o $BTRFS_OPTS,subvol=@ /dev/mapper/enc /mnt
-sudo mkdir -p /mnt/{boot,home,gnu,data,var,var/log,opt,swap}
+sudo mkdir -p /mnt/{boot,home,gnu,data,swap}
 sudo mount -o $BTRFS_OPTS,subvol=@boot /dev/mapper/enc /mnt/boot
 sudo mount -o $BTRFS_OPTS,subvol=@home /dev/mapper/enc /mnt/home
 sudo mount -o $BTRFS_OPTS,subvol=@gnu /dev/mapper/enc /mnt/gnu
 sudo mount -o $BTRFS_OPTS,subvol=@data /dev/mapper/enc /mnt/data
-sudo mount -o $BTRFS_OPTS,subvol=@var /dev/mapper/enc /mnt/var
-sudo mount -o $BTRFS_OPTS,subvol=@var_log /dev/mapper/enc /mnt/var/log
-sudo mount -o $BTRFS_OPTS,subvol=@opt /dev/mapper/enc /mnt/opt
-sudo mount -o $BTRFS_OPTS,subvol=@swap /dev/mapper/enc /mnt/swap
+
+# Persist all system data to data partition via bind mount
+sudo mkdir -p /mnt/data/system/var/lib
+sudo mkdir -p /mnt/var/lib
+sudo mount --bind /mnt/data/system/var/lib /mnt/var/lib
+
+sudo mkdir -p /mnt/var/log
+sudo mount -o $BTRFS_OPTS,subvol=@var-log /dev/mapper/enc /mnt/var/log
+sudo mount -o nodatacow,compress=none,subvol=@swap /dev/mapper/enc /mnt/swap
 
 # Mount the EFI partition
 sudo mkdir -p /mnt/boot/efi
@@ -98,14 +106,19 @@ sudo blkid -s UUID -o value /dev/mapper/enc
 # The user wants to keep the following commands as part of the guide
 # Note: The 'mkdir' command below is redundant as the directories are
 # already created by 'mkdir -p' above.
-mkdir {boot,boot/efi,home,gnu,data,var,var/log,opt,swap}
+# mkdir {boot,boot/efi,home,gnu,data,var,var/log,opt,swap}
 
-herd start cow-store /mnt
+# IMPORTANT: Remove existing Guix EFI directory if it exists on the EFI partition
+# to avoid conflicts during installation.
+# rm -rf /mnt/boot/efi/EFI/Guix
+
+make cow-store
 
 # to write intermediate build results to actual drive
 # instead of r/o or in-memory fs
-export TMPDIR=/mnt/data/rde/tmp
+export TMPDIR=/mnt/data/raynet-guix/tmp
 mkdir -p $TMPDIR
 
-make ser8/system/init
+make init
+make install-system
 #+end_src

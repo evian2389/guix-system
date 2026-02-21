@@ -15,6 +15,8 @@
   #:use-module (gnu packages vim)
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gl)
+  #:use-module (gnu packages vulkan)
   #:use-module (nongnu packages linux)
   #:use-module (nongnu packages firmware)
   #:use-module (srfi srfi-1)                 ;; For 'filter'
@@ -119,6 +121,10 @@
                            git
                            gvfs    ;; Enable user mounts
                            libva-utils
+                           mesa
+                           mesa-utils
+                           vulkan-loader
+                           vulkan-tools
                            ntfs-3g
                            stow
                            vim

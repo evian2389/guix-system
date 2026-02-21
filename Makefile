@@ -97,10 +97,8 @@ clean:
 	@echo "Clean complete."
 
 # Helper for loading modules (for `guix lint`, `guix edit`, etc.)
-# Usage: make -C config/modules GUILD_PATH_DIR=$(PWD)
-# export GUILD_PATH=$$GUILD_PATH:$(abspath config/modules)
-# Example: guix lint --load-path=$(CONFIG_DIR)/modules $(CONFIG_DIR)/users/$(DEFAULT_USER)/home.scm
-# guix lint -L $(CONFIG_DIR)/modules $(CONFIG_DIR)/users/$(DEFAULT_USER)/home.scm
+# Usage:
+# guix lint -L $(SRC_DIR) $(CONFIG_DIR)/users/$(DEFAULT_USER)/home.scm
 
 
 # --- Generalized Targets (from provided config, adapted) ---

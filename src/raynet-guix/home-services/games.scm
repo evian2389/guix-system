@@ -4,6 +4,8 @@
   #:use-module (gnu services)
   #:use-module (gnu services base)
   #:use-module (gnu packages games)
+  #:use-module (gnu packages gl)
+  #:use-module (gnu packages vulkan)
   #:use-module (gnu home services)
   #:use-module (nongnu packages game-client))
 
