@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=vsclient (on ubuntu)
+Exec=/home/orka/.guix-home/profile/bin/distrobox-enter  -n ubuntu  --   /opt/VD-i/bin/vsclient %u 
+Icon=vsclient
+StartupNotify=false
+MimeType=x-scheme-handler/vdivsclient;
+StartupWMClass=vsclient
