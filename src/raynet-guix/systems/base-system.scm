@@ -29,6 +29,7 @@
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (nongnu packages linux)
+  #:use-module (saayix packages terminals)         ; for ghostty
   #:use-module (raynet-guix users orka home))
 
 (define (nonguix-substitute-service config)
@@ -80,7 +81,8 @@
                         font-un
                         texlive-baekmuk
                         zsh
-			                  alacritty)
+			                  alacritty
+                        ghostty)
                   packages))
 
     (services

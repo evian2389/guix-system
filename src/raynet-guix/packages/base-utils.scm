@@ -14,6 +14,7 @@
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages wm)
   #:use-module (gnu packages linux)
+  #:use-module (saayix packages terminals)         ; for ghostty
   #:export (development-tools
             system-tools))
 
@@ -38,6 +39,7 @@
 (define system-tools
   (list
     fd
+    ghostty
     zoxide
     ripgrep
     dunst

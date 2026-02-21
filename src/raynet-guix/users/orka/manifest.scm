@@ -7,7 +7,6 @@
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (px packages editors)         ; for antigravity
-  #:use-module (saayix packages terminals)         ; for antigravity
   #:export (orka-manifest))
 
 (define orka-manifest
@@ -17,7 +16,6 @@
          firefox
          mpv
          helix
-         ghostty
          neovim)))
 
 orka-manifest
