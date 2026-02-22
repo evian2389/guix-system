@@ -18,6 +18,7 @@
 
 (define (home-emacs-config-profile-service config)
   (list
+   emacs-helix
    emacs-next-pgtk
    emacs-tmr
    emacs-buffer-env
@@ -104,15 +105,12 @@
 
    emacs-keycast
 
-   emacs-obs-websocket-el
-
    emacs-a
    emacs-request
 
    ;; TODO: Move to mail profile
    isync
-   mu
-   emacs-mu4e-alert
+   emacs-notmuch
 
    emacs-eat
    emacs-esh-autosuggest
@@ -134,7 +132,7 @@
 
    emacs-daemons
 
-   emacs-pulseaudio-control
+   ;;emacs-epwgraph
 
    emacs-docker
    emacs-dockerfile-mode))

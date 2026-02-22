@@ -6,7 +6,7 @@
   #:use-module (gnu home services dotfiles)
   #:use-module (raynet-guix users common)
   #:use-module (raynet-guix home-services games)      ; For home-steam-service-type
-  #:use-module (raynet-guix home-services emacs)      ; For home-emacs-config-service-type
+  ;#:use-module (raynet-guix home-services emacs)      ; For home-emacs-config-service-type
   #:use-module (raynet-guix home-services finance)    ; For home-finance-service-type
   #:use-module (srfi srfi-1)
   #:use-module (guix utils)

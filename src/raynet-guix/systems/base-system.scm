@@ -14,11 +14,13 @@
   #:use-module (gnu services xorg)
   #:use-module (gnu services networking)
   #:use-module (gnu services dbus)
+  #:use-module (gnu services nix)
   #:use-module (gnu services ssh)            ;; For openssh-service-type
   #:use-module (gnu services guix)           ;; For guix-service-type
   #:use-module (guix gexp)                  ;; For plain-file
   #:use-module (guix store)
   #:use-module (gnu packages base)           ;; For libc/nscd
+  #:use-module (gnu packages gnupg)           ;; For libc/nscd
   #:use-module (gnu packages shells)         ;; For zsh
   #:use-module (gnu packages linux)
   #:use-module (gnu packages fonts)
@@ -73,7 +75,10 @@
        (map device->swap-space swap-devices)))
     (firmware firmware)
     (kernel-arguments kernel-arguments)
-    (packages (append (list font-jetbrains-mono
+    (packages (append (list
+                        gnupg
+                        gpgme
+                        font-jetbrains-mono
                         font-gnu-unifont
                         font-dejavu
                         font-liberation
@@ -87,7 +92,9 @@
 
     (services
       (append
-       (list (service openssh-service-type)      ;; Enable OpenSSH server
+       (list
+             (service openssh-service-type)      ;; Enable OpenSSH server
+             (service nix-service-type)      ;; Nix
              (service plasma-desktop-service-type)
              ;; Add udev rules for Steam devices
              (udev-rules-service 'steam-devices steam-devices-udev-rules)
@@ -101,8 +108,9 @@
          (guix-service-type config => (nonguix-substitute-service config)))))
 
     (keyboard-layout (keyboard-layout "kr"))
-    (groups (cons (user-group (name "render") (system? #t))
-                  %base-groups))
+    (groups (cons* (user-group (name "render") (system? #t))
+                   (user-group (name "nix-users") (system? #t))
+                   %base-groups))
     (users
       (cons* (user-account
                (name "orka")
@@ -113,7 +121,7 @@
                ;; User Groups: Your user account must be part of the video and lp
                ;; (sometimes required for specific compute tasks) groups to have
                ;; permission to access the /dev/dri/ device files.
-               (supplementary-groups '("wheel" "netdev" "audio" "video" "render" "lp"))
+               (supplementary-groups '("wheel" "netdev" "audio" "video" "render" "lp" "nix-users"))
                (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0"))
               %base-user-accounts)))
   )

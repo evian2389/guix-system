@@ -1,0 +1,1 @@
+/gnu/store/71ndfaa28kfw3l2b2ikxfja1l2zbgf5f-zshenv

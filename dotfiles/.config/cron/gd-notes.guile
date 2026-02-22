@@ -1,0 +1,7 @@
+(job '(next-minute (range 0 60 30))
+     "rclone sync ~/notes/ gd-notes:notes")
+;;(job '(next-minute (range 0 60 30))
+      ;; (lambda ()
+      ;;   (system* "rclone sync ~/notes/ gd-notes:notes")
+      ;;   )
+      ;; "sync-gd-notes")

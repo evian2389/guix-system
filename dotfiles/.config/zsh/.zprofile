@@ -1,0 +1,1 @@
+/gnu/store/mga6x537sw8dnzzr534h0snvay63z6wn-zprofile

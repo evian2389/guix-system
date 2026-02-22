@@ -71,6 +71,7 @@ reconfigure-home:
 	@echo "Reconfiguring Guix Home for $(DEFAULT_USER)..."
 	$(GUIX_TM) home reconfigure $(CONFIG_DIR)/users/$(DEFAULT_USER)/home.scm
 	$(MAKE) install-user-packages
+	stow dotfiles
 
 install-user-packages:
 	@echo "Installing extra packages for user $(DEFAULT_USER)..."
