@@ -3,7 +3,7 @@
   #:use-module (gnu packages video)         ; for mpv
   #:use-module (gnu packages text-editors)   ; for helix
   #:use-module (gnu packages vim)   ; neovim
-  #:use-module (gnu packages emacs)   ; neovim
+  #:use-module (gnu packages emacs)   ; emacs
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox

@@ -141,11 +141,11 @@
   "Configuration modules most commonly used across my machines.")
 
 ;; Add configuration modules to load path
-(add-to-list 'load-path '"~/.dotfiles/emacs/modules")
+(add-to-list 'load-path '"~/guix-system/emacs/modules")
 
 ;; Load system-specific configuration
 (let ((config-path
-       (format "~/.dotfiles/emacs/systems/%s.el" system-name)))
+       (format "~/guix-system/emacs/systems/%s.el" system-name)))
   (if (file-exists-p config-path)
       (load-file config-path)
     (message "No per-system configuration found for %s!" system-name)))

@@ -61,7 +61,7 @@
   (operating-system
     (host-name hostname)
     (timezone "Asia/Seoul")
-    (locale "ko_KR.utf8")
+    (locale "en_US.utf8")
     (kernel linux)
     (bootloader bootloader)
     ;;(mapped-devices mapped-devices)

@@ -17,13 +17,11 @@
   #:use-module (gnu packages ocaml)
   #:use-module (gnu packages rust)
   #:use-module (gnu packages rust-apps)
-  #:use-module (gnu packages emacs)
   #:use-module (gnu packages wm)
   #:use-module (gnu packages video)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages text-editors)   ; for helix
   #:use-module (gnu packages vim)   ; neovim
-  #:use-module (gnu packages emacs)   ; neovim
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
@@ -70,7 +68,6 @@
     broot
     yazi
     ghostty
-    emacs
     zoxide
     ripgrep
     dunst
