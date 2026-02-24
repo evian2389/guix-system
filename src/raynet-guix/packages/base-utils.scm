@@ -22,7 +22,11 @@
   #:use-module (gnu packages linux)
   #:use-module (gnu packages text-editors)   ; for helix
   #:use-module (gnu packages vim)   ; neovim
-  #:use-module (abbe packages neovim)        ; for neovim
+  #:use-module (gnu packages shells) ; For shell utils
+  #:use-module (gnu packages shellutils) ; For shell utils
+  #:use-module (gnu packages terminals) ; For terminal utils
+  #:use-module (gnu packages emacs)   ; neovim
+  #:use-module (gnu packages web-browsers)     ; for qutebrowser
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (px packages editors)         ; for antigravity
@@ -30,6 +34,7 @@
   #:use-module (saayix packages terminals)         ; for ghostty
   #:use-module (saayix packages file-managers)         ; for ghostty
   #:use-module (abbe packages zsh)         ; for ghostty
+  #:use-module (abbe packages neovim)        ; for neovim
   #:export (development-tools
             system-tools))
 
@@ -65,6 +70,9 @@
   (list
     fd
     eza
+    bat
+    fzf-tab  ; for default completion menu of the zsh
+    fzf
     broot
     yazi
     ghostty
@@ -75,8 +83,12 @@
     ;;google-chrome-stable
     firefox
     mpv
+    yt-dlp
+    zsh
     helix
     neovim
+    emacs
     antigravity
     powerlevel-10k
+    qutebrowser
     ))

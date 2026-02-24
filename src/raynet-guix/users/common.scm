@@ -9,8 +9,11 @@
   #:use-module (gnu packages admin) ; For htop
   #:use-module (gnu packages version-control) ; For git
   #:use-module (gnu packages shells) ; For zsh
+  #:use-module (gnu packages shellutils) ; For shell utils
+  #:use-module (gnu packages terminals) ; For terminal utils
   #:use-module (gnu packages fonts) ; For Google Noto CJK fonts
   #:use-module (gnu packages rust)
+  #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages video)
   #:use-module (raynet-guix home-services video)      ; For home-video-service-type
   #:use-module (selected-guix-works packages fonts) ; For font-nerd-fonts-jetbrains-mono
@@ -24,8 +27,6 @@
   (list
    htop
    fastfetch
-   zsh
-   mpv
    xdg-utils
    desktop-file-utils
    fcitx5
@@ -53,9 +54,9 @@
              (simple-service 'common-environment-variables
                              home-environment-variables-service-type
                              '(("XMODIFIERS" . "@im=fcitx")
-                               ("GTK_IM_MODULE" . "fcitx")
-                               ("QT_IM_MODULE" . "fcitx")
-                               ("SDL_IM_MODULE" . "fcitx")
+                               ;;("GTK_IM_MODULE" . "fcitx")
+                               ;;("QT_IM_MODULE" . "fcitx")
+                               ;;("SDL_IM_MODULE" . "fcitx")
                                ("XDG_DATA_DIRS" . "$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$HOME/.local/share:$XDG_DATA_DIRS")
                                ;; Best setup for KDE Plasma 5.27+ Wayland:
                                ;; Do not set GTK_IM_MODULE, QT_IM_MODULE, or SDL_IM_MODULE.

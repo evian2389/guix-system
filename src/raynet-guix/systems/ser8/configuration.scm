@@ -106,7 +106,7 @@
    (targets '("/boot/efi")))
 
  #:firmware
- (list linux-firmware amdgpu-firmware)
+ (list linux-firmware amdgpu-firmware amd-microcode)
 
  ;;#:mapped-devices ser8-mapped-devices
 

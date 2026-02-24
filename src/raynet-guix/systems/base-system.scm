@@ -20,11 +20,15 @@
   #:use-module (guix gexp)                  ;; For plain-file
   #:use-module (guix store)
   #:use-module (gnu packages base)           ;; For libc/nscd
+  #:use-module (gnu packages file-systems)
+  #:use-module (gnu packages admin)           ;; lynis
   #:use-module (gnu packages gnupg)           ;; For libc/nscd
   #:use-module (gnu packages shells)         ;; For zsh
   #:use-module (gnu packages linux)
   #:use-module (gnu packages fonts)
+  #:use-module (gnu packages ncdu)           ;;ncdu
   #:use-module (gnu packages terminals)
+  #:use-module (gnu packages kde-plasma)
   #:use-module (gnu packages tex)
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
   #:use-module (raynet-guix home-services games)
@@ -76,6 +80,13 @@
     (firmware firmware)
     (kernel-arguments kernel-arguments)
     (packages (append (list
+                        btrfs-progs
+                        fuse-exfat
+                        exfat-utils
+                        exfatprogs
+                        lynis
+                        btop
+                        ncdu
                         gnupg
                         gpgme
                         font-jetbrains-mono
@@ -86,8 +97,11 @@
                         font-un
                         texlive-baekmuk
                         zsh
-			                  alacritty
-                        ghostty)
+                        alacritty
+                        ghostty
+                        rfkill
+                        bluedevil
+                        )
                   packages))
 
     (services
@@ -103,7 +117,10 @@
                        (subuids (list (subid-range (name "orka") (start 100000) (count 65536))))
                        (subgids (list (subid-range (name "orka") (start 100000) (count 65536))))))
              (service guix-home-service-type
-              `(("orka" ,orka-home-environment)))) ;; Use the alist format
+              `(("orka" ,orka-home-environment))) ;; Use the alist format
+             (service bluetooth-service-type
+                      (bluetooth-configuration
+                       (auto-enable? #t))))
        (modify-services %desktop-services
          (guix-service-type config => (nonguix-substitute-service config)))))
 
