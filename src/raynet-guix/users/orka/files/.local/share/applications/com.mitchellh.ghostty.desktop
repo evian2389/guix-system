@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+TryExec=ghostty
+Exec=ghostty
+Terminal=false
+Categories=System;TerminalEmulator;
+
+Name=Ghostty
+GenericName=Terminal
+Comment=A fast, feature-rich, GPU-accelerated terminal emulator
+Icon=com.mitchellh.ghostty
+StartupWMClass=com.mitchellh.ghostty

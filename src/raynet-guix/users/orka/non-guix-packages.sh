@@ -6,8 +6,7 @@ set -e
 
 echo "Installing/Updating Nix packages..."
 if command -v nix-env &> /dev/null; then
-    # anyrun and hyprlax are available in nixpkgs
-    nix-env -iA nixpkgs.anyrun
+    # hyprlax is available in nixpkgs
     nix-env -iA nixpkgs.hyprlax
 else
     echo "Warning: nix-env not found. Skipping Nix packages."

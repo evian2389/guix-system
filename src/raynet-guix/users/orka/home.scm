@@ -11,6 +11,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (guix utils)
   #:use-module (raynet-guix packages base-utils)
+  #:use-module (raynet-guix users common)
   #:export (orka-home-environment))
 
 (define orka-extra-packages

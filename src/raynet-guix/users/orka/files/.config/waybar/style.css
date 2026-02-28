@@ -41,9 +41,14 @@ window#waybar {
 #memory, 
 #tray, 
 #privacy,
+#custom-fcitx5,
 #custom-notification {
     padding: 0 10px;
     margin: 0 2px;
+}
+
+#custom-fcitx5 {
+    color: #bd93f9;
 }
 
 #cpu.warning, #memory.warning {

@@ -33,11 +33,13 @@
   #:use-module (gnu packages image-viewers) ; For imv
   #:use-module (gnu packages emacs)   ; neovim
   #:use-module (gnu packages web-browsers)     ; for qutebrowser
+  #:use-module (gnu packages networking)     ; for blueman
   #:use-module (gnu packages compression)     ; pixz
   #:use-module (gnu packages xdisorg)     ; pixz
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (px packages editors)         ; for antigravity
+  #:use-module (px packages vm)         ; iron bar
   #:use-module (px packages version-control)         ; for git hub cli
   #:use-module (px packages tools)         ; for antigravity
   #:use-module (saayix packages terminals)         ; for ghostty
@@ -69,6 +71,7 @@
     clang-toolchain
     binutils
     cmake
+    ;make
     autoconf
     pkg-config
     patch
@@ -112,7 +115,7 @@
     dunst
     sshfs
     pixz
-    ;;google-chrome-stable
+    google-chrome-stable
     firefox
     mpv
     yt-dlp
@@ -123,4 +126,6 @@
     antigravity
     powerlevel-10k
     qutebrowser
+    blueman
+    ;;ironbar
     ))

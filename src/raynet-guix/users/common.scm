@@ -15,12 +15,14 @@
   #:use-module (gnu packages rust)
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages video)
+  #:use-module (nongnu packages chrome)
   #:use-module (raynet-guix home-services video)      ; For home-video-service-type
   #:use-module (raynet-guix home-services niri)
   #:use-module (selected-guix-works packages fonts) ; For font-nerd-fonts-jetbrains-mono
   #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding
   #:use-module (gnu services)
   #:use-module (guix gexp) ; For define*
+  #:use-module (ice-9 optargs)
   #:export (common-home-environment
             extra-packages))
 
@@ -39,6 +41,7 @@
    font-google-noto-serif-cjk
    font-nerd-font-d2coding
    font-nerd-font-jetbrainsmono
+   zsh-autosuggestions
    ))
 
 (define* (common-home-environment #:key (extra-packages extra-packages) (extra-services '()))
@@ -51,7 +54,8 @@
              (service home-pipewire-service-type (home-pipewire-configuration))
              (simple-service 'common-environment-variables
                              home-environment-variables-service-type
-                             '(("XMODIFIERS" . "@im=fcitx")
+                             '(("PATH" . "$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.npm-packages/bin:$HOME/.config/emacs/bin/:$HOME/.nix-profile/bin")
+                               ("XMODIFIERS" . "@im=fcitx")
                                ;;("GTK_IM_MODULE" . "fcitx")
                                ;;("QT_IM_MODULE" . "fcitx")
                                ;;("SDL_IM_MODULE" . "fcitx")
@@ -65,6 +69,35 @@
                       `(("google-chrome-flags.conf"
                          ,(plain-file "google-chrome-flags.conf"
                                       "--enable-features=UseOzonePlatform\n--ozone-platform=wayland\n--enable-wayland-ime\n"))))
+             (simple-service 'source-extra-profiles
+                             home-shell-profile-service-type
+                             (list
+                              (plain-file "extra-profiles"
+                                          "\
+# Source home profile
+if [ -f \"$HOME/.guix-home/profile/etc/profile\" ]; then
+  source \"$HOME/.guix-home/profile/etc/profile\"
+fi
+
+# Source system environment profile
+GUIX_PROFILE=\"/home/orka/guix-system/env/profile\"
+if [ -d \"$GUIX_PROFILE\" ]; then
+  source \"$GUIX_PROFILE/etc/profile\"
+fi
+
+# Source extra user profile
+GUIX_PROFILE_EXTRA=\"$HOME/.guix-profiles/orka-extra\"
+if [ -f \"$GUIX_PROFILE_EXTRA/etc/profile\" ]; then
+  source \"$GUIX_PROFILE_EXTRA/etc/profile\"
+fi
+
+# Source default user profile
+GUIX_PROFILE=\"$HOME/.guix-profile\"
+if [ -f \"$GUIX_PROFILE/etc/profile\" ]; then
+  source \"$GUIX_PROFILE/etc/profile\"
+fi
+unset GUIX_PROFILE
+")))
              (service home-video-service-type)      ; For ffmpeg and v4l-utils
              (service home-niri-service-type)
              ;; Add common home services here

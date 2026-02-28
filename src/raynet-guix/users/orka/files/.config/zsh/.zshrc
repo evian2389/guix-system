@@ -3,7 +3,7 @@
   # confirmations, etc.) must go above this block; everything else may go below.
   #
   ##############GUIX##########
-  
+
   # Source home profile
   if [ -f "$HOME/.guix-home/profile/etc/profile" ]; then
     source "$HOME/.guix-home/profile/etc/profile"
@@ -21,8 +21,14 @@
   if [ -f "$GUIX_PROFILE_EXTRA/etc/profile" ]; then
     source "$GUIX_PROFILE_EXTRA/etc/profile"
   fi
-  
-  
+
+  GUIX_PROFILE="$HOME/.guix-profile"
+  if [ -f "$GUIX_PROFILE/etc/profile" ]; then
+     source "$GUIX_PROFILE/etc/profile"
+  fi
+  unset GUIX_PROFILE
+
+
   #export GTK_IM_MODULE=fcitx
   #export QT_IM_MODULE=fcitx
   export XMODIFIERS=@im=fcitx
@@ -38,6 +44,48 @@
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 source ~/powerlevel10k/powerlevel10k.zsh-theme
+
+  # Enable Vi mode
+  bindkey -v
+  export KEYTIMEOUT=1
+
+  # Change cursor shape for different vi modes
+  function zle-keymap-select {
+    if [[ ${KEYMAP} == vicmd ]] || [[ $1 = 'block' ]]; then
+      echo -ne '\e[1 q' # Block
+    elif [[ ${KEYMAP} == main ]] || [[ ${KEYMAP} == viins ]] || [[ ${KEYMAP} == "" ]] || [[ $1 = 'beam' ]]; then
+      echo -ne '\e[5 q' # Beam
+    fi
+  }
+  zle -N zle-keymap-select
+  _fix_cursor() { echo -ne '\e[5 q' } # Start with beam
+  precmd_functions+=(_fix_cursor)
+
+  # Keybindings for autosuggestions in Vi mode
+  # In Vi mode, we need to ensure right-arrow and Ctrl+F still work to accept suggestions
+  bindkey -M viins '^f' vi-forward-word
+  bindkey -M vicmd '^f' vi-forward-word
+
+  # History configuration
+  HISTFILE=$HOME/.config/zsh/.histfile
+  HISTSIZE=10000
+  SAVEHIST=10000
+  setopt appendhistory
+  setopt sharehistory
+  setopt hist_ignore_dups
+  setopt hist_ignore_space
+
+  # Autosuggestions (installed via Guix)
+  if [ -f "$HOME/.guix-home/profile/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]; then
+    source "$HOME/.guix-home/profile/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+  elif [ -f "/run/current-system/profile/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]; then
+    source "/run/current-system/profile/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+  fi
+
+  # Keybindings for autosuggestions
+  # Right arrow or Ctrl+F to accept full suggestion
+  # Alt+Right arrow to accept one word
+  bindkey '^f' vi-forward-word
 
   #################
   # nix

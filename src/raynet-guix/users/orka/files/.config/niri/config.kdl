@@ -1,8 +1,11 @@
 // Niri configuration file (KDL)
 
 // --- Startup Services ---
+spawn-at-startup "fcitx5" "-d"
 spawn-at-startup "waybar"
-spawn-at-startup "~/.nix-profile/bin/hyprlax" "-i" "~/.config/niri/wallpaper.jpg"
+spawn-at-startup "swww-daemon"
+spawn-sh-at-startup "swww img ~/.config/niri/wallpaper.jpg"
+spawn-sh-at-startup "~/.nix-profile/bin/hyprlax -i ~/.config/niri/wallpaper.jpg"
 spawn-at-startup "swaync"
 
 // --- General Settings ---
@@ -60,6 +63,10 @@ layout {
         inactive-color "#414868"
     }
 
+    border {
+        off
+    }
+
     insert-hint {
         color "#7aa2f7"
     }
@@ -104,14 +111,14 @@ binds {
     // Shortcuts Panel
     Mod+Shift+Slash { show-hotkey-overlay; }
 
-    // Launcher: Anyrun (Nix install)
-    Mod+D hotkey-overlay-title="App Launcher: Anyrun" { spawn "/home/orka/.nix-profile/bin/anyrun"; }
-    // Fallback: Fuzzel
-    Mod+Shift+D hotkey-overlay-title="App Launcher: Fuzzel" { spawn "fuzzel"; }
+    // Launcher: Fuzzel (Guix home)
+    Mod+D hotkey-overlay-title="App Launcher: Fuzzel" { spawn "fuzzel"; }
     
     // Standard Niri Controls
     Mod+Q hotkey-overlay-title="Close Window" { close-window; }
-    Mod+Return hotkey-overlay-title="Open Terminal" { spawn "ghostty"; } 
+    //Mod+Return hotkey-overlay-title="Open Terminal" { spawn "/home/orka/.guix-home/profile/bin/ghostty"; }
+    Mod+Return hotkey-overlay-title="Open Terminal: Ghostty" { spawn "ghostty"; }
+    Mod+Ctrl+Return hotkey-overlay-title="Open Terminal: Ghostty" { spawn "alacritty"; }
     Mod+Shift+E hotkey-overlay-title="Quit Niri" { quit; }
     
     // Navigation

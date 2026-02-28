@@ -36,7 +36,7 @@
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (nongnu packages linux)
-  #:use-module (raynet-guix packages base-utils))
+  #:use-module (saayix packages terminals))
 
 (define (nonguix-substitute-service config)
   (guix-configuration
@@ -99,7 +99,7 @@
                         texlive-baekmuk
                         zsh
                         alacritty
-                        ghostty-fixed
+                        ghostty
                         niri
                         rfkill
                         bluedevil
