@@ -2,7 +2,7 @@
 
 // --- Startup Services ---
 spawn-at-startup "waybar"
-spawn-at-startup "/home/orka/.nix-profile/bin/hyprlax" "/home/orka/.config/niri/wallpaper.jpg"
+spawn-at-startup "~/.nix-profile/bin/hyprlax" "-i" "~/.config/niri/wallpaper.jpg"
 spawn-at-startup "swaync"
 
 // --- General Settings ---

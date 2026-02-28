@@ -69,11 +69,11 @@ reconfigure-system:
 
 reconfigure-home:
 	@echo "Reconfiguring Guix Home for $(DEFAULT_USER)..."
-	stow -d $(CONFIG_DIR)/users/$(DEFAULT_USER) -t $(HOME) files
 	$(GUIX_TM) home reconfigure $(CONFIG_DIR)/users/$(DEFAULT_USER)/home.scm
 	$(MAKE) install-user-packages
 	chmod +x $(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh
 	$(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh
+	stow -d $(CONFIG_DIR)/users/$(DEFAULT_USER) -t $(HOME) files
 
 install-user-packages:
 	@echo "Installing extra packages for user $(DEFAULT_USER)..."

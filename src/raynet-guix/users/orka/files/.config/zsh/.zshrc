@@ -4,8 +4,16 @@
   #
   ##############GUIX##########
   
+  # Source home profile
+  if [ -f "$HOME/.guix-home/profile/etc/profile" ]; then
+    source "$HOME/.guix-home/profile/etc/profile"
+  fi
+
+  # Source system environment profile if it exists
   GUIX_PROFILE="/home/orka/guix-system/env/profile"
-  source "$GUIX_PROFILE/etc/profile"
+  if [ -d "$GUIX_PROFILE" ]; then
+    source "$GUIX_PROFILE/etc/profile"
+  fi
   #unset GUIX_PROFILE
   
   # 추가 프로필 (예: 개인용 도구)
@@ -26,6 +34,11 @@
   
   
   export PATH=$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:~/.cargo/bin:~/.npm-packages/bin:~/.config/emacs/bin/:~/.nix-profile/bin
+
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+source ~/powerlevel10k/powerlevel10k.zsh-theme
+
   #################
   # nix
   if [ -e ~/.nix-profile/etc/profile.d/nix.sh ]; then
@@ -37,9 +50,6 @@
     source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
   fi
 
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-source ~/powerlevel10k/powerlevel10k.zsh-theme
   
  # source $HOME/dotfiles/config/zsh/cachyos-config.zsh
   
@@ -70,10 +80,9 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   gpg-connect-agent updatestartuptty /bye >/dev/null
   
   alias em="emacs -nw"
-  alias ls="eza -al --color=always --group-directories-first --icons"
   alias tree="eza --tree -a --icons"
   alias la='eza -a --color=always --group-directories-first --icons'
-  alias ll='eza -l --color=always --group-directories-first --icons'
+  alias ll='eza -al --color=always --group-directories-first --icons'
   alias lt='eza -aT --color=always --group-directories-first --icons'
   
   # Navigation
