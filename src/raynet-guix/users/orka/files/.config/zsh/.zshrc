@@ -36,6 +36,10 @@
   if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
     source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
   fi
+
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+source ~/powerlevel10k/powerlevel10k.zsh-theme
   
  # source $HOME/dotfiles/config/zsh/cachyos-config.zsh
   
@@ -125,9 +129,6 @@
 
 source /home/orka/.config/broot/launcher/bash/br
 
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-source ~/powerlevel10k/powerlevel10k.zsh-theme
 
 # To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
