@@ -10,7 +10,6 @@
   #:use-module (raynet-guix home-services finance)    ; For home-finance-service-type
   #:use-module (srfi srfi-1)
   #:use-module (guix utils)
-  #:use-module (raynet-guix users common)
   #:use-module (raynet-guix packages base-utils)
   #:export (orka-home-environment))
 

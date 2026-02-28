@@ -1,0 +1,5 @@
+# nirinit session manager config
+save_interval = 300
+
+[skip]
+apps = ["steam", "gamescope"]

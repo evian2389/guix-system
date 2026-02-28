@@ -28,6 +28,7 @@
   #:use-module (gnu packages fonts)
   #:use-module (gnu packages ncdu)           ;;ncdu
   #:use-module (gnu packages terminals)
+  #:use-module (gnu packages wm)
   #:use-module (gnu packages kde-plasma)
   #:use-module (gnu packages tex)
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
@@ -35,8 +36,7 @@
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (nongnu packages linux)
-  #:use-module (saayix packages terminals)         ; for ghostty
-  #:use-module (raynet-guix users orka home))
+  #:use-module (raynet-guix packages base-utils))
 
 (define (nonguix-substitute-service config)
   (guix-configuration
@@ -61,7 +61,8 @@
                                  file-systems
                                  (kernel-arguments %default-kernel-arguments)
                                  swap-devices
-                                 (packages %base-packages))
+                                 (packages %base-packages)
+                                 (home-environment #f))
   (operating-system
     (host-name hostname)
     (timezone "Asia/Seoul")
@@ -98,7 +99,8 @@
                         texlive-baekmuk
                         zsh
                         alacritty
-                        ghostty
+                        ghostty-fixed
+                        niri
                         rfkill
                         bluedevil
                         )
@@ -116,11 +118,13 @@
                       (subids-configuration
                        (subuids (list (subid-range (name "orka") (start 100000) (count 65536))))
                        (subgids (list (subid-range (name "orka") (start 100000) (count 65536))))))
-             (service guix-home-service-type
-              `(("orka" ,orka-home-environment))) ;; Use the alist format
              (service bluetooth-service-type
                       (bluetooth-configuration
                        (auto-enable? #t))))
+       (if home-environment
+           (list (service guix-home-service-type
+                          `(("orka" ,home-environment))))
+           '())
        (modify-services %desktop-services
          (guix-service-type config => (nonguix-substitute-service config)))))
 

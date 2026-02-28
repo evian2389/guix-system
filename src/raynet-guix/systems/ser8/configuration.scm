@@ -22,7 +22,8 @@
   #:use-module (srfi srfi-1)                 ;; For 'filter'
   #:use-module (ice-9 match)                 ;; For 'match-lambda'
   #:use-module (ice-9 format)                ;; For 'format'
-  #:use-module (raynet-guix systems base-system))
+  #:use-module (raynet-guix systems base-system)
+  #:use-module (raynet-guix users orka home))
 
 ;; This is the machine-specific configuration for 'ser8'.
 ;; It inherits all the common settings from 'base-system.scm' and just
@@ -94,7 +95,8 @@
            %base-file-systems))) ;; Filter %base-file-systems to avoid duplicates
 
 (base-operating-system
- #:hostname "ser8"
+  #:hostname "ser8"
+  #:home-environment orka-home-environment
 
 ;; This safely adds your subvolume flag to the Guix defaults
  #:kernel-arguments

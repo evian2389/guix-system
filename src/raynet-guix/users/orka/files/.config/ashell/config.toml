@@ -1,0 +1,21 @@
+[bar]
+position = "Top"
+height = 32
+spacing = 8
+margin = [4, 8, 4, 8]
+modules_left = ["launcher", "workspaces", "window"]
+modules_center = ["clock"]
+modules_right = ["cpu", "memory", "network", "pulseaudio", "battery", "tray"]
+
+[module.launcher]
+icon = ""
+command = "anyrun"
+
+[module.workspaces]
+show_all = false
+
+[module.clock]
+format = "%a %d %b  %H:%M"
+
+[module.pulseaudio]
+format = "{icon} {volume}%"

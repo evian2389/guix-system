@@ -1,3 +1,0 @@
-#!/data/data/com.termux/files/usr/bin/sh
-
-emacsclient --eval "(org-capture nil \"tt\")"

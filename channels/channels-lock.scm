@@ -3,7 +3,7 @@
         (url "https://codeberg.org/group/guix-modules.git")
         (branch "mainline")
         (commit
-          "c9daa4a1723db7b952cc44f0ac81b5345b2c03d7")
+          "52bf72edba5619f086c10aa06725c8cb681f8f91")
         (introduction
           (make-channel-introduction
             "8c754e3a4b49af7459a8c99de130fa880e5ca86a"
@@ -14,7 +14,7 @@
         (url "https://codeberg.org/gofranz/panther.git")
         (branch "master")
         (commit
-          "58e3f9f4bbe0c23796be9ba3d768e9ff160b082c")
+          "00535688e67998982990a96fcd657cb52b2f0292")
         (introduction
           (make-channel-introduction
             "54b4056ac571611892c743b65f4c47dc298c49da"
@@ -25,7 +25,7 @@
         (url "https://git.sr.ht/~abcdw/rde")
         (branch "master")
         (commit
-          "02b114fbae9b2aa9bdfba49356018776a4e5578f")
+          "aebce75a97570b3877e1fa3a6582510f46053b45")
         (introduction
           (make-channel-introduction
             "257cebd587b66e4d865b3537a9a88cccd7107c95"
@@ -47,7 +47,7 @@
         (url "https://codeberg.org/look/saayix")
         (branch "main")
         (commit
-          "8b14cb18cf1b26028ff5ee62502d80e0a24c0325")
+          "dfc4c67893af94ba86c014c4359d794888b402d8")
         (introduction
           (make-channel-introduction
             "12540f593092e9a177eb8a974a57bb4892327752"
@@ -58,7 +58,7 @@
         (url "https://gitlab.com/nonguix/nonguix")
         (branch "master")
         (commit
-          "1980960f932063f42f97ad3be4b020f68d24e62b")
+          "da4e72efef62d48dbc2eb089c36972ff55fe6acd")
         (introduction
           (make-channel-introduction
             "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -69,7 +69,7 @@
         (url "https://git.guix.gnu.org/guix.git")
         (branch "master")
         (commit
-          "c6d3a9334d9277aaa8b89a7b22f3cd28db81682b")
+          "76bf3baa17e7b5380b03659fc67f0fd18434ff92")
         (introduction
           (make-channel-introduction
             "9edb3f66fd807b096b48283debdcddccfea34bad"

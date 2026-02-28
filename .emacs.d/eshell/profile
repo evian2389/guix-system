@@ -1,2 +1,0 @@
-# Development related environment vars
-export PUPPETEER_EXECUTABLE_PATH=${which chromium}

@@ -1,0 +1,4 @@
+wallpaper {
+    path "~/.config/niri/wallpaper.jpg"
+    speed 0.5
+}

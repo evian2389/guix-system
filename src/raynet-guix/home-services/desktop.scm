@@ -13,9 +13,11 @@
                      video web-browsers wget wm xdisorg xorg)
 
 (define (home-desktop-profile-service config)
-  (list sway
+  (list niri
+        sway
         swayidle
         swaylock
+        hyprlock
         fuzzel
         wl-clipboard
         mako

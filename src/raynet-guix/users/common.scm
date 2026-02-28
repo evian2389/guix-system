@@ -16,6 +16,7 @@
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages video)
   #:use-module (raynet-guix home-services video)      ; For home-video-service-type
+  #:use-module (raynet-guix home-services niri)
   #:use-module (selected-guix-works packages fonts) ; For font-nerd-fonts-jetbrains-mono
   #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding
   #:use-module (gnu services)
@@ -48,9 +49,6 @@
             (list
              (service home-dbus-service-type)
              (service home-pipewire-service-type (home-pipewire-configuration))
-             (service home-zsh-service-type
-                      (home-zsh-configuration
-                       (zprofile (list (plain-file "zprofile" "[[ -f ~/.zshrc ]] && . ~/.zshrc\n")))))
              (simple-service 'common-environment-variables
                              home-environment-variables-service-type
                              '(("XMODIFIERS" . "@im=fcitx")
@@ -68,5 +66,6 @@
                          ,(plain-file "google-chrome-flags.conf"
                                       "--enable-features=UseOzonePlatform\n--ozone-platform=wayland\n--enable-wayland-ime\n"))))
              (service home-video-service-type)      ; For ffmpeg and v4l-utils
+             (service home-niri-service-type)
              ;; Add common home services here
              )))))
