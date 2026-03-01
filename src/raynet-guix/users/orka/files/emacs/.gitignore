@@ -1,0 +1,23 @@
+# Ignore generated Emacs Lisp files
+modules/*.el
+systems/*.el
+
+# Ignore byte-compiled files
+*.elc
+
+# Ignore auto-save and backup files
+*~
+\#*\#
+.\#*
+
+# Ignore transient data/folders
+elpa/
+straight/
+.cache/
+auto-save-list/
+image-dired/
+url/
+bookmarks
+projects
+custom.el
+package-quickstart.el*

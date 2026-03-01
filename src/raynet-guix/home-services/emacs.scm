@@ -19,6 +19,8 @@
 (define (home-emacs-config-profile-service config)
   (list
    emacs-helix
+   emacs-no-littering
+   emacs-which-key
    emacs-next-pgtk
    emacs-tmr
    emacs-buffer-env
@@ -143,5 +145,9 @@
                 (extensions
                  (list (service-extension
                         home-profile-service-type
-                        home-emacs-config-profile-service)))
+                        home-emacs-config-profile-service)
+                       (service-extension
+                        home-xdg-configuration-files-service-type
+                        (lambda (config)
+                          `(("emacs" ,(local-file "../users/orka/files/emacs" #:recursive? #t)))))))
                 (default-value #f)))
