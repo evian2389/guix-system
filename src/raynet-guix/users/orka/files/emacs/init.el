@@ -84,6 +84,7 @@
 (menu-bar-mode 0)              ;; Hide the menu bar
 (tool-bar-mode 0)              ;; Hide the tool bar
 (savehist-mode 1)              ;; Save minibuffer history
+(recentf-mode 1)               ;; Track recently opened files
 (scroll-bar-mode 0)            ;; Hide the scroll bar
 (xterm-mouse-mode 1)           ;; Enable mouse events in terminal Emacs
 (display-time-mode 1)          ;; Display time in mode line / tab bar
@@ -108,49 +109,86 @@
 (when (file-exists-p custom-file)
   (load custom-file t))
 
-;; Match completion substrings that may be out of order
-(defun dw/override-fido-completion-styles ()
-  (setq-local completion-styles '(basic substring partial-completion emacs22)))
+;;; ----- Completion System (Vertico + Orderless) -----
+
+(use-package vertico
+  :ensure nil
+  :demand t
+  :config
+  (vertico-mode))
+
+(use-package orderless
+  :ensure nil
+  :demand t
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-defaults nil)
+  (completion-category-overrides '((file (styles basic partial-completion)))))
+
+(use-package marginalia
+  :ensure nil
+  :demand t
+  :config
+  (marginalia-mode))
+
+(use-package savehist
+  :ensure nil
+  :demand t
+  :config
+  (savehist-mode))
 
 (setopt tab-always-indent 'complete
         read-buffer-completion-ignore-case t
         read-file-name-completion-ignore-case t
-
-        ;; This *may* need to be set to 'always just so that you don't
-        ;; miss other possible good completions that match the input
-        ;; string.
         completion-auto-help t
+        completions-detailed t)
 
-        ;; Include more information with completion listings
-        completions-detailed t
+(keymap-set minibuffer-local-map "C-p" #'vertico-previous)
+(keymap-set minibuffer-local-map "C-n" #'vertico-next)
 
-        ;; Move focus to the completions window after hitting tab
-        ;; twice.
-        completion-auto-select 'second-tab
+;; Use Consult for improved search and navigation
+(use-package consult
+  :ensure nil
+  :bind (;; C-x bindings (standard and improved)
+         ("C-x b" . consult-buffer)                ;; orig. switch-to-buffer
+         ("C-x 4 b" . consult-buffer-other-window) ;; orig. switch-to-buffer-other-window
+         ("C-x 5 b" . consult-buffer-other-frame)  ;; orig. switch-to-buffer-other-frame
+         ("C-x r b" . consult-bookmark)            ;; orig. bookmark-jump
+         ("C-x p b" . consult-project-buffer)      ;; orig. project-switch-to-buffer
+         ;; Custom M-s bindings (search)
+         ("M-s d" . consult-find)                  ;; Alternative: consult-fd
+         ("M-s c" . consult-locate)
+         ("M-s g" . consult-grep)
+         ("M-s G" . consult-git-grep)
+         ("M-s r" . consult-ripgrep)
+         ("M-s l" . consult-line)
+         ("M-s L" . consult-line-multi)
+         ("M-s k" . consult-keep-lines)
+         ("M-s u" . consult-focus-lines)
+         ;; Isearch integration
+         ("M-s e" . consult-isearch-history)
+         :map isearch-mode-map
+         ("M-e" . consult-isearch-history)         ;; orig. isearch-edit-string
+         ("M-s e" . consult-isearch-history)       ;; orig. isearch-edit-string
+         ("M-s l" . consult-line)                  ;; needed by consult-line to weild its magic
+         ("M-s L" . consult-line-multi)            ;; needed by consult-line to weild its magic
+         ;; Minibuffer history
+         :map minibuffer-local-map
+         ("M-s" . consult-history)                 ;; orig. next-matching-history-element
+         ("M-r" . consult-history))                ;; orig. previous-matching-history-element
 
-        ;; If there are 3 or less completion candidates, don't pop up
-        ;; a window, just cycle through them.
-        completion-cycle-threshold 3
+  ;; Enable recentf-mode for consult-recent-file
+  :init
+  (recentf-mode 1)
+  :bind
+  ("C-x C-r" . consult-recent-file))
 
-        ;; Cycle through completion options vertically, not
-        ;; horizontally.
-        completions-format 'vertical
-
-        ;; Sort recently used completions first.
-        completions-sort 'historical
-
-        ;; Only show up to 10 lines in the completions window.
-        completions-max-height 10
-
-        ;; Don't show the unneeded help string at the top of the
-        ;; completions buffer.
-        completion-show-help nil
-
-        ;; Add more `completion-styles' to improve candidate selection.
-        completion-styles '(basic partial-completion substring initials))
-
-(keymap-set minibuffer-local-map "C-p" #'minibuffer-previous-completion)
-(keymap-set minibuffer-local-map "C-n" #'minibuffer-next-completion)
+(use-package ace-window
+  :ensure nil
+  :bind (("M-n" . ace-window)
+         ("M-N" . ace-window))
+  :custom
+  (aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
 
 ;;; ----- System Identification -----
 
@@ -189,6 +227,7 @@
                                    dw-0x0
                                    dw-writing
                                    dw-workflow
+                                   dw-extras
                                    dw-helix)
   "Configuration modules most commonly used across my machines.")
 
@@ -238,27 +277,71 @@
 (setq-default echo-keystrokes 0.1)
 (setq esc-delay 0.01)
 
+;;; ----- Transparency and Theme (from dotfiles) -----
+
+(set-frame-parameter nil 'alpha-background 95)
+(add-to-list 'default-frame-alist '(alpha-background . 95))
+
+(defun kb/toggle-window-transparency ()
+  "Toggle transparency."
+  (interactive)
+  (let ((alpha-transparency 95))
+    (if (< (or (frame-parameter nil 'alpha-background) 100) 100)
+        (set-frame-parameter nil 'alpha-background 100)
+      (set-frame-parameter nil 'alpha-background alpha-transparency))))
+
+;; Use Gruvbox theme
+(use-package gruvbox-theme
+  :ensure nil
+  :config
+  (load-theme 'gruvbox-dark-hard t))
+
+;;; ----- Fonts and Language Support (from dotfiles) -----
+
+(defvar my/fixed-width-font "JetBrainsMono Nerd Font"
+  "The font to use for monospaced (fixed width) text.")
+
+(defvar my/variable-width-font "Iosevka Aile"
+  "The font to use for variable-pitch (document) text.")
+
+(defvar my/hangul-font "D2CodingLigature Nerd Font"
+  "The font to use for hangul (document) text.")
+
+;; NOTE: These settings might not be ideal for your machine, tweak them as needed!
+(set-face-attribute 'default nil :font my/fixed-width-font :weight 'light :height 110)
+(set-face-attribute 'fixed-pitch nil :font my/fixed-width-font :weight 'light :height 110)
+(set-face-attribute 'variable-pitch nil :font my/variable-width-font :weight 'light :height 1.1)
+
+;; Hangul support
+(set-fontset-font t 'hangul (font-spec :family my/hangul-font))
+(setq face-font-rescale-alist '(("D2CodingLigature Nerd Font" . 1.15)
+                                ("NanumGothicCoding" . 1.1)))
+
+;;; ----- Editor Settings (from dotfiles) -----
+
+(setq display-line-numbers-type 'relative)
+(setq-default truncate-lines t)
+(global-display-line-numbers-mode 1)
+(setq display-line-numbers-width 4
+      display-line-numbers-grow-only t
+      display-line-numbers-width-start t)
+
+(setq select-enable-primary t)
+
+;; Cursor settings
+(set-cursor-color "coral")
+(setq default-input-method "korean-hangul")
+(global-set-key (kbd "S-SPC") 'toggle-input-method)
+(add-hook 'post-command-hook
+          (lambda ()
+            (set-cursor-color
+             (if current-input-method "tan" "coral"))))
+
+(with-eval-after-load 'simple
+  (setq-default display-fill-column-indicator-column 80)
+  (add-hook 'prog-mode-hook 'display-fill-column-indicator-mode))
+
 (when (display-graphic-p)
-  (set-face-attribute 'default nil
-                      :font "JetBrains Mono"
-                      :weight 'normal
-                      :height 140)
-
-  ;; Set the fixed pitch face
-  (set-face-attribute 'fixed-pitch nil
-                      :font "JetBrains Mono"
-                      :weight 'normal
-                      :height 140)
-
-  ;; Set the variable pitch face
-  (set-face-attribute 'variable-pitch nil
-                      :font "Iosevka Aile"
-                      :height 120
-                      :weight 'normal)
-
-  ;; Make frames transparent
-  (set-frame-parameter (selected-frame) 'alpha-background 93)
-  (add-to-list 'default-frame-alist '(alpha-background . 93))
   (set-frame-parameter (selected-frame) 'fullscreen 'maximized)
   (add-to-list 'default-frame-alist '(fullscreen . maximized)))
 
@@ -506,7 +589,9 @@ Opening and closing delimiters will have matching colors."
 (setq org-ellipsis " ▾"
       org-startup-folded 'content
       org-cycle-separator-lines 2
-      org-fontify-quote-and-verse-blocks t)
+      org-fontify-quote-and-verse-blocks t
+      org-hide-emphasis-markers t
+      org-pretty-entities t)
 
 ;; Indent org-mode buffers for readability
 (add-hook 'org-mode-hook #'org-indent-mode)
@@ -533,6 +618,17 @@ Opening and closing delimiters will have matching colors."
                   ("einit" . "src emacs-lisp :tangle init.el")
                   ("emodule" . "src emacs-lisp :tangle modules/dw-MODULE.el")))
     (add-to-list 'org-structure-template-alist item)))
+
+;; Beautiful bullets
+(use-package org-superstar
+  :ensure nil
+  :hook (org-mode . org-superstar-mode)
+  :config
+  (setq org-superstar-leading-bullet ?\s)
+  (setq org-superstar-leading-fallback ?\s)
+  (setq org-hide-leading-stars t)
+  (setq org-superstar-headline-bullets-list '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
+        org-superstar-item-bullet-alist '((?* . ?•) (?+ . ?➤) (?- . ?–))))
 
 ;;; ----- Document Centering -----
 

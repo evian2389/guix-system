@@ -3,6 +3,7 @@
   #:use-module (gnu packages)
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages emacs-xyz)
+  #:use-module (emacs packages melpa)
   #:use-module (gnu packages gnupg)
   #:use-module (gnu packages mail)
   #:use-module (gnu packages version-control)
@@ -26,11 +27,11 @@
    emacs-buffer-env
    emacs-beframe
 
-   emacs-bluetooth
+   ;; emacs-bluetooth
 
    emacs-mpv
 
-   emacs-ement
+   ;; emacs-ement
 
    emacs-lua-mode
    emacs-fennel-mode
@@ -44,6 +45,7 @@
    imagemagick  ;; for image-dired
 
    emacs-vertico
+   emacs-marginalia
    emacs-orderless
    emacs-consult
    emacs-wgrep
@@ -62,6 +64,7 @@
    emacs-org-pomodoro
    emacs-org-make-toc
    emacs-org-roam
+   emacs-org-superstar
    emacs-htmlize
    emacs-denote
    emacs-consult-notes
@@ -133,6 +136,14 @@
    emacs-guix
 
    emacs-daemons
+
+   emacs-vundo
+   emacs-jinx
+   emacs-blamer
+   emacs-aider
+   emacs-treesit-auto
+   emacs-org-auto-tangle
+   
 
    ;;emacs-epwgraph
 
