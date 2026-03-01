@@ -81,7 +81,6 @@
         gst-plugins-ugly
         gst-libav
         alsa-utils
-        pavucontrol
 
         ;; Graphics
         gimp

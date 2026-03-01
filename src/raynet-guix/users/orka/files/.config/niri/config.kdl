@@ -114,6 +114,7 @@ binds {
 
     // Launcher: Fuzzel (Guix home)
     Mod+D hotkey-overlay-title="App Launcher: Fuzzel" { spawn "fuzzel"; }
+    Mod+V hotkey-overlay-title="Audio Mixer: Pavucontrol" { spawn "pavucontrol"; }
     Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
     Mod+P hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
     

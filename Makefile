@@ -73,7 +73,7 @@ reconfigure-home:
 	$(MAKE) install-user-packages
 	chmod +x $(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh
 	$(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh
-	stow -d $(CONFIG_DIR)/users/$(DEFAULT_USER) -t $(HOME) files
+	stow --adopt -d $(CONFIG_DIR)/users/$(DEFAULT_USER) -t $(HOME) files
 
 install-user-packages:
 	@echo "Installing extra packages for user $(DEFAULT_USER)..."

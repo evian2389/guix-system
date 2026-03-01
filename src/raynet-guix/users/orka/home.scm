@@ -28,9 +28,8 @@
     (service home-finance-service-type)
     ; (service home-dotfiles-service-type
     ;          (home-dotfiles-configuration
-    ;           (source-directory (string-append (dirname (current-filename)) "/files"))
-    ;           (directories (list ".config" ".local"))
-    ;           (files `((".zshrc" ,(local-file (string-append (dirname (current-filename)) "/files/.zshrc")))))))
-              )))
+    ;           (source-directory (string-append (getcwd) "/src/raynet-guix/users/orka/files"))
+    ;           (layout 'stow)))
+    )))
 
 orka-home-environment

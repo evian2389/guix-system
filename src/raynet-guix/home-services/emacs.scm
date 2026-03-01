@@ -23,6 +23,7 @@
    emacs-no-littering
    emacs-which-key
    emacs-next-pgtk
+   emacs-vscode-dark-plus
    emacs-tmr
    emacs-buffer-env
    emacs-beframe

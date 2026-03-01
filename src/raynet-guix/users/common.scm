@@ -15,8 +15,12 @@
   #:use-module (gnu packages rust)
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages video)
+  #:use-module (gnu packages gnome)
+  #:use-module (gnu packages gnome-xyz)
+  #:use-module (gnu packages xorg)
   #:use-module (nongnu packages chrome)
   #:use-module (raynet-guix home-services video)      ; For home-video-service-type
+  #:use-module (raynet-guix home-services audio)
   #:use-module (raynet-guix home-services niri)
   #:use-module (selected-guix-works packages fonts) ; For font-nerd-fonts-jetbrains-mono
   #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding
@@ -41,7 +45,12 @@
    font-google-noto-serif-cjk
    font-nerd-font-d2coding
    font-nerd-font-jetbrainsmono
+   font-iosevka-aile
+   font-iosevka-ss08
    zsh-autosuggestions
+   adwaita-icon-theme
+   bibata-cursor-theme
+   xrdb
    ))
 
 (define* (common-home-environment #:key (extra-packages extra-packages) (extra-services '()))
@@ -51,15 +60,17 @@
     (append extra-services
             (list
              (service home-dbus-service-type)
-             (service home-pipewire-service-type (home-pipewire-configuration))
+             (service home-pipewire-service-type
+                      (home-pipewire-configuration
+                       (enable-pulseaudio? #t)))
              (simple-service 'common-environment-variables
                              home-environment-variables-service-type
-                             '(("PATH" . "$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.npm-packages/bin:$HOME/.config/emacs/bin/:$HOME/.nix-profile/bin")
+                             '(("PATH" . "$HOME/.guix-home/profile/bin:$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.npm-packages/bin:$HOME/.config/emacs/bin/:$HOME/.nix-profile/bin:$HOME/.local/share/flatpak/exports/bin")
                                ("XMODIFIERS" . "@im=fcitx")
                                ;;("GTK_IM_MODULE" . "fcitx")
                                ;;("QT_IM_MODULE" . "fcitx")
                                ;;("SDL_IM_MODULE" . "fcitx")
-                               ("XDG_DATA_DIRS" . "$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$HOME/.local/share:$XDG_DATA_DIRS")
+                               ("XDG_DATA_DIRS" . "$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$HOME/.local/share:$HOME/.guix-home/profile/share:$XDG_DATA_DIRS")
                                ;; Best setup for KDE Plasma 5.27+ Wayland:
                                ;; Do not set GTK_IM_MODULE, QT_IM_MODULE, or SDL_IM_MODULE.
                                ;; They should be unset to use the text-input protocol.
@@ -74,31 +85,19 @@
                              (list
                               (plain-file "extra-profiles"
                                           "\
-# Source home profile
+# Source .session-profile for consistent environment variables
+if [ -f \"$HOME/.session-profile\" ]; then
+  source \"$HOME/.session-profile\"
+fi
+
+# Also source home profile just in case session-profile is missing
 if [ -f \"$HOME/.guix-home/profile/etc/profile\" ]; then
   source \"$HOME/.guix-home/profile/etc/profile\"
 fi
-
-# Source system environment profile
-GUIX_PROFILE=\"/home/orka/guix-system/env/profile\"
-if [ -d \"$GUIX_PROFILE\" ]; then
-  source \"$GUIX_PROFILE/etc/profile\"
-fi
-
-# Source extra user profile
-GUIX_PROFILE_EXTRA=\"$HOME/.guix-profiles/orka-extra\"
-if [ -f \"$GUIX_PROFILE_EXTRA/etc/profile\" ]; then
-  source \"$GUIX_PROFILE_EXTRA/etc/profile\"
-fi
-
-# Source default user profile
-GUIX_PROFILE=\"$HOME/.guix-profile\"
-if [ -f \"$GUIX_PROFILE/etc/profile\" ]; then
-  source \"$GUIX_PROFILE/etc/profile\"
-fi
-unset GUIX_PROFILE
 ")))
+
              (service home-video-service-type)      ; For ffmpeg and v4l-utils
+             (service home-audio-service-type)
              (service home-niri-service-type)
              ;; Add common home services here
              )))))

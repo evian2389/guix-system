@@ -36,6 +36,7 @@
   #:use-module (gnu packages networking)     ; for blueman
   #:use-module (gnu packages compression)     ;
   #:use-module (gnu packages xdisorg)     ; pixz, hyprlock
+  #:use-module (gnu packages audio)       ; pipemixer
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (px packages editors)         ; for antigravity
@@ -106,6 +107,7 @@
     imv
     brightnessctl
     playerctl
+
     xdg-desktop-portal
     xdg-desktop-portal-gtk
     power-profiles-daemon
@@ -123,7 +125,6 @@
     zsh
     helix
     neovim
-    emacs
     antigravity
     powerlevel-10k
     qutebrowser

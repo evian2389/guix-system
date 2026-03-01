@@ -2,13 +2,19 @@
   #:use-module (gnu home services)
   #:use-module (gnu packages audio)
   #:use-module (gnu packages linux)
-  #:use-module (gnu packages music))
+  #:use-module (gnu packages music)
+  #:use-module (gnu packages pulseaudio)
+  #:use-module (gnu packages rust-apps))
 
 (define (home-audio-profile-service config)
   (list ardour
 
         ;; Pipewire (for pw-jack)
         pipewire
+        qpwgraph
+        helvum
+        pavucontrol
+        ;; coppwr ;; Not currently in Guix
 
         ;; Guitar
 
@@ -36,7 +42,7 @@
         ;; Possibly unused
         jack-keyboard
         ;carla
-        patchage))
+        ))
 
 (define-public home-audio-service-type
   (service-type (name 'home-audio)
