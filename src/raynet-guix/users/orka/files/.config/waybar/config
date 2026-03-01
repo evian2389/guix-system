@@ -13,11 +13,15 @@
         "pulseaudio", 
         "pulseaudio#microphone",
         "backlight",
+        "power-profiles-daemon",
         "battery", 
         "custom/fcitx5",
         "tray", 
         "privacy",
-        "custom/notification"
+        "custom/notification",
+        "custom/lock",
+        "custom/suspend",
+        "custom/power"
     ],
 
     "niri/workspaces": {
@@ -76,7 +80,8 @@
             "warning": 70,
             "critical": 90
         },
-        "on-click": "ghostty -e btop"
+        "on-click": "ghostty -e btop",
+        "on-click-right": "ghostty -e btop"
     },
 
     "memory": {
@@ -86,7 +91,8 @@
             "warning": 70,
             "critical": 90
         },
-        "on-click": "ghostty -e btop"
+        "on-click": "ghostty -e btop",
+        "on-click-right": "ghostty -e btop"
     },
 
     "network": {
@@ -96,7 +102,8 @@
         "format-linked": "󰀂 {ifname} (No IP)",
         "format-disconnected": "󰖪 Disconnected",
         "tooltip-format": "{ifname} via {gwaddr} 󰊗",
-        "on-click": "nm-connection-editor"
+        "on-click": "nmcli radio wifi toggle",
+        "on-click-right": "nm-connection-editor"
     },
 
     "bluetooth": {
@@ -106,7 +113,8 @@
         "tooltip-format": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
         "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}",
         "tooltip-format-enumerate-connected-battery": "{device_alias}\t{device_address}\t{device_battery_percentage}%",
-        "on-click": "blueman-manager"
+        "on-click": "rfkill toggle bluetooth",
+        "on-click-right": "blueman-manager"
     },
 
     "pulseaudio": {
@@ -140,6 +148,18 @@
         "on-scroll-up": "brightnessctl set +5%",
         "on-scroll-down": "brightnessctl set 5%-",
         "smooth-scrolling-threshold": 1
+    },
+
+    "power-profiles-daemon": {
+        "format": "{icon}",
+        "tooltip-format": "Power profile: {profile}\nDriver: {driver}",
+        "tooltip": true,
+        "format-icons": {
+            "default": "",
+            "performance": "",
+            "balanced": "",
+            "power-saver": ""
+        }
     },
 
     "battery": {
@@ -190,8 +210,8 @@
         "return-type": "json",
         "exec-if": "which swaync-client",
         "exec": "swaync-client -swb",
-        "on-click": "swaync-client -t -sw",
-        "on-click-right": "swaync-client -d -sw",
+        "on-click": "swaync-client -d -sw",
+        "on-click-right": "swaync-client -t -sw",
         "escape": true
     },
 
@@ -199,7 +219,27 @@
         "interval": 1,
         "exec": "fcitx5-remote | grep -q '2' && echo '한' || echo 'En'",
         "format": "󰘳 {}",
-        "on-click": "fcitx5-config-qt",
+        "on-click": "fcitx5-remote -t",
+        "on-click-right": "fcitx5-config-qt",
         "tooltip": false
+    },
+
+    "custom/lock": {
+        "format": "󰌾",
+        "on-click": "hyprlock",
+        "tooltip": false
+    },
+
+    "custom/suspend": {
+        "format": "󰤄",
+        "on-click": "loginctl suspend",
+        "tooltip": false
+    },
+
+    "custom/power": {
+        "format": "⏻ ",
+        "tooltip": false,
+        "on-click": "hyprlock",
+        "on-click-right": "wlogout"
     }
 }

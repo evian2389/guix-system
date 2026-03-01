@@ -3,9 +3,10 @@
 // --- Startup Services ---
 spawn-at-startup "fcitx5" "-d"
 spawn-at-startup "waybar"
+spawn-at-startup "hypridle"
 spawn-at-startup "swww-daemon"
 spawn-sh-at-startup "swww img ~/.config/niri/wallpaper.jpg"
-spawn-sh-at-startup "~/.nix-profile/bin/hyprlax -i ~/.config/niri/wallpaper.jpg"
+spawn-sh-at-startup "~/.nix-profile/bin/hyprlax ~/.config/niri/wallpaper.jpg"
 spawn-at-startup "swaync"
 
 // --- General Settings ---
@@ -113,23 +114,25 @@ binds {
 
     // Launcher: Fuzzel (Guix home)
     Mod+D hotkey-overlay-title="App Launcher: Fuzzel" { spawn "fuzzel"; }
+    Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
     
     // Standard Niri Controls
     Mod+Q hotkey-overlay-title="Close Window" { close-window; }
     //Mod+Return hotkey-overlay-title="Open Terminal" { spawn "/home/orka/.guix-home/profile/bin/ghostty"; }
     Mod+Return hotkey-overlay-title="Open Terminal: Ghostty" { spawn "ghostty"; }
     Mod+Ctrl+Return hotkey-overlay-title="Open Terminal: Ghostty" { spawn "alacritty"; }
-    Mod+Shift+E hotkey-overlay-title="Quit Niri" { quit; }
+    Mod+Shift+E hotkey-overlay-title="Logout Menu" { spawn "wlogout"; }
+    Mod+Ctrl+Shift+E hotkey-overlay-title="Quit Niri" { quit; }
     
     // Navigation
     Mod+Left  hotkey-overlay-title="Focus Left"  { focus-column-left; }
     Mod+Right hotkey-overlay-title="Focus Right" { focus-column-right; }
     Mod+Up    hotkey-overlay-title="Focus Workspace Up"    { focus-workspace-up; }
     Mod+Down  hotkey-overlay-title="Focus Workspace Down"  { focus-workspace-down; }
-    Mod+H     { focus-column-left; }
-    Mod+J     { focus-workspace-down; }
-    Mod+K     { focus-workspace-up; }
-    Mod+L     { focus-column-right; }
+    Mod+H     hotkey-overlay-title="Focus Left"  { focus-column-left; }
+    Mod+J     hotkey-overlay-title="Focus Workspace Down" { focus-workspace-down; }
+    Mod+K     hotkey-overlay-title="Focus Workspace Up"   { focus-workspace-up; }
+    Mod+L     hotkey-overlay-title="Focus Right" { focus-column-right; }
     
     // Overview / Workspace navigation
     Mod+O hotkey-overlay-title="Toggle Overview" { toggle-overview; }
@@ -139,10 +142,10 @@ binds {
     Mod+Shift+Right hotkey-overlay-title="Move Right" { move-column-right; }
     Mod+Shift+Up    hotkey-overlay-title="Move to Workspace Up"    { move-column-to-workspace-up; }
     Mod+Shift+Down  hotkey-overlay-title="Move to Workspace Down"  { move-column-to-workspace-down; }
-    Mod+Shift+H     { move-column-left; }
-    Mod+Shift+J     { move-column-to-workspace-down; }
-    Mod+Shift+K     { move-column-to-workspace-up; }
-    Mod+Shift+L     { move-column-right; }
+    Mod+Shift+H     hotkey-overlay-title="Move Left"  { move-column-left; }
+    Mod+Shift+J     hotkey-overlay-title="Move to Workspace Down" { move-column-to-workspace-down; }
+    Mod+Shift+K     hotkey-overlay-title="Move to Workspace Up"   { move-column-to-workspace-up; }
+    Mod+Shift+L     hotkey-overlay-title="Move Right" { move-column-right; }
     
     // Layout Management
     Mod+R hotkey-overlay-title="Cycle Column Width" { switch-preset-column-width; }

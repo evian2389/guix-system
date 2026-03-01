@@ -17,7 +17,7 @@
         sway
         swayidle
         swaylock
-        hyprlock
+        hypridle
         fuzzel
         wl-clipboard
         mako

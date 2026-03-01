@@ -32,6 +32,7 @@
   #:use-module (gnu packages kde-plasma)
   #:use-module (gnu packages tex)
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
+  #:use-module (gnu packages xdisorg)         ;; For hyprlock
   #:use-module (raynet-guix home-services games)
   #:use-module (gnu home)
   #:use-module (gnu home services)
@@ -103,6 +104,8 @@
                         niri
                         rfkill
                         bluedevil
+                        hyprlock
+                        hypridle
                         )
                   packages))
 
@@ -120,7 +123,11 @@
                        (subgids (list (subid-range (name "orka") (start 100000) (count 65536))))))
              (service bluetooth-service-type
                       (bluetooth-configuration
-                       (auto-enable? #t))))
+                       (auto-enable? #t)))
+             (service screen-locker-service-type
+                      (screen-locker-configuration
+                       (name "hyprlock")
+                       (program (file-append hyprlock "/bin/hyprlock")))))
        (if home-environment
            (list (service guix-home-service-type
                           `(("orka" ,home-environment))))

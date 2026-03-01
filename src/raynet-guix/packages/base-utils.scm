@@ -34,8 +34,8 @@
   #:use-module (gnu packages emacs)   ; neovim
   #:use-module (gnu packages web-browsers)     ; for qutebrowser
   #:use-module (gnu packages networking)     ; for blueman
-  #:use-module (gnu packages compression)     ; pixz
-  #:use-module (gnu packages xdisorg)     ; pixz
+  #:use-module (gnu packages compression)     ;
+  #:use-module (gnu packages xdisorg)     ; pixz, hyprlock
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (px packages editors)         ; for antigravity
@@ -108,7 +108,8 @@
     playerctl
     xdg-desktop-portal
     xdg-desktop-portal-gtk
-    hyprlock
+    power-profiles-daemon
+    wlogout
     ghostty-fixed
     zoxide
     ripgrep

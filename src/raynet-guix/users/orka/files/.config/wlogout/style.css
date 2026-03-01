@@ -1,0 +1,43 @@
+* {
+	background-image: none;
+	box-shadow: none;
+}
+
+window {
+	background-color: rgba(12, 12, 12, 0.9);
+}
+
+button {
+    border-radius: 8px;
+    border-width: 2px;
+    border-style: solid;
+    border-color: #7aa2f7;
+	background-color: #1a1b26;
+	color: #c0caf5;
+    margin: 10px;
+}
+
+button:focus, button:active, button:hover {
+	background-color: #7aa2f7;
+	color: #1a1b26;
+}
+
+#lock {
+    background-image: url("/home/orka/.guix-home/profile/share/wlogout/icons/lock.png");
+}
+
+#logout {
+    background-image: url("/home/orka/.guix-home/profile/share/wlogout/icons/logout.png");
+}
+
+#suspend {
+    background-image: url("/home/orka/.guix-home/profile/share/wlogout/icons/suspend.png");
+}
+
+#reboot {
+    background-image: url("/home/orka/.guix-home/profile/share/wlogout/icons/reboot.png");
+}
+
+#shutdown {
+    background-image: url("/home/orka/.guix-home/profile/share/wlogout/icons/shutdown.png");
+}

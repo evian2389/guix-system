@@ -36,15 +36,36 @@ window#waybar {
 #network, 
 #bluetooth,
 #backlight,
+#power-profiles-daemon,
 #battery, 
 #cpu, 
 #memory, 
 #tray, 
 #privacy,
 #custom-fcitx5,
-#custom-notification {
+#custom-notification,
+#custom-lock,
+#custom-suspend,
+#custom-power {
     padding: 0 10px;
     margin: 0 2px;
+}
+
+#custom-lock {
+    color: #bd93f9;
+}
+
+#custom-suspend {
+    color: #8be9fd;
+}
+
+#power-profiles-daemon {
+    color: #f1fa8c;
+}
+
+#custom-power {
+    color: #ff5555;
+    padding-right: 15px;
 }
 
 #custom-fcitx5 {
