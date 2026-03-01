@@ -117,6 +117,8 @@ binds {
     Mod+V hotkey-overlay-title="Audio Mixer: Pavucontrol" { spawn "pavucontrol"; }
     Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
     Mod+P hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
+    //Mod+M { spawn "mpv $(wl-paste)"; }
+    Mod+M { spawn "sh" "-c" "mpv $(wl-paste)"; }
     
     // Standard Niri Controls
     Mod+Q hotkey-overlay-title="Close Window" { close-window; }
