@@ -22,6 +22,7 @@
   #:use-module (raynet-guix home-services video)      ; For home-video-service-type
   #:use-module (raynet-guix home-services audio)
   #:use-module (raynet-guix home-services niri)
+  #:use-module (raynet-guix home-services finance)
   #:use-module (selected-guix-works packages fonts) ; For font-nerd-fonts-jetbrains-mono
   #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding
   #:use-module (gnu services)
@@ -51,6 +52,9 @@
    adwaita-icon-theme
    bibata-cursor-theme
    xrdb
+   xwayland-run
+   xwayland-satellite
+   xorg-server-xwayland
    ))
 
 (define* (common-home-environment #:key (extra-packages extra-packages) (extra-services '()))
@@ -60,6 +64,7 @@
     (append extra-services
             (list
              (service home-dbus-service-type)
+             (service home-finance-service-type)
              (service home-pipewire-service-type
                       (home-pipewire-configuration
                        (enable-pulseaudio? #t)))
@@ -76,6 +81,9 @@
                                ;; They should be unset to use the text-input protocol.
                                ;; However, Steam (Xwayland) and many games (SDL) still need them.
                                ("GLFW_IM_MODULE" . "fcitx")))
+             (simple-service 'dbus-env-update
+                home-run-on-first-login-service-type
+                #~(spawn "dbus-update-activation-environment" '("--all")))
              (service home-xdg-configuration-files-service-type
                       `(("google-chrome-flags.conf"
                          ,(plain-file "google-chrome-flags.conf"

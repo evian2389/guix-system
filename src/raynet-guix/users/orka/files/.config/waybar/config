@@ -130,14 +130,14 @@
             "default": ["", "", ""]
         },
         "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
-        "on-click-right": "pavucontrol"
+        "on-click-right": "flatpak run com.saivert.pwvucontrol"
     },
 
     "pulseaudio#microphone": {
         "format": "{format_source}",
         "format-source": "󰍬 {volume}%",
         "format-source-muted": "󰍭 Muted",
-        "on-click": "pavucontrol",
+        "on-click": "flatpak run com.saivert.pwvucontrol",
         "on-click-right": "qpwgraph",
         "tooltip": false
     },

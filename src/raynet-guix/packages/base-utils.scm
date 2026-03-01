@@ -93,7 +93,8 @@
     fuse-overlayfs
     distrobox
     coreutils
-    gh))
+    gh
+    vscode))
 
 (define system-tools
   (list

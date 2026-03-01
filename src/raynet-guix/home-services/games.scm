@@ -15,7 +15,7 @@
 ;;
 
 (define (home-games-profile-service config)
-  (list))
+  (list steam))
 
 (define-public home-games-service-type
   (service-type (name 'home-games)
