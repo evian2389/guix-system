@@ -8,6 +8,7 @@ echo "Installing/Updating Nix packages..."
 if command -v nix-env &> /dev/null; then
     # hyprlax is available in nixpkgs
     nix-env -iA nixpkgs.hyprlax
+    nix-env -iA nixpkgs.wiremix
 else
     echo "Warning: nix-env not found. Skipping Nix packages."
 fi
@@ -22,13 +23,14 @@ else
 fi
 
 
-# echo "Installing/Updating Rust packages..."
-# if command -v cargo &> /dev/null; then
-#     # xtask ; steel scheme is available in cargo repo
-#     cargo xtask install
-# else
-#     echo "Warning: cargo not found. Skipping cargo packages."
-# fi
+echo "Installing/Updating Rust packages..."
+if command -v cargo &> /dev/null; then
+    # xtask ; steel scheme is available in cargo repo
+    # cargo xtask install
+    #cargo install wiremix
+else
+    echo "Warning: cargo not found. Skipping cargo packages."
+fi
 
 
 echo "Non-Guix package installation/update complete."
