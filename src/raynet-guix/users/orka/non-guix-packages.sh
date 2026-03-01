@@ -21,4 +21,14 @@ else
     echo "Warning: flatpak not found. Skipping Flatpak packages."
 fi
 
+
+# echo "Installing/Updating Rust packages..."
+# if command -v cargo &> /dev/null; then
+#     # xtask ; steel scheme is available in cargo repo
+#     cargo xtask install
+# else
+#     echo "Warning: cargo not found. Skipping cargo packages."
+# fi
+
+
 echo "Non-Guix package installation/update complete."

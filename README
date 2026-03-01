@@ -81,3 +81,8 @@ blkid /dev/blablabla
 
 make ser8/system/init
 #+end_src
+
+
+* for vsclient
+** distrobox-enter -n ubuntu -- sudo apt-get update
+   distrobox-enter -n ubuntu --  sudo apt-get install qtwayland5

@@ -13,13 +13,19 @@
   #:use-module (gnu packages package-management)
   #:use-module (gnu packages containers)
   #:use-module (gnu packages gdb)
+  #:use-module (gnu packages build-tools)
   #:use-module (gnu packages node)
   #:use-module (gnu packages python)
   #:use-module (gnu packages golang)
   #:use-module (gnu packages golang-apps)
+  #:use-module (gnu packages guile-xyz)
   #:use-module (gnu packages ocaml)
+  #:use-module (gnu packages haskell)
+  #:use-module (gnu packages haskell-apps)
   #:use-module (gnu packages rust)
   #:use-module (gnu packages rust-apps)
+  #:use-module (gnu packages lua)
+  #:use-module (gnu packages java)
   #:use-module (gnu packages wm)
   #:use-module (gnu packages video)
   #:use-module (gnu packages linux)   ; for brightnessctl
@@ -73,19 +79,27 @@
     binutils
     cmake
     ;make
+    compiledb
+    bear
     autoconf
     pkg-config
     patch
     gdb
     node
     python
+    ; ghc
+    ; haskell-language-server
+    ; cabal-install
     go
     gopls
+    openjdk
     rust
     (list rust "cargo")
     rust-analyzer
+    guile-lsp-server
     ocaml
     ocaml-lsp-server
+    ;lua
     sed
     flatpak
     podman

@@ -85,3 +85,29 @@
   language-servers = ["iwe"]
   formatter = { command = "dprint", args = ["fmt", "--stdin", "md"]}
   auto-format = true
+
+[language-server.haskell-language-server]
+command = "haskell-language-server-wrapper"
+args = ["--lsp"]
+
+[[language]]
+name = "haskell"
+scope = "source.haskell"
+injection-regex = "haskell"
+file-types = ["hs", "lhs"]
+roots = ["stack.yaml", "cabal.project", "package.yaml", "*.cabal"]
+language-servers = [ "haskell-language-server" ]
+auto-format = true
+
+[language-server.kotlin-language-server]
+command = "kotlin-language-server" # PATH에 없다면 절대 경로 사용
+args = []
+
+[[language]]
+name = "kotlin"
+scope = "source.kt"
+injection-regex = "kotlin"
+file-types = ["kt", "kts"]
+roots = ["settings.gradle", "settings.gradle.kts", "build.gradle", "build.gradle.kts"]
+language-servers = [ "kotlin-language-server" ]
+indent = { tab-width = 4, unit = "    " }

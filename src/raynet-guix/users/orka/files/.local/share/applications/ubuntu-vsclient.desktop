@@ -1,7 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=vsclient (on ubuntu)
-Exec=/home/orka/.guix-home/profile/bin/distrobox-enter  -n ubuntu  --   /opt/VD-i/bin/vsclient %u 
+Name=vsclient (on ubuntu vs)
+#
+#* for vsclient
+#** distrobox-enter -n ubuntu -- sudo apt-get update
+#   distrobox-enter -n ubuntu --  sudo apt-get install qtwayland5#Exec=distrobox-enter  -n ubuntu  --  /opt/VD-i/bin/vsclient %u 
+Exec=distrobox-enter  -n ubuntu  -- env QT_QPA_PLATFORM=xcb  /opt/VD-i/bin/vsclient %u 
 Icon=vsclient
 StartupNotify=false
 MimeType=x-scheme-handler/vdivsclient;
