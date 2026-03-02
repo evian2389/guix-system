@@ -552,7 +552,7 @@ Opening and closing delimiters will have matching colors."
 
 (defun dw/toggle-popup-window ()
   (interactive)
-  (if-let ((popup-window
+  (if-let* ((popup-window
             (get-window-with-predicate
              (lambda (window)
                (eq (window-parameter window 'window-side)
@@ -569,7 +569,7 @@ Opening and closing delimiters will have matching colors."
     ;;       I chose to do this because maintaining a separate variable
     ;;       for this rule meant I had to re-evaluate 2 different forms
     ;;       to update my rule list.
-    (if-let ((popup-buffer
+    (if-let* ((popup-buffer
               (seq-find (lambda (buffer)
                           (buffer-match-p (caar display-buffer-alist)
                                           (buffer-name buffer)))
@@ -585,6 +585,9 @@ Opening and closing delimiters will have matching colors."
   (keymap-set term-raw-map "C-c p" #'dw/toggle-popup-window))
 
 ;;; ----- Essential Org Mode Configuration -----
+
+(setq org-directory "~/notes/"
+      org-roam-directory "~/notes/resources/")
 
 (setq org-ellipsis " ▾"
       org-startup-folded 'content
@@ -627,8 +630,9 @@ Opening and closing delimiters will have matching colors."
   (setq org-superstar-leading-bullet ?\s)
   (setq org-superstar-leading-fallback ?\s)
   (setq org-hide-leading-stars t)
-  (setq org-superstar-headline-bullets-list '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
-        org-superstar-item-bullet-alist '((?* . ?•) (?+ . ?➤) (?- . ?–))))
+  ;;(setq org-superstar-headline-bullets-list '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
+  ;;      org-superstar-item-bullet-alist '((?* . ?•) (?+ . ?➤) (?- . ?–))))
+)
 
 ;;; ----- Document Centering -----
 

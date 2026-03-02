@@ -13,6 +13,7 @@
   #:use-module (gnu services desktop)
   #:use-module (gnu services xorg)
   #:use-module (gnu services networking)
+  #:use-module (gnu services cups)
   #:use-module (gnu services dbus)
   #:use-module (gnu services nix)
   #:use-module (gnu services ssh)            ;; For openssh-service-type
@@ -30,7 +31,10 @@
   #:use-module (gnu packages terminals)
   #:use-module (gnu packages wm)
   #:use-module (gnu packages kde-plasma)
+  #:use-module (gnu packages gnome)
   #:use-module (gnu packages tex)
+  #:use-module (gnu packages cups)        ;; For splix
+  #:use-module (gnu packages scanner)     ;; For sane-airscan
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
   #:use-module (gnu packages xdisorg)         ;; For hyprlock
   #:use-module (raynet-guix home-services games)
@@ -106,6 +110,7 @@
                         bluedevil
                         hyprlock
                         hypridle
+                        simple-scan
                         )
                   packages))
 
@@ -127,7 +132,13 @@
              (service screen-locker-service-type
                       (screen-locker-configuration
                        (name "hyprlock")
-                       (program (file-append hyprlock "/bin/hyprlock")))))
+                       (program (file-append hyprlock "/bin/hyprlock"))))
+             (service cups-service-type
+                      (cups-configuration
+                       (extensions (list splix))))
+             (service sane-service-type
+                      (sane-configuration
+                       (backends (list sane-airscan)))))
        (if home-environment
            (list (service guix-home-service-type
                           `(("orka" ,home-environment))))
@@ -149,7 +160,7 @@
                ;; User Groups: Your user account must be part of the video and lp
                ;; (sometimes required for specific compute tasks) groups to have
                ;; permission to access the /dev/dri/ device files.
-               (supplementary-groups '("wheel" "netdev" "audio" "video" "render" "lp" "nix-users"))
+               (supplementary-groups '("wheel" "netdev" "audio" "video" "render" "lp" "scanner" "nix-users"))
                (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0"))
               %base-user-accounts)))
   )

@@ -36,7 +36,7 @@ A short list of features I'm trying to stick with this time before reaching for 
 - Use =icomplete-vertical-mode= or =fido-vertical-mode= instead of Vertico.  Vertico is amazing, but I want to know what the actual pain points of the built-in solutions are before I resort to using something that is not built in.
 
 - Get used to the built-in =completion-styles= before I try pulling in =orderless=.  =orderless= is excellent but I honestly have not experimented enough with the built-in styles to see if I can get around well enough with them.
-p
+
 - Use =vc-mode= instead of Magit as long as I can.  =vc-mode= is nowhere near as polished as Magit, by any means.  However, I should be able to do many of the same operations I accomplish with Magit (aside from interactive rebase?).  I want to test the limits of =vc-mode= before I pull in Magit, and even then, I may only use Magit for specific tasks that =vc-mode= is not good at.
 
 - Try to avoid using =consult= for as long as I can.  =consult-line= is pretty useful, but =isearch= is mostly fine and I haven't even tried to configure it to be nicer yet.  The one thing I *will* miss from =consult= is =consult-ripgrep=, but I need to see if there's a way to use =ripgrep= directly with Emacs' existing =grep= functionality.
@@ -717,7 +717,7 @@ I don't currently support buffer cycling like =popper= does but I don't /think/ 
 
   (defun dw/toggle-popup-window ()
     (interactive)
-    (if-let ((popup-window
+    (if-let* ((popup-window
               (get-window-with-predicate
                (lambda (window)
                  (eq (window-parameter window 'window-side)
@@ -734,7 +734,7 @@ I don't currently support buffer cycling like =popper= does but I don't /think/ 
       ;;       I chose to do this because maintaining a separate variable
       ;;       for this rule meant I had to re-evaluate 2 different forms
       ;;       to update my rule list.
-      (if-let ((popup-buffer
+      (if-let* ((popup-buffer
                 (seq-find (lambda (buffer)
                             (buffer-match-p (caar display-buffer-alist)
                                             (buffer-name buffer)))
@@ -758,6 +758,9 @@ Here are the most important Org Mode settings that enable me to edit files comfo
 #+begin_src emacs-lisp :tangle init.el
 
   ;;; ----- Essential Org Mode Configuration -----
+
+  (setq org-directory "~/notes/"
+        org-roam-directory "~/notes/resources/")
 
   (setq org-ellipsis " ▾"
         org-startup-folded 'content
@@ -800,8 +803,9 @@ Here are the most important Org Mode settings that enable me to edit files comfo
     (setq org-superstar-leading-bullet ?\s)
     (setq org-superstar-leading-fallback ?\s)
     (setq org-hide-leading-stars t)
-    (setq org-superstar-headline-bullets-list '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
-          org-superstar-item-bullet-alist '((?* . ?•) (?+ . ?➤) (?- . ?–))))
+    ;;(setq org-superstar-headline-bullets-list '("◉" "○" "✸" "✿" "✤" "✜" "◆" "▶")
+    ;;      org-superstar-item-bullet-alist '((?* . ?•) (?+ . ?➤) (?- . ?–))))
+  )
 
 #+end_src
 
@@ -1155,7 +1159,7 @@ I also use it as the core for my personal productivity system which revolves lar
 
   ;;; ----- Agenda Configuration -----
 
-  (defvar dw/base-agenda-files '("Inbox.org" "Schedule.org")
+  (defvar dw/base-agenda-files '("inbox.org" "agenda.org")
     "The base agenda files that will always be included.")
 
   (setq org-directory "~/notes/"
@@ -1223,6 +1227,7 @@ I also use it as the core for my personal productivity system which revolves lar
 
   (use-package org-roam
     :ensure nil
+    :demand t
     :init
     (setq org-roam-v2-ack t)
     :custom
@@ -1299,6 +1304,18 @@ I also use it as the core for my personal productivity system which revolves lar
     ;; Update agenda files after notes are created or renamed
     (add-hook 'denote-after-rename-file-hook #'dw/refresh-agenda-files)
     (add-hook 'denote-after-new-note-hook #'dw/refresh-agenda-files))
+
+  (use-package org-wild-notifier
+    :ensure nil
+    :demand t
+    :config
+    (org-wild-notifier-mode 1))
+
+  (use-package org-upcoming-modeline
+    :ensure nil
+    :demand t
+    :config
+    (org-upcoming-modeline-mode 1))
 
   (provide 'dw-workflow)
 
@@ -1692,12 +1709,18 @@ The =emacs-guix= package is quite convenient for searching Guix packages from wi
     (interactive)
     (async-shell-command "~/.dotfiles/.files/.bin/update-system" "*guix-system-update*"))
 
+  (defun dw/reconfigure-home ()
+    (interactive)
+    (let ((tangle-script (expand-file-name "tangle.sh" dw/config-directory)))
+      (async-shell-command tangle-script "*reconfigure-home*")))
+
   (use-package guix
     :ensure nil
     :if dw/is-guix-system
     :bind (("C-c G p" . guix-packages-by-name)
            ("C-c G u c" . dw/guix-update-channels)
-           ("C-c G u s" . dw/guix-update-system)))
+           ("C-c G u s" . dw/guix-update-system)
+           ("C-c G r" . dw/reconfigure-home)))
 
   (provide 'dw-system)
 
@@ -1765,20 +1788,36 @@ I've been using Claude Code lately to assist with writing tools to enhance my wo
     :demand t
     :config
     (helix-mode)
+
+    (defun helix-define-key (map-type key command)
+      "Define a key in a Helix map. MAP-TYPE is 'space for helix-space-map."
+      (let ((map (cond ((eq map-type 'space) helix-space-map)
+                       (t nil))))
+        (if (and map (stringp (car-safe command)))
+            (define-key map key command)
+          (define-key map key command))))
+
     (with-eval-after-load 'which-key
       (which-key-add-keymap-based-replacements helix-normal-state-keymap
         "SPC" '("Space Menu" . helix-space-map))
-      (define-key helix-space-map "N" '("Roam Node Find" . org-roam-node-find))
 
       ;; Notes (n) sub-menu
       (define-prefix-command 'dw/helix-notes-map)
-      (define-key helix-space-map "n" '("notes" . dw/helix-notes-map))
-      (define-key dw/helix-notes-map "a" '("Org Agenda" . org-agenda))
-      (define-key dw/helix-notes-map "n" '("Roam Node Find" . org-roam-node-find))
-      (define-key dw/helix-notes-map "c" '("Org Capture" . org-capture))
-      (define-key dw/helix-notes-map "d" '("Roam Dailies" . org-roam-dailies-capture-today))
-      (define-key dw/helix-notes-map "t" '("Todo List" . (lambda () (interactive) (org-agenda nil "t")))))
+      (helix-define-key 'space "n" '("notes" . dw/helix-notes-map))
 
+      (helix-define-key 'space "f" '("Files" . project-find-file))
+      (helix-define-key 'space "b" '("Buffers" . consult-buffer))
+
+      (define-key dw/helix-notes-map "a" '("Org Agenda" . org-agenda))
+
+      (with-eval-after-load 'org-roam
+        (define-key dw/helix-notes-map "f" '("Node Find" . org-roam-node-find))
+        (define-key dw/helix-notes-map "i" '("Node Insert" . org-roam-node-insert))
+        (define-key dw/helix-notes-map "l" '("Buffer Toggle" . org-roam-buffer-toggle))
+        (define-key dw/helix-notes-map "c" '("Capture" . org-roam-capture))
+        (define-key dw/helix-notes-map "d" '("Roam Dailies" . org-roam-dailies-capture-today)))
+
+      (define-key dw/helix-notes-map "t" '("Todo List" . (lambda () (interactive) (org-agenda nil "t")))))
     ;; Fix ESC in terminal for helix-mode
     (define-key helix-insert-state-keymap [escape] #'helix-insert-exit)
     (define-key helix-insert-state-keymap (kbd "ESC") #'helix-insert-exit))

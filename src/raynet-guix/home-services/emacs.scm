@@ -27,6 +27,9 @@
    emacs-tmr
    emacs-buffer-env
    emacs-beframe
+   emacs-affe
+   emacs-org-upcoming-modeline
+   emacs-org-wild-notifier
 
    ;; emacs-bluetooth
 
@@ -158,8 +161,9 @@
                  (list (service-extension
                         home-profile-service-type
                         home-emacs-config-profile-service)
-                       (service-extension
-                        home-xdg-configuration-files-service-type
-                        (lambda (config)
-                          `(("emacs" ,(local-file "../users/orka/files/emacs" #:recursive? #t)))))))
+                       ; (service-extension
+                       ;  home-xdg-configuration-files-service-type
+                       ;  (lambda (config)
+                       ;    `(("emacs" ,(local-file "../users/orka/files/emacs" #:recursive? #t)))))
+                          ))
                 (default-value #f)))
