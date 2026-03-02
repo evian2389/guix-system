@@ -4,30 +4,12 @@
   #
   ##############GUIX##########
 
-  # Source home profile
-  if [ -f "$HOME/.guix-home/profile/etc/profile" ]; then
-    source "$HOME/.guix-home/profile/etc/profile"
+  GUIX_SESSION_PROFILE="$HOME/.session-profile"
+  if [ -f "$GUIX_SESSION_PROFILE" ]; then
+     source "$GUIX_SESSION_PROFILE"
   fi
 
-  # Source system environment profile if it exists
-  GUIX_PROFILE="/home/orka/guix-system/env/profile"
-  if [ -d "$GUIX_PROFILE" ]; then
-    source "$GUIX_PROFILE/etc/profile"
-  fi
-  #unset GUIX_PROFILE
-  
-  # 추가 프로필 (예: 개인용 도구)
-  export GUIX_PROFILE_EXTRA=$HOME/.guix-profiles/orka-extra
-  if [ -f "$GUIX_PROFILE_EXTRA/etc/profile" ]; then
-    source "$GUIX_PROFILE_EXTRA/etc/profile"
-  fi
-
-  GUIX_PROFILE="$HOME/.guix-profile"
-  if [ -f "$GUIX_PROFILE/etc/profile" ]; then
-     source "$GUIX_PROFILE/etc/profile"
-  fi
-  unset GUIX_PROFILE
-
+ export LD_LIBRARY_PATH="$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH"
 
   #export GTK_IM_MODULE=fcitx
   #export QT_IM_MODULE=fcitx
@@ -36,9 +18,7 @@
   
   export BROWSER=google-chrome
   
-  export XDG_DATA_DIRS="$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$HOME/.local/share:$XDG_DATA_DIRS"
-  
-  
+  export XDG_DATA_DIRS="$HOME/.local/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS"
   export PATH=$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:~/.cargo/bin:~/.npm-packages/bin:~/.config/emacs/bin/:~/.nix-profile/bin
 
 export LANG=en_US.UTF-8

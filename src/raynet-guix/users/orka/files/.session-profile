@@ -2,9 +2,10 @@
 
 # --- Profile Sourcing ---
 
-# Source Guix Home profile
-if [ -f "$HOME/.guix-home/profile/etc/profile" ]; then
-  . "$HOME/.guix-home/profile/etc/profile"
+# Source default user profile
+GUIX_PROFILE_DEFAULT="$HOME/.guix-profile"
+if [ -f "$GUIX_PROFILE_DEFAULT/etc/profile" ]; then
+  . "$GUIX_PROFILE_DEFAULT/etc/profile"
 fi
 
 # Source system environment profile
@@ -19,10 +20,9 @@ if [ -f "$GUIX_PROFILE_EXTRA/etc/profile" ]; then
   . "$GUIX_PROFILE_EXTRA/etc/profile"
 fi
 
-# Source default user profile
-GUIX_PROFILE_DEFAULT="$HOME/.guix-profile"
-if [ -f "$GUIX_PROFILE_DEFAULT/etc/profile" ]; then
-  . "$GUIX_PROFILE_DEFAULT/etc/profile"
+# Source Guix Home profile
+if [ -f "$HOME/.guix-home/profile/etc/profile" ]; then
+  . "$HOME/.guix-home/profile/etc/profile"
 fi
 
 # Nix profile
@@ -38,6 +38,9 @@ export PATH="$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME
 # XDG Data Dirs for Flatpak and local apps
 export XDG_DATA_DIRS="$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$HOME/.local/share:$XDG_DATA_DIRS"
 
+# LD_LIBRARY_PATH
+ export LD_LIBRARY_PATH="$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH"
+
 # Input Method and other environment variables
 export XMODIFIERS="@im=fcitx"
 export GLFW_IM_MODULE="fcitx"
@@ -46,6 +49,3 @@ export EDITOR="helix"
 export VISUAL="helix"
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
-
-# Electron/Wayland specific
-export ELECTRON_OZONE_PLATFORM_HINT="auto"

@@ -1,6 +1,7 @@
 // Niri configuration file (KDL)
 
 // --- Startup Services ---
+spawn-sh-at-startup "dbus-update-activation-environment --all"
 spawn-at-startup "fcitx5" "-d"
 spawn-at-startup "waybar"
 spawn-at-startup "hypridle"
@@ -129,27 +130,27 @@ binds {
     Mod+Ctrl+Shift+E hotkey-overlay-title="Quit Niri" { quit; }
     
     // Navigation
-    Mod+Left  hotkey-overlay-title="Focus Left"  { focus-column-left; }
-    Mod+Right hotkey-overlay-title="Focus Right" { focus-column-right; }
-    Mod+Up    hotkey-overlay-title="Focus Workspace Up"    { focus-workspace-up; }
-    Mod+Down  hotkey-overlay-title="Focus Workspace Down"  { focus-workspace-down; }
+    Mod+Left  hotkey-overlay-title="Focus Monitor Left"  { focus-monitor-left; }
+    Mod+Right hotkey-overlay-title="Focus Monitor Right" { focus-monitor-right; }
+    Mod+Up    hotkey-overlay-title="Focus Monitor Up"    { focus-monitor-up; }
+    Mod+Down  hotkey-overlay-title="Focus Monitor Down"  { focus-monitor-down; }
     Mod+H     hotkey-overlay-title="Focus Left"  { focus-column-left; }
-    Mod+J     hotkey-overlay-title="Focus Workspace Down" { focus-workspace-down; }
-    Mod+K     hotkey-overlay-title="Focus Workspace Up"   { focus-workspace-up; }
+    Mod+J     hotkey-overlay-title="Focus Workspace Down" { focus-window-or-workspace-down; }
+    Mod+K     hotkey-overlay-title="Focus Workspace Up"   { focus-window-or-workspace-up; }
     Mod+L     hotkey-overlay-title="Focus Right" { focus-column-right; }
     
     // Overview / Workspace navigation
     Mod+O hotkey-overlay-title="Toggle Overview" { toggle-overview; }
 
     // Moving Windows
-    Mod+Shift+Left  hotkey-overlay-title="Move Left"  { move-column-left; }
-    Mod+Shift+Right hotkey-overlay-title="Move Right" { move-column-right; }
+    Mod+Shift+Left  hotkey-overlay-title="Move to monitor Left"  { move-column-to-monitor-left; }
+    Mod+Shift+Right hotkey-overlay-title="Move to monitor Right" { move-column-to-monitor-right; }
     Mod+Shift+Up    hotkey-overlay-title="Move to Workspace Up"    { move-column-to-workspace-up; }
     Mod+Shift+Down  hotkey-overlay-title="Move to Workspace Down"  { move-column-to-workspace-down; }
-    Mod+Shift+H     hotkey-overlay-title="Move Left"  { move-column-left; }
-    Mod+Shift+J     hotkey-overlay-title="Move to Workspace Down" { move-column-to-workspace-down; }
-    Mod+Shift+K     hotkey-overlay-title="Move to Workspace Up"   { move-column-to-workspace-up; }
-    Mod+Shift+L     hotkey-overlay-title="Move Right" { move-column-right; }
+    Mod+Shift+H     hotkey-overlay-title="Move Left"  { move-column-left-or-to-monitor-left; }
+    Mod+Shift+J     hotkey-overlay-title="Move Down" { move-window-down-or-to-workspace-down; }
+    Mod+Shift+K     hotkey-overlay-title="Move Up"   { move-window-up-or-to-workspace-up; }
+    Mod+Shift+L     hotkey-overlay-title="Move Right" { move-column-right-or-to-monitor-right; }
     
     // Layout Management
     Mod+R hotkey-overlay-title="Cycle Column Width" { switch-preset-column-width; }

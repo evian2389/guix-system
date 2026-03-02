@@ -133,7 +133,6 @@
     dunst
     sshfs
     pixz
-    google-chrome-stable
     firefox
     mpv
     yt-dlp

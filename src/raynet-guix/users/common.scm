@@ -75,19 +75,13 @@
                                ;;("GTK_IM_MODULE" . "fcitx")
                                ;;("QT_IM_MODULE" . "fcitx")
                                ;;("SDL_IM_MODULE" . "fcitx")
-                               ("XDG_DATA_DIRS" . "$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$HOME/.local/share:$HOME/.guix-home/profile/share:$XDG_DATA_DIRS")
+                               ("XDG_DATA_DIRS" . "$HOME/.local/share:$HOME/.guix-home/profile/share:$HOME/.nix-profile/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS")
+                               ("LD_LIBRARY_PATH" . "$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH")
                                ;; Best setup for KDE Plasma 5.27+ Wayland:
                                ;; Do not set GTK_IM_MODULE, QT_IM_MODULE, or SDL_IM_MODULE.
                                ;; They should be unset to use the text-input protocol.
                                ;; However, Steam (Xwayland) and many games (SDL) still need them.
                                ("GLFW_IM_MODULE" . "fcitx")))
-             (simple-service 'dbus-env-update
-                home-run-on-first-login-service-type
-                #~(spawn "dbus-update-activation-environment" '("--all")))
-             (service home-xdg-configuration-files-service-type
-                      `(("google-chrome-flags.conf"
-                         ,(plain-file "google-chrome-flags.conf"
-                                      "--enable-features=UseOzonePlatform\n--ozone-platform=wayland\n--enable-wayland-ime\n"))))
              (simple-service 'source-extra-profiles
                              home-shell-profile-service-type
                              (list
