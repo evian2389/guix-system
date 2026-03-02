@@ -9,7 +9,7 @@
      source "$GUIX_SESSION_PROFILE"
   fi
 
- export LD_LIBRARY_PATH="$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH"
+ #export LD_LIBRARY_PATH="$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH"
 
   #export GTK_IM_MODULE=fcitx
   #export QT_IM_MODULE=fcitx
@@ -30,16 +30,16 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   export KEYTIMEOUT=1
 
   # Change cursor shape for different vi modes
-  function zle-keymap-select {
-    if [[ ${KEYMAP} == vicmd ]] || [[ $1 = 'block' ]]; then
-      echo -ne '\e[1 q' # Block
-    elif [[ ${KEYMAP} == main ]] || [[ ${KEYMAP} == viins ]] || [[ ${KEYMAP} == "" ]] || [[ $1 = 'beam' ]]; then
-      echo -ne '\e[5 q' # Beam
-    fi
-  }
-  zle -N zle-keymap-select
-  _fix_cursor() { echo -ne '\e[5 q' } # Start with beam
-  precmd_functions+=(_fix_cursor)
+  # function zle-keymap-select {
+  #   if [[ ${KEYMAP} == vicmd ]] || [[ $1 = 'block' ]]; then
+  #     echo -ne '\e[1 q' # Block
+  #   elif [[ ${KEYMAP} == main ]] || [[ ${KEYMAP} == viins ]] || [[ ${KEYMAP} == "" ]] || [[ $1 = 'beam' ]]; then
+  #     echo -ne '\e[5 q' # Beam
+  #   fi
+  # }
+  # zle -N zle-keymap-select
+  # _fix_cursor() { echo -ne '\e[5 q' } # Start with beam
+  # precmd_functions+=(_fix_cursor)
 
   # Keybindings for autosuggestions in Vi mode
   # In Vi mode, we need to ensure right-arrow and Ctrl+F still work to accept suggestions

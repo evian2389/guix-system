@@ -39,7 +39,7 @@ export PATH="$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME
 export XDG_DATA_DIRS="$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$HOME/.local/share:$XDG_DATA_DIRS"
 
 # LD_LIBRARY_PATH
- export LD_LIBRARY_PATH="$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH"
+# export LD_LIBRARY_PATH="$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH"
 
 # Input Method and other environment variables
 export XMODIFIERS="@im=fcitx"
