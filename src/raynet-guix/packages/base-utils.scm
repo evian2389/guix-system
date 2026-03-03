@@ -45,6 +45,7 @@
   #:use-module (gnu packages audio)       ; pipemixer
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
+  #:use-module (nongnu packages messaging)     ; for element desktop messenger
   #:use-module (px packages editors)         ; for antigravity
   #:use-module (px packages vm)         ; iron bar
   #:use-module (px packages version-control)         ; for git hub cli
@@ -134,6 +135,7 @@
     sshfs
     pixz
     firefox
+    element-desktop
     mpv
     yt-dlp
     zsh

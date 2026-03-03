@@ -345,7 +345,7 @@ For now, the idea is that I provide variables and functions that can be called i
                                      dw-writing
                                      dw-workflow
                                      dw-extras
-                                     dw-helix)
+                                     dw-meow)
     "Configuration modules most commonly used across my machines.")
 
   ;; Add configuration modules to load path
@@ -1325,41 +1325,22 @@ I also use it as the core for my personal productivity system which revolves lar
 
 *** Project Management
 
-I'm leveraging the built-in =project.el= package to manage the tasks I perform around the projects I'm working on.
+I'm leveraging the =projectile= package to manage the tasks I perform around the projects I'm working on.
 
 #+begin_src emacs-lisp :tangle modules/dw-develop.el
 
-  (use-package project
+  (use-package projectile
     :ensure nil
-    :bind (:map project-prefix-map
-                ("t" . eat-project))
-    :custom
-    (project-switch-use-entire-map t))
+    :demand t
+    :config
+    (projectile-mode +1)
+    (setq projectile-project-search-path '("~/workspace" "~/projects"))
+    (setq projectile-switch-project-action #'projectile-dired))
 
   (defun dw/project-compilation-buffer-name-function (name-of-mode)
-    (format "*compilation: %s*" (project-name (project-current))))
+    (format "*compilation: %s*" (projectile-project-name)))
 
-  (setq project-compilation-buffer-name-function 'dw/project-compilation-buffer-name-function)
-
-  (defun dw/ensure-project-in-tab (project-dir)
-    "Ensure we're in a tab named after the project."
-    (let* ((project-name (file-name-nondirectory (directory-file-name project-dir)))
-           (tab-names (mapcar (lambda (tab) (alist-get 'name tab)) (tab-bar-tabs)))
-           (existing-tab (seq-find (lambda (name) (equal name project-name)) tab-names)))
-      (unless existing-tab
-        (tab-new)
-        (tab-rename project-name))
-      (unless (equal (alist-get 'name (tab-bar--current-tab)) project-name)
-        (tab-bar-select-tab-by-name project-name))))
-
-  (defun dw/project-prompter ()
-    "Prompt for project and ensure it opens in the correct tab."
-    (let ((project-dir (project-prompt-project-dir)))
-      (dw/ensure-project-in-tab project-dir)
-      project-dir))
-
-  ;; Use our custom prompter for all project commands
-  (setq project-prompter #'dw/project-prompter)
+  (setq compilation-buffer-name-function 'dw/project-compilation-buffer-name-function)
 
 #+end_src
 
@@ -1714,6 +1695,9 @@ The =emacs-guix= package is quite convenient for searching Guix packages from wi
     (let ((tangle-script (expand-file-name "tangle.sh" dw/config-directory)))
       (async-shell-command tangle-script "*reconfigure-home*")))
 
+  ;; Unbind C-c G if it is already bound to something else (like org-roam-graph)
+  (keymap-global-unset "C-c G" t)
+
   (use-package guix
     :ensure nil
     :if dw/is-guix-system
@@ -1777,52 +1761,207 @@ I've been using Claude Code lately to assist with writing tools to enhance my wo
 
 #+end_src
 
-** =dw-helix= - Helix-like Editing
+** =dw-meow= - Meow Editing
 
-#+begin_src emacs-lisp :tangle modules/dw-helix.el
+#+begin_src emacs-lisp :tangle modules/dw-meow.el
 
   ;; -*- lexical-binding: t; -*-
 
-  (use-package helix
+  (defun meow-setup ()
+    (setq meow-cheatsheet-layout meow-cheatsheet-layout-qwerty)
+    (meow-motion-overwrite-define-key
+     '("j" . meow-next)
+     '("k" . meow-prev)
+     '("<escape>" . ignore))
+    (meow-leader-define-key
+     ;; SPC j/k will run the original command in MOTION state.
+     '("j" . "H-j")
+     '("k" . "H-k")
+     ;; Use SPC (0-9) for digit arguments.
+     '("1" . meow-digit-argument)
+     '("2" . meow-digit-argument)
+     '("3" . meow-digit-argument)
+     '("4" . meow-digit-argument)
+     '("5" . meow-digit-argument)
+     '("6" . meow-digit-argument)
+     '("7" . meow-digit-argument)
+     '("8" . meow-digit-argument)
+     '("9" . meow-digit-argument)
+     '("0" . meow-digit-argument)
+     '("/" . meow-keypad-describe-key)
+     '("?" . meow-cheatsheet))
+    (meow-normal-define-key
+     '("0" . meow-expand-0)
+     '("9" . meow-expand-9)
+     '("8" . meow-expand-8)
+     '("7" . meow-expand-7)
+     '("6" . meow-expand-6)
+     '("5" . meow-expand-5)
+     '("4" . meow-expand-4)
+     '("3" . meow-expand-3)
+     '("2" . meow-expand-2)
+     '("1" . meow-expand-1)
+     '("-" . negative-argument)
+     '(";" . meow-reverse)
+     '("," . meow-inner-of-thing)
+     '("." . meow-bounds-of-thing)
+     '("[" . meow-beginning-of-thing)
+     '("]" . meow-end-of-thing)
+     '("a" . meow-append)
+     '("A" . meow-open-below)
+     '("b" . meow-back-word)
+     '("B" . meow-back-symbol)
+     '("c" . meow-change)
+     '("d" . meow-delete)
+     '("D" . meow-backward-delete)
+     '("e" . meow-next-word)
+     '("E" . meow-next-symbol)
+     '("f" . meow-find)
+     '("g" . meow-cancel-selection)
+     '("G" . meow-grab)
+     '("h" . meow-left)
+     '("H" . meow-left-expand)
+     '("i" . meow-insert)
+     '("I" . meow-open-above)
+     '("j" . meow-next)
+     '("J" . meow-next-expand)
+     '("k" . meow-prev)
+     '("K" . meow-prev-expand)
+     '("l" . meow-right)
+     '("L" . meow-right-expand)
+     '("m" . meow-join)
+     '("n" . meow-search)
+     '("o" . meow-block)
+     '("O" . meow-to-block)
+     '("p" . meow-yank)
+     '("q" . meow-quit)
+     '("Q" . meow-goto-line)
+     '("r" . meow-replace)
+     '("R" . meow-swap-grab)
+     '("s" . meow-kill)
+     '("t" . meow-till)
+     '("u" . meow-undo)
+     '("U" . meow-undo-in-selection)
+     '("v" . meow-visit)
+     '("w" . meow-next-word)
+     '("W" . meow-next-symbol)
+     '("x" . meow-line)
+     '("X" . meow-goto-line)
+     '("y" . meow-save)
+     '("Y" . meow-sync-grab)
+     '("z" . meow-pop-selection)
+     '("'" . repeat)
+     '("<escape>" . ignore)))
+
+  (defun my/meow-jump-to-pair ()
+    "Jump to matching pair, adapted from dotfiles."
+    (interactive)
+    (let ((pos (point)))
+      (condition-case nil
+          (cond
+           ((looking-at "\\s\(") (forward-list 1) (backward-char 1))
+           ((looking-at "\\s\)") (forward-char 1) (backward-list 1))
+           ((and (char-before) (string-match "\\s\)" (char-to-string (char-before)))) (backward-list 1))
+           ((and (char-before) (string-match "\\s\(" (char-to-string (char-before)))) (backward-char 1) (forward-list 1) (backward-char 1))
+           (t
+            (save-excursion
+              (if (re-search-forward "[([{\"\]})]" (line-end-position) t)
+                  (setq pos (match-beginning 0))
+                (setq pos nil)))
+            (if pos
+                (progn (goto-char pos) (my/meow-jump-to-pair))
+              (message "No pair found on this line"))))
+        (error (message "No matching pair found")))))
+
+  (defun consult-ripgrep-with-last-regex ()
+    "Run consult-ripgrep with the last regex from regex-search-ring."
+    (interactive)
+    (consult-ripgrep nil (car regexp-search-ring)))
+
+  (use-package meow
     :ensure nil
     :demand t
     :config
-    (helix-mode)
+    (meow-setup)
+    (meow-global-mode 1)
 
-    (defun helix-define-key (map-type key command)
-      "Define a key in a Helix map. MAP-TYPE is 'space for helix-space-map."
-      (let ((map (cond ((eq map-type 'space) helix-space-map)
-                       (t nil))))
-        (if (and map (stringp (car-safe command)))
-            (define-key map key command)
-          (define-key map key command))))
+    ;; Two-char escape sequence (jk) from dotfiles
+    (setq meow-two-char-escape-sequence "jk")
+    (setq meow-two-char-escape-delay 0.3)
 
-    (with-eval-after-load 'which-key
-      (which-key-add-keymap-based-replacements helix-normal-state-keymap
-        "SPC" '("Space Menu" . helix-space-map))
+    (defun meow--two-char-exit-insert-state (s)
+      (when (meow-insert-mode-p)
+        (let ((modified (buffer-modified-p)))
+          (insert (elt s 0))
+          (let* ((second-char (elt s 1))
+                 (event
+                  (if defining-kbd-macro
+                      (read-event nil nil)
+                    (read-event nil nil meow-two-char-escape-delay))))
+            (when event
+              (if (and (characterp event) (= event second-char))
+                  (progn
+                    (backward-delete-char 1)
+                    (set-buffer-modified-p modified)
+                    (meow--execute-kbd-macro "<escape>"))
+                (push event unread-command-events)))))))
 
-      ;; Notes (n) sub-menu
-      (define-prefix-command 'dw/helix-notes-map)
-      (helix-define-key 'space "n" '("notes" . dw/helix-notes-map))
+    (defun meow-two-char-exit-insert-state ()
+      (interactive)
+      (meow--two-char-exit-insert-state meow-two-char-escape-sequence))
 
-      (helix-define-key 'space "f" '("Files" . project-find-file))
-      (helix-define-key 'space "b" '("Buffers" . consult-buffer))
+    (define-key meow-insert-state-keymap (substring meow-two-char-escape-sequence 0 1)
+      #'meow-two-char-exit-insert-state)
 
-      (define-key dw/helix-notes-map "a" '("Org Agenda" . org-agenda))
+    ;; Define a prefix map for notes
+    (define-prefix-command 'dw/meow-notes-map)
 
-      (with-eval-after-load 'org-roam
-        (define-key dw/helix-notes-map "f" '("Node Find" . org-roam-node-find))
-        (define-key dw/helix-notes-map "i" '("Node Insert" . org-roam-node-insert))
-        (define-key dw/helix-notes-map "l" '("Buffer Toggle" . org-roam-buffer-toggle))
-        (define-key dw/helix-notes-map "c" '("Capture" . org-roam-capture))
-        (define-key dw/helix-notes-map "d" '("Roam Dailies" . org-roam-dailies-capture-today)))
+    ;; Custom keybindings from dotfiles
+    (meow-normal-define-key
+     '("C-j" . meow-page-down)
+     '("C-k" . meow-page-up)
+     '("/" . isearch-forward-regexp)
+     '("?" . consult-ripgrep-with-last-regex)
+     '("M-f" . find-grep-dired)
+     '("M-o" . browse-url-at-point)
+     '("C-o" . pop-global-mark)
+     '("<" . beginning-of-buffer)
+     '(">" . end-of-buffer)
+     '("M-n" . ace-window)
+     '("P" . meow-clipboard-yank)
+     '("M-;" . xref-find-references)
+     '("M-'" . xref-find-definitions)
+     '("%" . my/meow-jump-to-pair))
 
-      (define-key dw/helix-notes-map "t" '("Todo List" . (lambda () (interactive) (org-agenda nil "t")))))
-    ;; Fix ESC in terminal for helix-mode
-    (define-key helix-insert-state-keymap [escape] #'helix-insert-exit)
-    (define-key helix-insert-state-keymap (kbd "ESC") #'helix-insert-exit))
+    (meow-leader-define-key
+     '("y" . meow-clipboard-save)
+     '("B" . consult-bookmark)
+     '("b" . consult-buffer)
+     '("f" . project-find-file)
+     '("n" . ("notes" . dw/meow-notes-map))
+     '("U" . vundo)
+     '(";" . comment-line))
 
-  (provide 'dw-helix)
+    (with-eval-after-load 'projectile
+      (meow-leader-define-key
+       '("p" . ("project" . projectile-command-map)))
+      (keymap-set projectile-command-map "b" #'consult-project-buffer)
+      (keymap-set projectile-command-map "/" #'consult-ripgrep)
+      (when (boundp 'meow-leader-keymap)
+        (which-key-add-keymap-based-replacements meow-leader-keymap
+          "p" '("project" . projectile-command-map))))
+
+    ;; Populate the notes menu
+    (keymap-set dw/meow-notes-map "a" #'org-agenda)
+    (keymap-set dw/meow-notes-map "c" #'org-capture)
+    (with-eval-after-load 'org-roam
+      (keymap-set dw/meow-notes-map "f" #'org-roam-node-find)
+      (keymap-set dw/meow-notes-map "i" #'org-roam-node-insert)
+      (keymap-set dw/meow-notes-map "l" #'org-roam-buffer-toggle)
+      (keymap-set dw/meow-notes-map "p" #'org-roam-capture)
+      (keymap-set dw/meow-notes-map "g" #'org-roam-graph)
+      (keymap-set dw/meow-notes-map "d" #'org-roam-dailies-capture-today)
+      (keymap-set dw/meow-notes-map "t" #'org-roam-dailies-goto-date)))  (provide 'dw-meow)
 
 #+end_src
 

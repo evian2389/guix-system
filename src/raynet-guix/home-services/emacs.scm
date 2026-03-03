@@ -3,7 +3,6 @@
   #:use-module (gnu packages)
   #:use-module (gnu packages emacs)
   #:use-module (gnu packages emacs-xyz)
-  #:use-module (emacs packages melpa)
   #:use-module (gnu packages gnupg)
   #:use-module (gnu packages mail)
   #:use-module (gnu packages version-control)
@@ -14,11 +13,13 @@
   #:use-module (gnu services configuration)
   #:use-module (guix gexp)
   #:use-module (guix transformations)
+  #:use-module (emacs packages melpa)
 
   #:export (home-emacs-config-service-type))
 
 (define (home-emacs-config-profile-service config)
   (list
+   emacs-meow
    emacs-helix
    emacs-no-littering
    emacs-which-key
@@ -52,6 +53,7 @@
    emacs-marginalia
    emacs-orderless
    emacs-consult
+   emacs-projectile
    emacs-wgrep
 
    emacs-avy
@@ -147,7 +149,7 @@
    emacs-aider
    emacs-treesit-auto
    emacs-org-auto-tangle
-   
+
 
    ;;emacs-epwgraph
 

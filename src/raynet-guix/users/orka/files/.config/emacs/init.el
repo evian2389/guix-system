@@ -228,7 +228,7 @@
                                    dw-writing
                                    dw-workflow
                                    dw-extras
-                                   dw-helix)
+                                   dw-meow)
   "Configuration modules most commonly used across my machines.")
 
 ;; Add configuration modules to load path
