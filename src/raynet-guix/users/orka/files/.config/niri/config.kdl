@@ -2,6 +2,7 @@
 
 // --- Startup Services ---
 spawn-sh-at-startup "dbus-update-activation-environment --all"
+spawn-sh-at-startup "gnome-keyring-daemon --start --components=secrets"
 spawn-at-startup "fcitx5" "-d"
 spawn-at-startup "waybar"
 spawn-at-startup "hypridle"

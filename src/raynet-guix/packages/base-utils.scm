@@ -43,6 +43,7 @@
   #:use-module (gnu packages compression)     ;
   #:use-module (gnu packages xdisorg)     ; pixz, hyprlock
   #:use-module (gnu packages audio)       ; pipemixer
+  #:use-module (gnu packages gnome)       ; for gnome-keyring, libsecret
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (nongnu packages messaging)     ; for element desktop messenger
@@ -145,5 +146,7 @@
     powerlevel-10k
     qutebrowser
     blueman
+    gnome-keyring
+    libsecret
     ;;ironbar
     ))

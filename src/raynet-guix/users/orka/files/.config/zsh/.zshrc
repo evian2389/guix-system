@@ -112,6 +112,7 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   alias la='eza -a --color=always --group-directories-first --icons'
   alias ll='eza -al --color=always --group-directories-first --icons'
   alias lt='eza -aT --color=always --group-directories-first --icons'
+  alias element-desktop='element-desktop --password-store=gnome-libsecret'
   
   # Navigation
   alias ..='cd ..'
