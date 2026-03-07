@@ -1,7 +1,8 @@
   #theme = "ayu_dark"
   #theme = "onedark"
   #theme = "catppuccin_mocha"
-  theme = "vintage"
+  #theme = "vintage"
+  theme = "gruvbox-material"
   
   
   [editor]
@@ -85,6 +86,7 @@
   right = ["selections", "primary-selection-length", "position", "position-percentage", "spacer", "diagnostics", "workspace-diagnostics", "version-control"]
   
   [keys.normal]
+  "D" = "kill_to_line_end"
   # Use system clipboard
   #y = "yank_main_selection_to_clipboard"
   #p = "paste_clipboard_before"
@@ -95,7 +97,9 @@
     "search_selection",
   ]
   C-j = ["insert_mode", "insert_newline", "normal_mode"]
-  C-y = ":sh zellij run -f -x 10% -y 10% --width 80% --height 80% -- bash ~/.config/helix/yazi-picker.sh"
+  A-y = ":sh zellij run -f -x 10%% -y 10%% --width 80%% --height 80%% -- bash ~/.config/helix/yazi-picker.sh"
+  A-e = ":sh zellij run -f -x 10%% -y 10%% --width 80%% --height 80%% -- bash ~/.config/helix/broot-picker.sh"
+  A-t = ["save_selection", "select_all", ":pipe sed 's/[[:space:]]*$//'", "jump_backward"]
   
   # C-b = ":new<space>:insert-output build.sh"
   "C-b" = [":hsplit-new", ":insert-output build.sh"]
@@ -112,6 +116,6 @@
   r = ":sh helix-wezterm.sh run"
   t = ":sh helix-wezterm.sh test"
   
-  [keys.insert]
-  j = { k = "normal_mode" } # Maps `jk` to exit insert mode
-  k = { j = ":insert-output printf 'λ'" } # Maps `ld` t oinput lambda
+  # [keys.insert]
+  # j = { k = "normal_mode" } # Maps `jk` to exit insert mode
+  # k = { j = ":insert-output printf 'λ'" } # Maps `ld` t oinput lambda

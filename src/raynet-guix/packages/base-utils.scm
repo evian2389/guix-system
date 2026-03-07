@@ -30,6 +30,7 @@
   #:use-module (gnu packages video)
   #:use-module (gnu packages linux)   ; for brightnessctl
   #:use-module (gnu packages music)   ; for playerctl
+  #:use-module (gnu packages sync)   ; for rclone
   #:use-module (gnu packages freedesktop) ; for xdg-desktop-portal
   #:use-module (gnu packages text-editors)   ; for helix
   #:use-module (gnu packages vim)   ; neovim
@@ -37,6 +38,7 @@
   #:use-module (gnu packages shellutils) ; For shell utils
   #:use-module (gnu packages terminals) ; For terminal utils
   #:use-module (gnu packages image-viewers) ; For imv
+  #:use-module (gnu packages image) ; For grim screenshot
   #:use-module (gnu packages emacs)   ; neovim
   #:use-module (gnu packages web-browsers)     ; for qutebrowser
   #:use-module (gnu packages networking)     ; for blueman
@@ -51,10 +53,12 @@
   #:use-module (px packages vm)         ; iron bar
   #:use-module (px packages version-control)         ; for git hub cli
   #:use-module (px packages tools)         ; for antigravity
+  #:use-module (px packages graphics)         ; for oculante
   #:use-module (saayix packages terminals)         ; for ghostty
   #:use-module (saayix packages file-managers)         ; for ghostty
   #:use-module (abbe packages zsh)         ; for ghostty
   #:use-module (abbe packages neovim)        ; for neovim
+  #:use-module (shika packages satty)
   #:export (development-tools
             system-tools
             ghostty-fixed))
@@ -73,9 +77,10 @@
                     (("^Exec=\\./bin/ghostty") (string-append "Exec=" #$output "/bin/ghostty"))
                     (("^TryExec=\\./bin/ghostty") (string-append "TryExec=" #$output "/bin/ghostty"))))))))))))
 
-(define development-tools
+(define-public development-tools
   (list
     git
+    difftastic
     gcc-toolchain
     clang-toolchain
     binutils
@@ -112,7 +117,7 @@
     gh
     vscode))
 
-(define system-tools
+(define-public system-tools
   (list
     fd
     eza
@@ -120,11 +125,12 @@
     fzf-tab  ; for default completion menu of the zsh
     fzf
     broot
-    yazi
     imv
     brightnessctl
     playerctl
-
+    satty
+    grim
+    slurp
     xdg-desktop-portal
     xdg-desktop-portal-gtk
     power-profiles-daemon
@@ -148,5 +154,9 @@
     blueman
     gnome-keyring
     libsecret
+    mcron
+    rclone
+    nomacs
+    ;;oculante
     ;;ironbar
     ))

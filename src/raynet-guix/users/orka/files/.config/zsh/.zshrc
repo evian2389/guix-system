@@ -21,6 +21,8 @@
   export XDG_DATA_DIRS="$HOME/.local/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS"
   export PATH=$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:~/.cargo/bin:~/.npm-packages/bin:~/.config/emacs/bin/:~/.nix-profile/bin
 
+  export GIT_EXTERNAL_DIFF="difft --display=side-by-side"
+
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 source ~/powerlevel10k/powerlevel10k.zsh-theme
@@ -113,6 +115,7 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   alias ll='eza -al --color=always --group-directories-first --icons'
   alias lt='eza -aT --color=always --group-directories-first --icons'
   alias element-desktop='element-desktop --password-store=gnome-libsecret'
+  alias oculante='flatpak run io.github.woelper.Oculante'
   
   # Navigation
   alias ..='cd ..'

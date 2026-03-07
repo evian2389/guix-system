@@ -1,5 +1,14 @@
 (list
   (channel
+   (name 'shikanox)
+   (url "https://codeberg.org/ch4og/shikanox.git")
+   (branch "main")
+   (introduction
+    (make-channel-introduction
+     "fe3b5f72aa676c69f4d43507bdd18fb051906917"
+     (openpgp-fingerprint
+      "7C9E 7EBA 828C 58DF DACE  5BED 4DCC 7AB7 FC75 319B"))))
+  (channel
     (name 'emacs)
     (url "https://github.com/garrgravarr/guix-emacs")
     (introduction

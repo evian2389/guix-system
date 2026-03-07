@@ -1,0 +1,8 @@
+[[plugin.deps]]
+use = "dedukun/bookmarks"
+
+[[plugin.deps]]
+use = "stelcodes/bunny"
+
+[flavor]
+deps = []

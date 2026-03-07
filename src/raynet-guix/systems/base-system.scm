@@ -6,6 +6,7 @@
   #:use-module (gnu system shadow)
   #:use-module (gnu system file-systems)
   #:use-module (gnu system mapped-devices) ; Moved for potential order dependency
+  #:use-module (gnu system nss)
   #:use-module (gnu services)
   #:use-module (gnu services base)
   #:use-module (gnu services linux)
@@ -34,6 +35,7 @@
   #:use-module (gnu packages gnome)
   #:use-module (gnu packages tex)
   #:use-module (gnu packages cups)        ;; For splix
+  #:use-module (gnu packages avahi)
   #:use-module (gnu packages scanner)     ;; For sane-airscan
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
   #:use-module (gnu packages xdisorg)         ;; For hyprlock
@@ -72,6 +74,7 @@
     (host-name hostname)
     (timezone "Asia/Seoul")
     (locale "en_US.utf8")
+    (name-service-switch %mdns-host-lookup-nss)
     (kernel linux)
     (bootloader bootloader)
     ;;(mapped-devices mapped-devices)
@@ -111,6 +114,10 @@
                         hyprlock
                         hypridle
                         simple-scan
+                        nss-mdns
+                        avahi
+                        print-manager
+                        cups
                         )
                   packages))
 
@@ -135,7 +142,8 @@
                        (program (file-append hyprlock "/bin/hyprlock"))))
              (service cups-service-type
                       (cups-configuration
-                       (extensions (list splix))))
+                       (web-interface? #t)
+                       (extensions (list cups-filters splix foo2zjs hplip-minimal))))
              (service sane-service-type
                       (sane-configuration
                        (backends (list sane-airscan)))))

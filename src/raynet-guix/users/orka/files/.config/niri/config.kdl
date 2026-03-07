@@ -3,7 +3,9 @@
 // --- Startup Services ---
 spawn-sh-at-startup "dbus-update-activation-environment --all"
 spawn-sh-at-startup "gnome-keyring-daemon --start --components=secrets"
+spawn-at-startup "xwayland-satellite"
 spawn-at-startup "fcitx5" "-d"
+spawn-at-startup "waysunset"
 spawn-at-startup "waybar"
 spawn-at-startup "hypridle"
 spawn-at-startup "swww-daemon"
@@ -49,7 +51,7 @@ layer-rule {
 
 // --- Layout & Visuals ---
 layout {
-    gaps 12
+    gaps 2
     center-focused-column "never"
     
     preset-column-widths {
@@ -119,9 +121,10 @@ binds {
     Mod+V hotkey-overlay-title="Audio Mixer: wiremix" { spawn "ghostty" "-e" "wiremix"; }
     Mod+Ctrl+V hotkey-overlay-title="Audio Mixer: pavucontrol" { spawn "pavucontrol"; }
     Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
-    Mod+P hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
+    Mod+I hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
     //Mod+M { spawn "mpv $(wl-paste)"; }
     Mod+M { spawn "sh" "-c" "mpv $(wl-paste)"; }
+    Mod+Y hotkey-overlay-title="File Manager: Yazi" { spawn "ghostty" "-e" "yazi"; }
     
     // Standard Niri Controls
     Mod+Q hotkey-overlay-title="Close Window" { close-window; }
@@ -136,10 +139,10 @@ binds {
     Mod+Right hotkey-overlay-title="Focus Monitor Right" { focus-monitor-right; }
     Mod+Up    hotkey-overlay-title="Focus Monitor Up"    { focus-monitor-up; }
     Mod+Down  hotkey-overlay-title="Focus Monitor Down"  { focus-monitor-down; }
-    Mod+H     hotkey-overlay-title="Focus Left"  { focus-column-left; }
+    Mod+H     hotkey-overlay-title="Focus Left"  { focus-column-or-monitor-left; }
     Mod+J     hotkey-overlay-title="Focus Workspace Down" { focus-window-or-workspace-down; }
     Mod+K     hotkey-overlay-title="Focus Workspace Up"   { focus-window-or-workspace-up; }
-    Mod+L     hotkey-overlay-title="Focus Right" { focus-column-right; }
+    Mod+L     hotkey-overlay-title="Focus Right" { focus-column-or-monitor-right; }
     
     // Overview / Workspace navigation
     Mod+O hotkey-overlay-title="Toggle Overview" { toggle-overview; }
@@ -191,6 +194,10 @@ binds {
     Mod+Shift+9 { move-column-to-workspace 9; }
 
     Mod+Tab hotkey-overlay-title="Previous Workspace" { focus-workspace-previous; }
+
+    // Screenshots with Satty
+    Print hotkey-overlay-title="Screenshot (Edit)" { spawn "sh" "-c" "grim - | satty -f -"; }
+    Mod+P hotkey-overlay-title="Screenshot Area (Edit)" { spawn "sh" "-c" "grim -g \"$(slurp)\" - | satty -f -"; }
 }
 
 // --- Window Rules ---
@@ -256,7 +263,8 @@ input {
     workspace-auto-back-and-forth
 }
 
-// --- Outputs ---
+ // --- Outputs ---
+
 output "eDP-1" {
     scale 1.0
 }

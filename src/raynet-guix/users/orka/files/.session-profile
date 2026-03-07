@@ -3,13 +3,13 @@
 # --- Profile Sourcing ---
 
 # Source default user profile
-GUIX_PROFILE_DEFAULT="$HOME/.guix-profile"
+export GUIX_PROFILE_DEFAULT="$HOME/.guix-profile"
 if [ -f "$GUIX_PROFILE_DEFAULT/etc/profile" ]; then
   . "$GUIX_PROFILE_DEFAULT/etc/profile"
 fi
 
 # Source system environment profile
-GUIX_PROFILE_SYSTEM="/home/orka/guix-system/env/profile"
+export GUIX_PROFILE_SYSTEM="/home/orka/guix-system/env/profile"
 if [ -d "$GUIX_PROFILE_SYSTEM" ]; then
   . "$GUIX_PROFILE_SYSTEM/etc/profile"
 fi
@@ -21,7 +21,8 @@ if [ -f "$GUIX_PROFILE_EXTRA/etc/profile" ]; then
 fi
 
 # Source Guix Home profile
-if [ -f "$HOME/.guix-home/profile/etc/profile" ]; then
+export GUIX_PROFILE_HOME="$HOME/.guix-home/profile"
+if [ -f "$GUIX_PROFILE_HOME/etc/profile" ]; then
   . "$HOME/.guix-home/profile/etc/profile"
 fi
 
