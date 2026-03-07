@@ -17,6 +17,10 @@
 (define (home-games-profile-service config)
   (list
     steam
+    mesa
+    vulkan-loader
+    mesa-utils
+    vulkan-tools
   ))
 
 (define-public home-games-service-type
