@@ -70,15 +70,13 @@
                        (enable-pulseaudio? #t)))
              (simple-service 'common-environment-variables
                              home-environment-variables-service-type
-                             '(("PATH" . "$HOME/.guix-home/profile/bin:$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.npm-packages/bin:$HOME/.config/emacs/bin/:$HOME/.nix-profile/bin:$HOME/.local/share/flatpak/exports/bin")
+                             '(("PATH" . "$HOME/.local/bin:$HOME/.guix-home/profile/bin:$PATH:$HOME/.npm-global/bin:$HOME/.cargo/bin:$HOME/.npm-packages/bin:$HOME/.config/emacs/bin/:$HOME/.nix-profile/bin:$HOME/.local/share/flatpak/exports/bin")
                                ("XMODIFIERS" . "@im=fcitx")
                                ;;("GTK_IM_MODULE" . "fcitx")
                                ;;("QT_IM_MODULE" . "fcitx")
                                ;;("SDL_IM_MODULE" . "fcitx")
                                ("XDG_DATA_DIRS" . "$HOME/.local/share:$HOME/.guix-home/profile/share:$HOME/.nix-profile/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS")
-                               ("LD_LIBRARY_PATH" . "$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH")
-                               ;; Best setup for KDE Plasma 5.27+ Wayland:
-                               ;; Do not set GTK_IM_MODULE, QT_IM_MODULE, or SDL_IM_MODULE.
+                               ;; Best setup for KDE Plasma 5.27+ Wayland:                               ;; Do not set GTK_IM_MODULE, QT_IM_MODULE, or SDL_IM_MODULE.
                                ;; They should be unset to use the text-input protocol.
                                ;; However, Steam (Xwayland) and many games (SDL) still need them.
                                ("GLFW_IM_MODULE" . "fcitx")))

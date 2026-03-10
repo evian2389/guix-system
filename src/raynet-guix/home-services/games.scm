@@ -29,5 +29,15 @@
                 (extensions
                  (list (service-extension
                         home-profile-service-type
-                        home-games-profile-service)))
+                        home-games-profile-service)
+                       (service-extension
+                        home-files-service-type
+                        (lambda (config)
+                          `((".local/bin/steam"
+                             ,(plain-file "steam-wrapper"
+                                          "#!/bin/sh
+export LD_LIBRARY_PATH=\"$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH\"
+# Use the absolute path to the profile's steam to avoid recursion
+exec \"$HOME/.guix-home/profile/bin/steam\" \"$@\"
+")))))))
                 (default-value #f)))
