@@ -6,17 +6,17 @@
     "modules-left": ["niri/workspaces", "niri/window"],
     "modules-center": ["clock", "mpris"],
     "modules-right": [
-        "cpu", 
-        "memory", 
-        "network", 
+        "cpu",
+        "memory",
+        "network",
         "bluetooth",
-        "pulseaudio", 
+        "pulseaudio",
         "pulseaudio#microphone",
         "backlight",
         "power-profiles-daemon",
-        "battery", 
+        "battery",
         "custom/fcitx5",
-        "tray", 
+        "tray",
         "privacy",
         "custom/notification",
         "custom/lock",
@@ -130,14 +130,14 @@
             "default": ["", "", ""]
         },
         "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
-        "on-click-right": "flatpak run com.saivert.pwvucontrol"
+        "on-click-right": "easyeffects"
     },
 
     "pulseaudio#microphone": {
         "format": "{format_source}",
         "format-source": "󰍬 {volume}%",
         "format-source-muted": "󰍭 Muted",
-        "on-click": "flatpak run com.saivert.pwvucontrol",
+        "on-click": "easyeffects",
         "on-click-right": "qpwgraph",
         "tooltip": false
     },

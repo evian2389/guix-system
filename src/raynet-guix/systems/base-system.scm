@@ -11,6 +11,7 @@
   #:use-module (gnu services base)
   #:use-module (gnu services linux)
   #:use-module (gnu services audio)
+  #:use-module (gnu services sound)
   #:use-module (gnu services desktop)
   #:use-module (gnu services xorg)
   #:use-module (gnu services networking)
@@ -43,7 +44,7 @@
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (nongnu packages linux)
-  #:use-module (saayix packages terminals))
+  #:use-module (abbe packages ghostty))
 
 (define (nonguix-substitute-service config)
   (guix-configuration
@@ -152,6 +153,7 @@
                           `(("orka" ,home-environment))))
            '())
        (modify-services %desktop-services
+         (delete pulseaudio-service-type)
          (guix-service-type config => (nonguix-substitute-service config)))))
 
     (keyboard-layout (keyboard-layout "kr"))

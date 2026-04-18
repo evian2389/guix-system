@@ -46,16 +46,11 @@
   #:use-module (gnu packages xdisorg)     ; pixz, hyprlock
   #:use-module (gnu packages audio)       ; pipemixer
   #:use-module (gnu packages gnome)       ; for gnome-keyring, libsecret
+  #:use-module (nongnu packages editors)      ; for vscodium
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (nongnu packages messaging)     ; for element desktop messenger
-  #:use-module (px packages editors)         ; for antigravity
-  #:use-module (px packages vm)         ; iron bar
-  #:use-module (px packages version-control)         ; for git hub cli
-  #:use-module (px packages tools)         ; for antigravity
-  #:use-module (px packages graphics)         ; for oculante
-  #:use-module (saayix packages terminals)         ; for ghostty
-  #:use-module (saayix packages file-managers)         ; for ghostty
+  #:use-module (abbe packages ghostty)         ; for ghostty
   #:use-module (abbe packages zsh)         ; for ghostty
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (shika packages satty)
@@ -80,6 +75,7 @@
 (define-public development-tools
   (list
     git
+    github-cli
     difftastic
     gcc-toolchain
     clang-toolchain
@@ -94,7 +90,7 @@
     gdb
     node
     python
-    ; ghc
+    ghc
     ; haskell-language-server
     ; cabal-install
     go
@@ -114,8 +110,8 @@
     fuse-overlayfs
     distrobox
     coreutils
-    gh
-    vscode))
+    vscodium
+    ))
 
 (define-public system-tools
   (list
@@ -124,7 +120,6 @@
     bat
     fzf-tab  ; for default completion menu of the zsh
     fzf
-    broot
     imv
     brightnessctl
     playerctl
@@ -148,7 +143,6 @@
     zsh
     helix
     neovim
-    antigravity
     powerlevel-10k
     qutebrowser
     blueman
@@ -157,6 +151,4 @@
     mcron
     rclone
     nomacs
-    ;;oculante
-    ;;ironbar
     ))

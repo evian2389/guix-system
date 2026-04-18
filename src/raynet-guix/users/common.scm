@@ -15,6 +15,7 @@
   #:use-module (gnu packages rust)
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages video)
+  #:use-module (gnu packages linux)
   #:use-module (gnu packages gnome)
   #:use-module (gnu packages gnome-xyz)
   #:use-module (gnu packages xorg)
@@ -67,6 +68,7 @@
              (service home-finance-service-type)
              (service home-pipewire-service-type
                       (home-pipewire-configuration
+                       (wireplumber wireplumber)
                        (enable-pulseaudio? #t)))
              (simple-service 'common-environment-variables
                              home-environment-variables-service-type

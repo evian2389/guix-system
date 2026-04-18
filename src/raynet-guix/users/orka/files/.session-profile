@@ -2,6 +2,11 @@
 
 # --- Profile Sourcing ---
 
+# Source system-wide profile
+if [ -f /etc/profile ]; then
+  . /etc/profile
+fi
+
 # Source default user profile
 export GUIX_PROFILE_DEFAULT="$HOME/.guix-profile"
 if [ -f "$GUIX_PROFILE_DEFAULT/etc/profile" ]; then

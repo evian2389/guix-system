@@ -62,7 +62,7 @@
         mosh
 
         ;; Browsers
-        (specification->package "qtwayland@5")
+        (specification->package "qtwayland")
         ;qutebrowser
         ;vimb
 

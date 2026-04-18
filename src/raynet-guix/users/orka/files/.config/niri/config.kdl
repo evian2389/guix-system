@@ -53,15 +53,15 @@ layer-rule {
 layout {
     gaps 2
     center-focused-column "never"
-    
+
     preset-column-widths {
         proportion 0.33333
         proportion 0.5
         proportion 0.66667
     }
-    
+
     default-column-width { proportion 0.5; }
-    
+
     focus-ring {
         width 2
         active-color "#7aa2f7"
@@ -118,14 +118,14 @@ binds {
 
     // Launcher: Fuzzel (Guix home)
     Mod+D hotkey-overlay-title="App Launcher: Fuzzel" { spawn "fuzzel"; }
-    Mod+V hotkey-overlay-title="Audio Mixer: wiremix" { spawn "ghostty" "-e" "wiremix"; }
-    Mod+Ctrl+V hotkey-overlay-title="Audio Mixer: pavucontrol" { spawn "pavucontrol"; }
+    Mod+Ctrl+V hotkey-overlay-title="Audio Mixer: wiremix" { spawn "ghostty" "-e" "wiremix"; }
+    Mod+V hotkey-overlay-title="Audio Mixer: easyeffects" { spawn "easyeffects"; }
     Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
     Mod+I hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
     //Mod+M { spawn "mpv $(wl-paste)"; }
     Mod+M { spawn "sh" "-c" "mpv $(wl-paste)"; }
     Mod+Y hotkey-overlay-title="File Manager: Yazi" { spawn "ghostty" "-e" "yazi"; }
-    
+
     // Standard Niri Controls
     Mod+Q hotkey-overlay-title="Close Window" { close-window; }
     //Mod+Return hotkey-overlay-title="Open Terminal" { spawn "/home/orka/.guix-home/profile/bin/ghostty"; }
@@ -133,17 +133,17 @@ binds {
     Mod+Ctrl+Return hotkey-overlay-title="Open Terminal: Ghostty" { spawn "alacritty"; }
     Mod+Shift+E hotkey-overlay-title="Logout Menu" { spawn "wlogout"; }
     Mod+Ctrl+Shift+E hotkey-overlay-title="Quit Niri" { quit; }
-    
+
     // Navigation
     Mod+Left  hotkey-overlay-title="Focus Monitor Left"  { focus-monitor-left; }
     Mod+Right hotkey-overlay-title="Focus Monitor Right" { focus-monitor-right; }
     Mod+Up    hotkey-overlay-title="Focus Monitor Up"    { focus-monitor-up; }
     Mod+Down  hotkey-overlay-title="Focus Monitor Down"  { focus-monitor-down; }
-    Mod+H     hotkey-overlay-title="Focus Left"  { focus-column-or-monitor-left; }
+    Mod+H     hotkey-overlay-title="Focus Left"  { focus-column-left; }
     Mod+J     hotkey-overlay-title="Focus Workspace Down" { focus-window-or-workspace-down; }
     Mod+K     hotkey-overlay-title="Focus Workspace Up"   { focus-window-or-workspace-up; }
-    Mod+L     hotkey-overlay-title="Focus Right" { focus-column-or-monitor-right; }
-    
+    Mod+L     hotkey-overlay-title="Focus Right" { focus-column-right; }
+
     // Overview / Workspace navigation
     Mod+O hotkey-overlay-title="Toggle Overview" { toggle-overview; }
 
@@ -152,11 +152,11 @@ binds {
     Mod+Shift+Right hotkey-overlay-title="Move to monitor Right" { move-column-to-monitor-right; }
     Mod+Shift+Up    hotkey-overlay-title="Move to Workspace Up"    { move-column-to-workspace-up; }
     Mod+Shift+Down  hotkey-overlay-title="Move to Workspace Down"  { move-column-to-workspace-down; }
-    Mod+Shift+H     hotkey-overlay-title="Move Left"  { move-column-left-or-to-monitor-left; }
+    Mod+Shift+H     hotkey-overlay-title="Move Left"  { move-column-left; }
     Mod+Shift+J     hotkey-overlay-title="Move Down" { move-window-down-or-to-workspace-down; }
     Mod+Shift+K     hotkey-overlay-title="Move Up"   { move-window-up-or-to-workspace-up; }
-    Mod+Shift+L     hotkey-overlay-title="Move Right" { move-column-right-or-to-monitor-right; }
-    
+    Mod+Shift+L     hotkey-overlay-title="Move Right" { move-column-right; }
+
     // Layout Management
     Mod+R hotkey-overlay-title="Cycle Column Width" { switch-preset-column-width; }
     Mod+F hotkey-overlay-title="Maximize Column" { maximize-column; }
@@ -168,9 +168,9 @@ binds {
     Mod+BracketRight hotkey-overlay-title="Widen Column"  { set-column-width "+10%"; }
 
     // Audio/Media keys
-    XF86AudioRaiseVolume hotkey-overlay-title="Volume Up"   { spawn "flatpak" "run" "com.saivert.pwvucontrol"; }
-    XF86AudioLowerVolume hotkey-overlay-title="Volume Down" { spawn "flatpak" "run" "com.saivert.pwvucontrol"; }
-    XF86AudioMute        hotkey-overlay-title="Mute Audio"  { spawn "flatpak" "run" "com.saivert.pwvucontrol"; }
+    XF86AudioRaiseVolume hotkey-overlay-title="Volume Up"   { spawn "easyeffects"; }
+    XF86AudioLowerVolume hotkey-overlay-title="Volume Down" { spawn "easyeffects"; }
+    XF86AudioMute        hotkey-overlay-title="Mute Audio"  { spawn "easyeffects"; }
 
     // Workspace Management
     Mod+1 { focus-workspace 1; }
@@ -234,7 +234,7 @@ window-rule {
 }
 
 window-rule {
-    match app-id=r#"pavucontrol"#
+    match app-id=r#"easyeffects"#
     match app-id=r#"nm-connection-editor"#
     match app-id=r#"blueman-manager"#
     open-floating true

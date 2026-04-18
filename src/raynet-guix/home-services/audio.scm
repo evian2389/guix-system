@@ -1,4 +1,5 @@
 (define-module (raynet-guix home-services audio)
+  #:use-module (gnu packages)
   #:use-module (gnu home services)
   #:use-module (gnu packages audio)
   #:use-module (gnu packages linux)
@@ -11,7 +12,9 @@
 
         ;; Pipewire (for pw-jack)
         pipewire
-        qpwgraph
+        easyeffects
+        wireplumber
+        (specification->package "qtwayland")
         helvum
         pavucontrol
         ;; coppwr ;; Not currently in Guix
