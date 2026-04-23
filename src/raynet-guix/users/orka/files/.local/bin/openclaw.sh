@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
 # shellcheck source=/dev/null
 # [ -f /etc/profile ] && . /etc/profile
-script -qec "guix shell --container --emulate-fhs \
+guix shell --container --emulate-fhs \
   --expose=$HOME/.gitconfig=$HOME/.gitconfig \
-  --share=$HOME/.claude=$HOME/.claude \
-  --share=$HOME/.claude.json=$HOME/.claude.json \
-  --share=$HOME/.config/claude=$HOME/.config/claude \
+  --share=$HOME/.openclaw=$HOME/.openclaw \
+  --share=$HOME/.config/openclaw=$HOME/.config/openclaw \
   --share=$HOME/.config/cron=$HOME/.config/cron \
   --share=$HOME/.cache/pnpm=$HOME/.cache/pnpm \
   --share=$HOME/.local/share/pnpm=$HOME/.local/share/pnpm \
-  --share=/nix=/nix \
   --expose=$XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
   --preserve='^DBUS_SESSION_BUS_ADDRESS' \
   --preserve='^COLORTERM' \
-  --preserve='^PATH' \
   --share=$HOME=$HOME \
   --network \
   nss-certs coreutils bash grep sed gawk git node swaynotificationcenter libcap openssl@3.0 gcc-toolchain zlib \
-  -- corepack pnpm dlx @anthropic-ai/claude-code --dangerously-skip-permissions $*" /dev/null
+  -- corepack pnpm dlx openclaw "$@"

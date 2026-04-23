@@ -46,6 +46,7 @@
   #:use-module (gnu packages xdisorg)     ; pixz, hyprlock
   #:use-module (gnu packages audio)       ; pipemixer
   #:use-module (gnu packages gnome)       ; for gnome-keyring, libsecret
+  #:use-module (gnu packages tmux)       ; for tmux
   #:use-module (nongnu packages editors)      ; for vscodium
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
@@ -151,4 +152,5 @@
     mcron
     rclone
     nomacs
+    tmux
     ))

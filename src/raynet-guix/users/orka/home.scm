@@ -9,6 +9,7 @@
   #:use-module (raynet-guix home-services emacs)      ; For home-emacs-config-service-type
   #:use-module (raynet-guix home-services finance)    ; For home-finance-service-type
   #:use-module (raynet-guix home-services openclaw)   ; For home-openclaw-service-type
+  #:use-module (raynet-guix home-services claude-code) ; For home-claude-code-service-type
   #:use-module (raynet-guix home-services mcron)      ; For home-mcron-config-service-type
   #:use-module (srfi srfi-1)
   #:use-module (guix utils)
@@ -29,6 +30,7 @@
     (service home-emacs-config-service-type)
     (service home-finance-service-type)
     (service home-openclaw-service-type)
+    (service home-claude-code-service-type)
     (service home-mcron-config-service-type)
     ; (service home-dotfiles-service-type
     ;          (home-dotfiles-configuration

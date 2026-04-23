@@ -3,7 +3,7 @@
   #:use-module (gnu services configuration)
   #:use-module (gnu home services)
   #:use-module (guix gexp)
-  #:use-module (raynet-guix utils)
+  #:use-module (raynet-guix util utils)
   #:export (home-template-file-service-type
             home-template-file-configuration))
 

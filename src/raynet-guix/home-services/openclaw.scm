@@ -11,16 +11,18 @@
    (shepherd-service
     (provision '(openclaw))
     (documentation "Run the OpenClaw gateway.")
-    (start #~(make-forkexec-constructor
-              (list (string-append (getenv "HOME") "/.npm-global/bin/openclaw")
-                    "gateway" "run")
-              #:environment-variables
-              (list (string-append "PATH=" (getenv "HOME") "/.npm-global/bin:" (getenv "PATH")))))
+    (respawn? #t)
+    (auto-start? #t)
+    (start #~(let ((home (passwd:dir (getpwuid (getuid)))))
+               (make-forkexec-constructor
+                (list (string-append home "/.local/bin/openclaw.sh")
+                      "gateway" "run")
+                #:directory home)))
     (stop #~(make-kill-destructor)))))
 
 (define home-openclaw-service-type
   (service-type (name 'home-openclaw)
-                (description "A service for launching OpenClaw.")
+                (description "A service for launching OpenClaw gateway.")
                 (extensions
                  (list (service-extension
                         home-shepherd-service-type

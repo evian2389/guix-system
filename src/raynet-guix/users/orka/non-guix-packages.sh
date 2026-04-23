@@ -11,7 +11,8 @@ if command -v nix-env &> /dev/null; then
     nix-env -iA nixpkgs.hyprlax
     nix-env -iA nixpkgs.wiremix
     nix-env -iA nixpkgs.yazi
-    nix-env -iA nixpkgs.claude-code
+    nix-env -iA nixpkgs.bun
+    #nix-env -iA nixpkgs.claude-code
     # nix-env -iA nixpkgs.oculante
 else
     echo "Warning: nix-env not found. Skipping Nix packages."
