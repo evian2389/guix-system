@@ -5,6 +5,7 @@
   #:use-module (gnu packages version-control)
   #:use-module (gnu packages file-systems)
   #:use-module (gnu packages commencement)
+  #:use-module (gnu packages password-utils)
   #:use-module (gnu packages llvm)
   #:use-module (gnu packages base)
   #:use-module (gnu packages cmake)
@@ -77,6 +78,7 @@
   (list
     git
     github-cli
+    password-store
     difftastic
     gcc-toolchain
     clang-toolchain

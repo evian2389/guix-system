@@ -98,6 +98,9 @@
                         btop
                         ncdu
                         gnupg
+                        pinentry
+                        pinentry-fuzzel
+                        gpgme
                         gpgme
                         font-jetbrains-mono
                         font-gnu-unifont
