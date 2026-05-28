@@ -36,6 +36,17 @@
                           `((".local/bin/steam"
                              ,(plain-file "steam-wrapper"
                                           "#!/bin/sh
+# for korean input
+export XMODIFIERS=@im=fcitx
+export GTK_IM_MODULE=fcitx
+export QT_IM_MODULE=fcitx
+export SDL_IM_MODULE=fcitx
+export LANG=ko_KR.UTF-8
+
+# Share the host's locale data with the container.
+# The nonguix steam wrapper sets GUIX_LOCPATH=/usr/lib/locale inside the container.
+export GUIX_SANDBOX_EXTRA_SHARES=\"/run/current-system/locale=/usr/lib/locale${GUIX_SANDBOX_EXTRA_SHARES:+:$GUIX_SANDBOX_EXTRA_SHARES}\"
+
 export LD_LIBRARY_PATH=\"$HOME/.guix-home/profile/lib:$HOME/guix-system/env/profile/lib:$HOME/.guix-profile/lib:$HOME/.guix-profiles/orka-extra/lib:$LD_LIBRARY_PATH\"
 # Use the absolute path to the profile's steam to avoid recursion
 exec \"$HOME/.guix-home/profile/bin/steam\" \"$@\"

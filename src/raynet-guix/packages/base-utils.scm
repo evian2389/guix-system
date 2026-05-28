@@ -27,6 +27,7 @@
   #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages lua)
   #:use-module (gnu packages java)
+  #:use-module (gnu packages perl)
   #:use-module (gnu packages wm)
   #:use-module (gnu packages video)
   #:use-module (gnu packages linux)   ; for brightnessctl
@@ -44,6 +45,9 @@
   #:use-module (gnu packages web-browsers)     ; for qutebrowser
   #:use-module (gnu packages networking)     ; for blueman
   #:use-module (gnu packages compression)     ;
+  #:use-module (gnu packages tls)
+  #:use-module (gnu packages docker)
+  #:use-module (gnu packages web)
   #:use-module (gnu packages xdisorg)     ; pixz, hyprlock
   #:use-module (gnu packages audio)       ; pipemixer
   #:use-module (gnu packages gnome)       ; for gnome-keyring, libsecret
@@ -56,6 +60,8 @@
   #:use-module (abbe packages zsh)         ; for ghostty
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (shika packages satty)
+  ; #:use-module (px packages editors)
+  ; #:use-module (px packages tools)
   #:export (development-tools
             system-tools
             ghostty-fixed))
@@ -86,9 +92,12 @@
     cmake
     ;make
     compiledb
+    uv
     bear
     autoconf
     pkg-config
+    openssl
+    zlib
     patch
     gdb
     node
@@ -97,6 +106,9 @@
     ; haskell-language-server
     ; cabal-install
     go
+    nginx
+    docker
+    esbuild
     gopls
     openjdk
     rust
@@ -114,6 +126,9 @@
     distrobox
     coreutils
     vscodium
+    ; zed  ;;px
+    ; codex ;; px
+    perl
     ))
 
 (define-public system-tools
@@ -139,7 +154,6 @@
     dunst
     sshfs
     pixz
-    firefox
     element-desktop
     mpv
     yt-dlp

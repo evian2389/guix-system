@@ -1,0 +1,3 @@
+(job '(next-hour '(2))
+     "/home/orka/work/ai-wiki/scripts/run-dream-agent.sh"
+     "dream-agent")

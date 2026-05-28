@@ -11,9 +11,12 @@
     (list (service-extension
            home-mcron-service-type
            (lambda (config)
-             ;; Add your jobs here. 
-             ;; Example: run gd-notes.guile every hour
-             (list #~(job '(next-hour)
-                          (string-append (getenv "HOME") "/.config/cron/gd-notes.guile")))))))
+             (list
+              #~(begin
+                  (let ((cron-dir (string-append (or (getenv "XDG_CONFIG_HOME")
+                                                     (string-append (or (getenv "HOME") "") "/.config"))
+                                                 "/cron")))
+                    (when (file-exists? cron-dir)
+                      ((@@ (mcron scripts mcron) process-files-in-user-directory) "guile")))))))))
    (default-value #f)
-   (description "Personal mcron service configuration.")))
+   (description "Personal mcron service configuration that uses native mcron directory scanning.")))

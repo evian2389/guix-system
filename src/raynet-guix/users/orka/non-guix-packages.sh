@@ -26,6 +26,7 @@ if command -v flatpak &> /dev/null; then
     flatpak install -y flathub com.saivert.pwvucontrol
     flatpak install -y flathub com.google.Chrome
     flatpak install -y flathub io.github.woelper.Oculante
+    flatpak install -y flathub com.usebottles.bottles
     # flatpak install flathub art.graphite.Graphite # image editor, not stable
     # flatpak install -y flathub com.valvesoftware.Steam
 else
@@ -33,14 +34,15 @@ else
 fi
 
 
-# echo "Installing/Updating Rust packages..."
-# if command -v cargo &> /dev/null; then
-#     # xtask ; steel scheme is available in cargo repo
-#     # cargo xtask install
-#     cargo install satty
-# else
-#     echo "Warning: cargo not found. Skipping cargo packages."
-# fi
+echo "Installing/Updating Rust packages..."
+if command -v cargo &> /dev/null; then
+     # xtask ; steel scheme is available in cargo repo
+     # cargo xtask install
+     # cargo install satty
+     cargo install pi-discord-rs
+else
+    echo "Warning: cargo not found. Skipping cargo packages."
+fi
 
 corepack enable --install-directory ~/.local/bin pnpm
 

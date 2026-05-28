@@ -139,7 +139,7 @@
    emacs-telega
    emacs-jabber
 
-   emacs-guix
+   ;emacs-guix
 
    emacs-daemons
 

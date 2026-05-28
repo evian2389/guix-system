@@ -1,6 +1,7 @@
 (define-module (raynet-guix systems base-system)
   #:export (base-operating-system)
   #:use-module (gnu system)
+  #:use-module (gnu system locale)
   #:use-module (gnu system keyboard)
   #:use-module (gnu system accounts)
   #:use-module (gnu system shadow)
@@ -50,10 +51,7 @@
   (guix-configuration
     (inherit config)
     (substitute-urls
-     (append (list "https://substitutes.nonguix.org"
-                   "https://nonguix-proxy.ditigal.xyz"
-                   "https://berlin-guix.jing.rocks"
-                   "https://bordeaux-guix.jing.rocks"
+     (append (list "https://nonguix-proxy.ditigal.xyz"
                    "https://mirrors.sjtug.sjtu.edu.cn/guix"
                    "https://mirrors.sjtug.sjtu.edu.cn/guix-bordeaux")
              %default-substitute-urls))
@@ -70,11 +68,15 @@
                                  (kernel-arguments %default-kernel-arguments)
                                  swap-devices
                                  (packages %base-packages)
+                                 (locale "en_US.utf8")
+                                 (locale-definitions (list (locale-definition (name "en_US.utf8") (source "en_US"))
+                                                           (locale-definition (name "ko_KR.utf8") (source "ko_KR"))))
                                  (home-environment #f))
   (operating-system
     (host-name hostname)
     (timezone "Asia/Seoul")
-    (locale "en_US.utf8")
+    (locale locale)
+    (locale-definitions locale-definitions)
     (name-service-switch %mdns-host-lookup-nss)
     (kernel linux)
     (bootloader bootloader)

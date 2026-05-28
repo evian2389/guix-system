@@ -29,7 +29,8 @@ Comment[uk]=Програма для керування іграми та зап�
 Comment[vi]=Ứng dụng để quản lý và chơi trò chơi trên Steam
 #Exec=steam %U
 # for korean input
-Exec=env GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx SDL_IM_MODULE=fcitx XMODIFIERS=@im=fcitx LC_CTYPE=ko_KR.UTF-8 steam %U
+#Exec=env GTK_IM_MODULE=fcitx QT_IM_MODULE=fcitx SDL_IM_MODULE=fcitx XMODIFIERS=@im=fcitx LC_CTYPE=ko_KR.UTF-8 steam %U
+Exec=steam %U
 Icon=steam
 Terminal=false
 Type=Application
