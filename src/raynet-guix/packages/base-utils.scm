@@ -116,7 +116,6 @@
     rust
     (list rust "cargo")
     rust-analyzer
-    cargo-watch
     guile-lsp-server
     ocaml
     ocaml-lsp-server

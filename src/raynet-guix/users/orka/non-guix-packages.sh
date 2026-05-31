@@ -42,6 +42,7 @@ if command -v cargo &> /dev/null; then
      # cargo xtask install
      # cargo install satty
      cargo install pi-discord-rs
+     cargo install cargo-watch   # not in Guix — file watcher for cargo
 else
     echo "Warning: cargo not found. Skipping cargo packages."
 fi
