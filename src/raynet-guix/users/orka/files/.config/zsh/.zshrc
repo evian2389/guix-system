@@ -19,7 +19,7 @@
   export BROWSER=google-chrome
   
   export XDG_DATA_DIRS="$HOME/.local/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS"
-  export PATH=$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:~/.cargo/bin:~/.npm-packages/bin:~/.config/emacs/bin/:~/.nix-profile/bin
+  export PATH=$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:~/.cargo/bin:~/.npm-packages/bin:~/.config/emacs/bin/:~/.nix-profile/bin:~/.surrealdb
 
   export GIT_EXTERNAL_DIFF="difft --display=side-by-side"
 
@@ -116,6 +116,10 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   alias lt='eza -aT --color=always --group-directories-first --icons'
   alias element-desktop='element-desktop --password-store=gnome-libsecret'
   alias oculante='flatpak run io.github.woelper.Oculante'
+  alias agy='/home/orka/.local/bin/agy-wrapper'
+  alias claude="$HOME/.local/bin/claude-wrapper"
+  alias claude-container='claude-code.sh'
+  alias claude-nocontainer='claude-code-nocontainer.sh'
   
   # Navigation
   alias ..='cd ..'
