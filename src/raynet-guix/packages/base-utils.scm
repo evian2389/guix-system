@@ -47,6 +47,8 @@
   #:use-module (gnu packages compression)     ;
   #:use-module (gnu packages tls)
   #:use-module (gnu packages docker)
+  #:use-module (gnu packages databases)      ; redis, postgresql, timescaledb
+  #:use-module (gnu packages high-availability) ; nats-server
   #:use-module (gnu packages web)
   #:use-module (gnu packages xdisorg)     ; pixz, hyprlock
   #:use-module (gnu packages audio)       ; pipemixer
@@ -114,6 +116,7 @@
     rust
     (list rust "cargo")
     rust-analyzer
+    cargo-watch
     guile-lsp-server
     ocaml
     ocaml-lsp-server
@@ -121,6 +124,11 @@
     sed
     flatpak
     podman
+    podman-compose
+    nats-server
+    redis
+    postgresql
+    timescaledb
     slirp4netns
     fuse-overlayfs
     distrobox
