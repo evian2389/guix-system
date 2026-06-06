@@ -29,7 +29,7 @@
     (service home-games-service-type)
     (service home-emacs-config-service-type)
     (service home-finance-service-type)
-    (service home-openclaw-service-type)
+    ;; (service home-openclaw-service-type)
     (service home-claude-code-service-type)
     (service home-mcron-config-service-type)
     ; (service home-dotfiles-service-type

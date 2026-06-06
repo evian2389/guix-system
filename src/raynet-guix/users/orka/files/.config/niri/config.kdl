@@ -6,7 +6,7 @@ spawn-sh-at-startup "gnome-keyring-daemon --start --components=secrets"
 spawn-at-startup "xwayland-satellite"
 spawn-at-startup "fcitx5" "-d"
 spawn-at-startup "waysunset"
-spawn-at-startup "waybar"
+spawn-at-startup "ironbar"
 spawn-sh-at-startup "env -u LD_LIBRARY_PATH hypridle"
 spawn-at-startup "swww-daemon"
 spawn-sh-at-startup "swww img ~/.config/niri/wallpaper.jpg"
@@ -33,9 +33,9 @@ cursor {
 }
 
 // --- Layer Rules ---
-// Waybar should stay on top
+// Ironbar should stay on top
 layer-rule {
-    match namespace="^waybar$"
+    match namespace="^ironbar$"
 }
 
 // Hyprlax layer rule for parallax
@@ -118,6 +118,7 @@ binds {
 
     // Launcher: Fuzzel (Guix home)
     Mod+D hotkey-overlay-title="App Launcher: Fuzzel" { spawn "fuzzel"; }
+    Mod+B hotkey-overlay-title="Bluetooth Menu: bzmenu" { spawn "bzmenu" "-l" "fuzzel"; }
     Mod+Ctrl+V hotkey-overlay-title="Audio Mixer: wiremix" { spawn "ghostty" "-e" "wiremix"; }
     Mod+V hotkey-overlay-title="Audio Mixer: easyeffects" { spawn "easyeffects"; }
     Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
@@ -237,6 +238,8 @@ window-rule {
     match app-id=r#"easyeffects"#
     match app-id=r#"nm-connection-editor"#
     match app-id=r#"blueman-manager"#
+    match app-id=r#"io\.github\.kaii_lb\.Overskride"#
+    match app-id=r#"overskride"#
     open-floating true
 }
 

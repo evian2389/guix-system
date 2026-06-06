@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# pi_agent_rust installer managed alias
+set -euo pipefail
+exec /home/orka/guix-system/src/raynet-guix/users/orka/files/.local/bin/pi "$@"

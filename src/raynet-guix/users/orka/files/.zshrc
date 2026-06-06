@@ -1,9 +1,6 @@
-# Auto-start Shepherd if not already running
-if [ -z "$SHEPHERD_STARTED" ] && [ -S "$XDG_RUNTIME_DIR/shepherd/socket" ] || herd status >/dev/null 2>&1; then
-    : # Shepherd is already running
-else
-    echo "Starting Shepherd..."
-    shepherd --silent
+# Auto-start Shepherd via guix home on-first-login (loads proper config with all services)
+if [ -f "$HOME/.guix-home/on-first-login" ]; then
+    "$HOME/.guix-home/on-first-login"
 fi
 
 unset SSH_AGENT_PID
@@ -17,3 +14,7 @@ gpg-connect-agent updatestartuptty /bye >/dev/null
 if [ -f "/home/orka/.openclaw/completions/openclaw.zsh" ]; then
     source "/home/orka/.openclaw/completions/openclaw.zsh"
 fi
+\n# npm global binaries\nexport PATH="$HOME/.npm-global/bin:$PATH"
+
+# Added by Helix CLI installer
+export PATH="$HOME/.local/bin:$PATH"

@@ -1,0 +1,157 @@
+/* Ironbar style — Dracula-inspired, matches former waybar theme */
+* {
+    font-family: "JetBrains Mono Nerd Font", "Noto Sans CJK KR", monospace;
+    font-size: 14px;
+    border: none;
+    border-radius: 0;
+}
+
+/* The bar strip */
+.ironbar-bar {
+    background: rgba(30, 30, 30, 0.8);
+    color: #f8f8f2;
+}
+
+/* ── Workspaces ─────────────────────────────────────── */
+#workspaces .item {
+    padding: 0 8px;
+    background: transparent;
+    color: #6272a4;
+    border: none;
+}
+
+#workspaces .item.focused {
+    color: #ff79c6;
+    background: rgba(255, 121, 198, 0.1);
+    border-bottom: 2px solid #ff79c6;
+}
+
+#workspaces .item.active {
+    color: #bd93f9;
+}
+
+#workspaces .item.urgent {
+    color: #ff5555;
+}
+
+/* ── Common module spacing ──────────────────────────── */
+#clock,
+#mpris,
+#volume,
+#network,
+#bluetooth,
+#backlight,
+#power-profile,
+#battery,
+#weather,
+#disk,
+#cpu,
+#memory,
+#tray,
+#notifications,
+#fcitx5,
+#lock,
+#suspend,
+#power,
+#launcher {
+    padding: 0 5px;
+    margin: 0 1px;
+}
+
+/* ── Accent colours ─────────────────────────────────── */
+#lock label {
+    color: #bd93f9;
+}
+
+#suspend label {
+    color: #8be9fd;
+}
+
+#power-profile label {
+    color: #f1fa8c;
+}
+
+#power label {
+    color: #ff5555;
+    padding-right: 5px;
+}
+
+#fcitx5 label {
+    color: #bd93f9;
+}
+
+#mpris label {
+    color: #f1fa8c;
+}
+
+#backlight label {
+    color: #f1fa8c;
+}
+
+/* ── State colours ──────────────────────────────────── */
+#network.disconnected label {
+    color: #ff5555;
+}
+
+#bluetooth.connected label {
+    color: #8be9fd;
+}
+
+#battery.charging label,
+#battery.full label {
+    color: #50fa7b;
+}
+
+#battery.critical:not(.charging) label {
+    color: #ff5555;
+    animation-name: blink;
+    animation-duration: 0.5s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+@keyframes blink {
+    to {
+        background-color: #ff5555;
+        color: #ffffff;
+    }
+}
+
+/* CPU / memory warning/critical — set via thresholds in config if supported */
+#cpu.warning label,
+#memory.warning label {
+    color: #ffb86c;
+}
+
+#cpu.critical label,
+#memory.critical label {
+    color: #ff5555;
+}
+
+#volume.muted label {
+    color: #6272a4;
+}
+
+#microphone.muted label {
+    color: #ff5555;
+}
+
+/* Notifications bell */
+#notifications label {
+    color: #f8f8f2;
+}
+
+#launcher button {
+    color: #50fa7b; /* Dracula Green */
+    font-size: 16px;
+    background: transparent;
+}
+
+#disk label {
+    color: #ffb86c; /* Dracula Orange */
+}
+
+#weather label {
+    color: #8be9fd; /* Dracula Cyan */
+}

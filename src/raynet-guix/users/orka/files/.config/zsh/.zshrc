@@ -15,9 +15,9 @@
   #export QT_IM_MODULE=fcitx
   export XMODIFIERS=@im=fcitx
   export GLFW_IM_MODULE=fcitx
-  
+
   export BROWSER=google-chrome
-  
+
   export XDG_DATA_DIRS="$HOME/.local/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS"
   export PATH=$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:~/.cargo/bin:~/.npm-packages/bin:~/.config/emacs/bin/:~/.nix-profile/bin:~/.surrealdb
 
@@ -80,13 +80,13 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
     source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
   fi
 
-  
+
  # source $HOME/dotfiles/config/zsh/cachyos-config.zsh
-  
+
   # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
   [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-  
-  
+
+
   # BEGIN opam configuration
   # This is useful if you're using opam as it adds:
   #   - the correct directories to the PATH
@@ -94,21 +94,21 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   # This section can be safely removed at any time if needed.
   [[ ! -r '/home/orka/.opam/opam-init/init.zsh' ]] || source '/home/orka/.opam/opam-init/init.zsh' > /dev/null 2> /dev/null
   # END opam configuration
-  
+
   #export HELIX_RUNTIME=~/workspace/helix/runtime
   export EDITOR=helix
   export VISUAL=helix
-  
-  
+
+
   source /home/orka/.config/broot/launcher/bash/br
-  
+
   unset SSH_AGENT_PID
   if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
     export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
   fi
   export GPG_TTY=$(tty)
   gpg-connect-agent updatestartuptty /bye >/dev/null
-  
+
   alias em="emacs -nw"
   alias tree="eza --tree -a --icons"
   alias la='eza -a --color=always --group-directories-first --icons'
@@ -117,15 +117,16 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   alias element-desktop='element-desktop --password-store=gnome-libsecret'
   alias oculante='flatpak run io.github.woelper.Oculante'
   alias agy='/home/orka/.local/bin/agy-wrapper'
+  alias surreal='/home/orka/.local/bin/surreal-wrapper'
   alias claude="$HOME/.local/bin/claude-wrapper"
   alias claude-container='claude-code.sh'
   alias claude-nocontainer='claude-code-nocontainer.sh'
-  
+
   # Navigation
   alias ..='cd ..'
   alias ...='cd ../..'
   alias ....='cd ../../..'
-  
+
   # Git shortcuts
   alias gs='git status'
   alias ga='git add'
@@ -156,17 +157,17 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
       echo "'$1' is not a valid file"
     fi
   }
-  
+
   #export ZELLIJ=zellij
   #export ZELLIJ_SESSION_NAME=main
-  
+
   # if [[ -z "$ZELLIJ" ]]; then
   #     if [[ "$ZELLIJ_AUTO_ATTACH" == "true" ]]; then
   #         zellij attach -c
   #     else
   #         zellij
   #     fi
-  # 
+  #
   #     if [[ "$ZELLIJ_AUTO_EXIT" == "true" ]]; then
   #         exit
   #     fi
@@ -177,4 +178,3 @@ source /home/orka/.config/broot/launcher/bash/br
 
 # To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
-

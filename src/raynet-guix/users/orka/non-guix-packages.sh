@@ -14,9 +14,13 @@ if command -v nix-env &> /dev/null; then
     nix-env -iA nixpkgs.bun
     nix-env -iA nixpkgs.ripasso-cursive
     nix-env -iA nixpkgs.nodejs
+    nix-env -iA nixpkgs.overskride
     npm config set prefix ~/.npm-global
     npm install -g @anthropic-ai/claude-code
     # nix-env -iA nixpkgs.oculante
+
+    # Install Google Antigravity GUI and IDE via Nix Flakes
+    nix profile install --extra-experimental-features "nix-command flakes" --impure github:jacopone/antigravity-nix github:jacopone/antigravity-nix#google-antigravity-ide
 else
     echo "Warning: nix-env not found. Skipping Nix packages."
 fi
@@ -43,6 +47,33 @@ if command -v cargo &> /dev/null; then
      # cargo install satty
      cargo install pi-discord-rs
      cargo install cargo-watch   # not in Guix — file watcher for cargo
+     cargo install --git https://github.com/e-tho/bzmenu
+     
+     echo "Installing/Updating ironbar..."
+     if command -v guix &> /dev/null; then
+         # Build ironbar: provide GTK4/Wayland dev headers via guix shell
+         # gtk4 (not gtk=gtk3), libadwaita, and gtk4-layer-shell are the key ironbar deps
+         # Note: Guix's luajit.pc has a bug where Version uses an undefined ${version} variable. We patch it dynamically.
+         guix shell pkg-config gtk libadwaita graphene gtk4-layer-shell glib glib:bin cairo pango gdk-pixbuf wayland eudev libevdev luajit libinput gcc-toolchain -- bash -c '
+             LUAJIT_PC_SRC=""
+             IFS=":" read -ra ADDR <<< "$PKG_CONFIG_PATH"
+             for dir in "${ADDR[@]}"; do
+                 if [ -f "$dir/luajit.pc" ]; then
+                     LUAJIT_PC_SRC="$dir/luajit.pc"
+                     break
+                 fi
+             done
+             if [ -n "$LUAJIT_PC_SRC" ]; then
+                 mkdir -p /tmp/guix-pkgconfig
+                 sed "s/Version: \${version}/Version: 2.1.0/" "$LUAJIT_PC_SRC" > /tmp/guix-pkgconfig/luajit.pc
+                 export PKG_CONFIG_PATH="/tmp/guix-pkgconfig:$PKG_CONFIG_PATH"
+             fi
+             cargo install ironbar --locked
+             rm -rf /tmp/guix-pkgconfig
+         '
+     else
+         cargo install ironbar --locked
+     fi
 else
     echo "Warning: cargo not found. Skipping cargo packages."
 fi
@@ -53,6 +84,14 @@ if ! command -v surreal &> /dev/null; then
     echo "SurrealDB installed to ~/.surrealdb/surreal — ensure ~/.surrealdb is on PATH"
 else
     echo "SurrealDB already installed: $(surreal version 2>/dev/null || echo 'version check failed')"
+fi
+
+echo "Installing HelixDB..."
+if ! command -v helix &> /dev/null; then
+    curl -sSL "https://install.helix-db.com" | bash
+    echo "HelixDB installed to ~/.local/bin — ensure it is on PATH"
+else
+    echo "HelixDB already installed: $(helix --version 2>/dev/null || echo 'version check failed')"
 fi
 
 mkdir -p ~/.local/state/claude-code

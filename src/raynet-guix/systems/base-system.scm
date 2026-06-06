@@ -60,6 +60,30 @@
                                "(public-key (ecc (curve Ed25519) (q #C1FD53E5D4CE971933EC50C9F307AE2171A2D3B52C804642A7A35F84F3A4EA98#)))"))
                    %default-authorized-guix-keys))))
 
+(define my-bluetooth-service-type
+  (service-type
+   (inherit bluetooth-service-type)
+   (extensions
+    (map (lambda (extension)
+           (if (eq? (service-extension-target extension) etc-service-type)
+               (service-extension etc-service-type
+                                  (lambda (config)
+                                    `(("bluetooth"
+                                       ,(computed-file "etc-bluetooth"
+                                                       #~(begin
+                                                           (mkdir #$output)
+                                                           (chdir #$output)
+                                                           (call-with-output-file "main.conf"
+                                                             (lambda (port)
+                                                               (display #$((@@ (gnu services desktop) bluetooth-configuration-file) config)
+                                                                        port)))
+                                                           (call-with-output-file "input.conf"
+                                                             (lambda (port)
+                                                               (display "[General]\nClassicBondedOnly=false\nUserspaceHID=false\n"
+                                                                        port)))))))))
+               extension))
+         (service-type-extensions bluetooth-service-type)))))
+
 (define* (base-operating-system #:key hostname
                                  firmware
                                  bootloader
@@ -135,11 +159,14 @@
              (service plasma-desktop-service-type)
              ;; Add udev rules for Steam devices
              (udev-rules-service 'steam-devices steam-devices-udev-rules)
+             (udev-rules-service 'disable-intel-bluetooth
+                                 (udev-rule "99-disable-intel-bluetooth.rules"
+                                            "SUBSYSTEM==\"usb\", ATTR{idVendor}==\"8087\", ATTR{idProduct}==\"0029\", ATTR{authorized}=\"0\"\n"))
              (service subids-service-type
                       (subids-configuration
                        (subuids (list (subid-range (name "orka") (start 100000) (count 65536))))
                        (subgids (list (subid-range (name "orka") (start 100000) (count 65536))))))
-             (service bluetooth-service-type
+             (service my-bluetooth-service-type
                       (bluetooth-configuration
                        (auto-enable? #t)))
              (service screen-locker-service-type

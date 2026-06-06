@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /home/orka/.guix-home/profile/lib/ld-linux-x86-64.so.2 /home/orka/.local/share/claude/versions/2.1.158 "$@"
