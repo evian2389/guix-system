@@ -5,24 +5,42 @@
 set -e
 
 echo "Installing/Updating Nix packages..."
-if command -v nix-env &> /dev/null; then
+if command -v nix &> /dev/null; then
     export NIXPKGS_ALLOW_UNFREE=1
-    # hyprlax is available in nixpkgs
-    nix-env -iA nixpkgs.hyprlax
-    nix-env -iA nixpkgs.wiremix
-    nix-env -iA nixpkgs.yazi
-    nix-env -iA nixpkgs.bun
-    nix-env -iA nixpkgs.ripasso-cursive
-    nix-env -iA nixpkgs.nodejs
-    nix-env -iA nixpkgs.overskride
-    npm config set prefix ~/.npm-global
-    npm install -g @anthropic-ai/claude-code
-    # nix-env -iA nixpkgs.oculante
+
+    nix_install_if_missing() {
+        local pkg_name=$1
+        local install_url=$2
+        if nix profile list --extra-experimental-features "nix-command flakes" | sed 's/\x1b\[[0-9;]*m//g' | grep -q "Name:[[:space:]]*$pkg_name$"; then
+            echo "Nix package $pkg_name is already installed. Skipping..."
+        else
+            echo "Installing Nix package $pkg_name from $install_url..."
+            nix profile install --extra-experimental-features "nix-command flakes" --impure "$install_url"
+        fi
+    }
+
+    echo "Upgrading existing Nix packages..."
+    nix profile upgrade --extra-experimental-features "nix-command flakes" '.*' || true
+
+    nix_install_if_missing hyprlax nixpkgs#hyprlax
+    nix_install_if_missing wiremix nixpkgs#wiremix
+    nix_install_if_missing yazi nixpkgs#yazi
+    nix_install_if_missing bun nixpkgs#bun
+    nix_install_if_missing ripasso-cursive nixpkgs#ripasso-cursive
+    nix_install_if_missing nodejs nixpkgs#nodejs
+    nix_install_if_missing overskride nixpkgs#overskride
+    nix_install_if_missing emulsion nixpkgs#emulsion
+
+    if command -v npm &> /dev/null; then
+        npm config set prefix ~/.npm-global
+        npm install -g @anthropic-ai/claude-code
+    fi
 
     # Install Google Antigravity GUI and IDE via Nix Flakes
-    nix profile install --extra-experimental-features "nix-command flakes" --impure github:jacopone/antigravity-nix github:jacopone/antigravity-nix#google-antigravity-ide
+    nix_install_if_missing antigravity-nix github:jacopone/antigravity-nix
+    nix_install_if_missing google-antigravity-ide github:jacopone/antigravity-nix#google-antigravity-ide
 else
-    echo "Warning: nix-env not found. Skipping Nix packages."
+    echo "Warning: nix command not found. Skipping Nix packages."
 fi
 
 echo "Installing/Updating Flatpak packages..."

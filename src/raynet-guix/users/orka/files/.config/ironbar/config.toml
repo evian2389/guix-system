@@ -126,7 +126,7 @@ interval = 60000
 type = "script"
 name = "fcitx5"
 cmd = "fcitx5-remote 2>/dev/null | grep -q '2' && echo '󰘳 한' || echo '󰘳 En'"
-interval = 1000
+interval = 5000
 
 [[end]]
 type = "tray"
@@ -137,7 +137,7 @@ name = "tray"
 type = "custom"
 name = "notifications"
 bar = [
-  { type = "script", name = "notif-script", cmd = "is_dnd=$(swaync-client -D); count=$(swaync-client -c); if [ \"$is_dnd\" = \"true\" ]; then echo \"󰂛\"; elif [ \"$count\" -gt 0 ]; then echo \"󱅫 $count\"; else echo \"󰂚\"; fi", interval = 2000, on_click_left = "swaync-client -t -sw", on_click_right = "swaync-client -d" }
+  { type = "script", name = "notif-script", cmd = "is_dnd=$(swaync-client -D); count=$(swaync-client -c); if [ \"$is_dnd\" = \"true\" ]; then echo \"󰂛\"; elif [ \"$count\" -gt 0 ]; then echo \"󱅫 $count\"; else echo \"󰂚\"; fi", interval = 5000, on_click_left = "swaync-client -t -sw", on_click_right = "swaync-client -d" }
 ]
 
 [[end]]

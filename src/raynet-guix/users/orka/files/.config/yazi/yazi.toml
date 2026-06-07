@@ -2,9 +2,14 @@
 edit = [
   { run = 'hx "$@"', block = true, desc = "Helix" },
 ]
+image = [
+  { run = 'emulsion "$@"', desc = "Emulsion" },
+  { run = 'gimp "$@"', desc = "GIMP" },
+]
 
 [open]
 prepend_rules = [
   { mime = "text/*", use = "edit" },
+  { mime = "image/*", use = "image" },
 ]
 

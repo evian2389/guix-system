@@ -4,6 +4,7 @@
   #:use-module (gnu packages text-editors)   ; for helix
   #:use-module (gnu packages vim)   ; neovim
   #:use-module (gnu packages emacs)   ; emacs
+  #:use-module (gnu packages game-development) ; for godot
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
@@ -12,6 +13,7 @@
 (define orka-manifest
   (packages->manifest
    (list
+    godot
          )))
 
 orka-manifest

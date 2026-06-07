@@ -41,6 +41,7 @@
   #:use-module (gnu packages terminals) ; For terminal utils
   #:use-module (gnu packages image-viewers) ; For imv
   #:use-module (gnu packages image) ; For grim screenshot
+  #:use-module (gnu packages gimp) ; For gimp
   #:use-module (gnu packages emacs)   ; neovim
   #:use-module (gnu packages web-browsers)     ; for qutebrowser
   #:use-module (gnu packages networking)     ; for blueman
@@ -176,4 +177,6 @@
     rclone
     nomacs
     tmux
+    gimp
+    dank-material-shell
     ))
