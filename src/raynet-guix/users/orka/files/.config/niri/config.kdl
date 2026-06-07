@@ -289,3 +289,8 @@ environment {
     CLUTTER_BACKEND "wayland"
     GDK_BACKEND "wayland,x11"
 }
+
+include "dms/colors.kdl"
+include "dms/layout.kdl"
+include "dms/binds.kdl"
+include "dms/wpblur.kdl"
