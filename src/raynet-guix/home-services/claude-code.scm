@@ -17,7 +17,10 @@
     (start #~(let* ((home (passwd:dir (getpwuid (getuid))))
                     (log-file (string-append home "/.local/state/claude-code/claude-code.log")))
                (make-forkexec-constructor
-                (list (string-append home "/.local/bin/claude-wrapper"))
+                (list "/run/current-system/profile/bin/script"
+                      "-qec"
+                      (string-append home "/.local/bin/claude-wrapper --channels plugin:discord@claude-plugins-official")
+                      "/dev/null")
                 #:directory home
                 #:log-file log-file
                 #:environment-variables

@@ -51,7 +51,8 @@ if command -v flatpak &> /dev/null; then
     flatpak install -y flathub com.google.Chrome
     flatpak install -y flathub io.github.woelper.Oculante
     flatpak install -y flathub com.usebottles.bottles
-    # flatpak install flathub art.graphite.Graphite # image editor, not stable
+    flatpak install -y flathub com.discordapp.Discord
+    #flatpak install -y flathub art.graphite.Graphite # image editor, not stable
     # flatpak install -y flathub com.valvesoftware.Steam
 else
     echo "Warning: flatpak not found. Skipping Flatpak packages."
@@ -66,7 +67,8 @@ if command -v cargo &> /dev/null; then
      cargo install pi-discord-rs
      cargo install cargo-watch   # not in Guix — file watcher for cargo
      cargo install --git https://github.com/e-tho/bzmenu
-     
+     cargo install zeekstd_cli
+
      echo "Installing/Updating ironbar..."
      if command -v guix &> /dev/null; then
          # Build ironbar: provide GTK4/Wayland dev headers via guix shell

@@ -18,7 +18,6 @@
         swayidle
         swaylock
         hypridle
-        fuzzel
         wl-clipboard
         mako
         foot

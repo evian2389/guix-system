@@ -8,8 +8,6 @@
 
 (define (home-niri-profile-service config)
   (list niri
-        fuzzel
-        waybar
         swaynotificationcenter
         swww
         wl-clipboard))

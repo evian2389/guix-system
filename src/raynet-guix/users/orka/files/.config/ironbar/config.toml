@@ -144,7 +144,7 @@ bar = [
 type = "custom"
 name = "lock"
 bar = [
-  { type = "button", name = "lock-btn", label = "󰌾", on_click = "!hyprlock" }
+  { type = "button", name = "lock-btn", label = "󰌾", on_click = "!dms ipc call lock lock" }
 ]
 
 [[end]]

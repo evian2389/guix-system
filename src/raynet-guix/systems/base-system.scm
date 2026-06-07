@@ -37,10 +37,8 @@
   #:use-module (gnu packages gnome)
   #:use-module (gnu packages tex)
   #:use-module (gnu packages cups)        ;; For splix
-  #:use-module (gnu packages avahi)
   #:use-module (gnu packages scanner)     ;; For sane-airscan
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
-  #:use-module (gnu packages xdisorg)         ;; For hyprlock
   #:use-module (raynet-guix home-services games)
   #:use-module (gnu home)
   #:use-module (gnu home services)
@@ -125,8 +123,6 @@
                         ncdu
                         gnupg
                         pinentry
-                        pinentry-fuzzel
-                        gpgme
                         gpgme
                         font-jetbrains-mono
                         font-gnu-unifont
@@ -141,11 +137,10 @@
                         niri
                         rfkill
                         bluedevil
-                        hyprlock
                         hypridle
                         simple-scan
-                        nss-mdns
-                        avahi
+                        (@ (gnu packages dns) nss-mdns)
+                        (@ (gnu packages dns) avahi)
                         print-manager
                         cups
                         )
@@ -169,10 +164,6 @@
              (service my-bluetooth-service-type
                       (bluetooth-configuration
                        (auto-enable? #t)))
-             (service screen-locker-service-type
-                      (screen-locker-configuration
-                       (name "hyprlock")
-                       (program (file-append hyprlock "/bin/hyprlock"))))
              (service cups-service-type
                       (cups-configuration
                        (web-interface? #t)

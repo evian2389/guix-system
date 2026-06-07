@@ -1,6 +1,6 @@
 {
     "label": "lock",
-    "action": "hyprlock",
+    "action": "dms ipc call lock lock",
     "text": "Lock (L)",
     "keybind": "l"
 }

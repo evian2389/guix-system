@@ -119,7 +119,7 @@ binds {
 
     // Launcher: DankMaterialShell spotlight
     Mod+D hotkey-overlay-title="App Launcher: Spotlight" { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
-    Mod+B hotkey-overlay-title="Bluetooth Menu: bzmenu" { spawn "bzmenu" "-l" "fuzzel"; }
+    Mod+B hotkey-overlay-title="Bluetooth Manager: Overskride" { spawn "overskride"; }
     Mod+Ctrl+V hotkey-overlay-title="Audio Mixer: wiremix" { spawn "ghostty" "-e" "wiremix"; }
     Mod+V hotkey-overlay-title="Audio Mixer: easyeffects" { spawn "easyeffects"; }
     // Lock Screen via DMS
