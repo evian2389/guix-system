@@ -48,7 +48,7 @@ add_mount --expose "$XDG_RUNTIME_DIR" "$XDG_RUNTIME_DIR"
 add_mount --share "$HOME/work" "$HOME/work"
 
 packages=(
-  nss-certs coreutils bash grep sed gawk git openssh-sans-x node swaynotificationcenter
+  nss-certs coreutils bash grep sed gawk git openssh-sans-x node
   libcap openssl gcc-toolchain zlib go nginx docker-cli esbuild jq python
 )
 

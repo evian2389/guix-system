@@ -7,7 +7,7 @@ spawn-at-startup "xwayland-satellite"
 spawn-at-startup "fcitx5" "-d"
 spawn-at-startup "waysunset"
 // spawn-sh-at-startup "GSK_RENDERER=cairo ironbar"
-// spawn-sh-at-startup "env -u LD_LIBRARY_PATH hypridle"
+spawn-sh-at-startup "env -u LD_LIBRARY_PATH hypridle"
 spawn-at-startup "swww-daemon"
 spawn-sh-at-startup "swww img ~/.config/niri/wallpaper.jpg"
 spawn-sh-at-startup "~/.nix-profile/bin/hyprlax ~/.config/niri/wallpaper.jpg"
@@ -122,9 +122,9 @@ binds {
     Mod+B hotkey-overlay-title="Bluetooth Manager: Overskride" { spawn "overskride"; }
     Mod+Ctrl+V hotkey-overlay-title="Audio Mixer: wiremix" { spawn "ghostty" "-e" "wiremix"; }
     Mod+V hotkey-overlay-title="Audio Mixer: easyeffects" { spawn "easyeffects"; }
-    // Lock Screen via DMS
-    Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "dms" "ipc" "call" "lock" "lock"; }
-    Mod+I hotkey-overlay-title="Lock Screen" { spawn "dms" "ipc" "call" "lock" "lock"; }
+    // Lock Screen via Hyprlock
+    Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
+    Mod+I hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
     //Mod+M { spawn "mpv $(wl-paste)"; }
     Mod+M { spawn "sh" "-c" "mpv $(wl-paste)"; }
     Mod+Y hotkey-overlay-title="File Manager: Yazi" { spawn "ghostty" "-e" "yazi"; }

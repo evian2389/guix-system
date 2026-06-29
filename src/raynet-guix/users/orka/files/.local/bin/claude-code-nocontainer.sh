@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 packages=(
-  nss-certs coreutils bash grep sed gawk git openssh-sans-x node swaynotificationcenter
+  nss-certs coreutils bash grep sed gawk git openssh-sans-x node
   libcap openssl gcc-toolchain zlib go nginx docker-cli esbuild jq python
 )
 

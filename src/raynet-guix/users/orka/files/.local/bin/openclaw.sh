@@ -18,5 +18,5 @@ guix shell --container --emulate-fhs \
   --preserve='^SSH_AUTH_SOCK' \
   --share=$HOME/work=$HOME/work \
   --network \
-  nss-certs coreutils bash grep sed gawk git openssh node swaynotificationcenter libcap openssl@3.0 gcc-toolchain zlib \
+  nss-certs coreutils bash grep sed gawk git openssh node libcap openssl@3.0 gcc-toolchain zlib \
   -- corepack pnpm dlx openclaw "$@"

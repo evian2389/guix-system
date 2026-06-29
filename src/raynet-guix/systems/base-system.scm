@@ -170,7 +170,15 @@
                        (extensions (list cups-filters splix foo2zjs hplip-minimal))))
              (service sane-service-type
                       (sane-configuration
-                       (backends (list sane-airscan)))))
+                       (backends (list sane-airscan))))
+             (service gnome-keyring-service-type
+                      (gnome-keyring-configuration
+                       (pam-services
+                        '(("passwd" . passwd)
+                          ("sddm" . login)
+                          ("gdm-password" . login)
+                          ("gdm-autologin" . login)
+                          ("login" . login))))))
        (if home-environment
            (list (service guix-home-service-type
                           `(("orka" ,home-environment))))

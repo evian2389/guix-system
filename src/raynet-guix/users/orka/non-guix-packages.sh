@@ -69,31 +69,6 @@ if command -v cargo &> /dev/null; then
      cargo install --git https://github.com/e-tho/bzmenu
      cargo install zeekstd_cli
 
-     echo "Installing/Updating ironbar..."
-     if command -v guix &> /dev/null; then
-         # Build ironbar: provide GTK4/Wayland dev headers via guix shell
-         # gtk4 (not gtk=gtk3), libadwaita, and gtk4-layer-shell are the key ironbar deps
-         # Note: Guix's luajit.pc has a bug where Version uses an undefined ${version} variable. We patch it dynamically.
-         guix shell pkg-config gtk libadwaita graphene gtk4-layer-shell glib glib:bin cairo pango gdk-pixbuf wayland eudev libevdev luajit libinput gcc-toolchain -- bash -c '
-             LUAJIT_PC_SRC=""
-             IFS=":" read -ra ADDR <<< "$PKG_CONFIG_PATH"
-             for dir in "${ADDR[@]}"; do
-                 if [ -f "$dir/luajit.pc" ]; then
-                     LUAJIT_PC_SRC="$dir/luajit.pc"
-                     break
-                 fi
-             done
-             if [ -n "$LUAJIT_PC_SRC" ]; then
-                 mkdir -p /tmp/guix-pkgconfig
-                 sed "s/Version: \${version}/Version: 2.1.0/" "$LUAJIT_PC_SRC" > /tmp/guix-pkgconfig/luajit.pc
-                 export PKG_CONFIG_PATH="/tmp/guix-pkgconfig:$PKG_CONFIG_PATH"
-             fi
-             cargo install ironbar --locked
-             rm -rf /tmp/guix-pkgconfig
-         '
-     else
-         cargo install ironbar --locked
-     fi
 else
     echo "Warning: cargo not found. Skipping cargo packages."
 fi

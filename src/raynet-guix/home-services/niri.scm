@@ -8,7 +8,6 @@
 
 (define (home-niri-profile-service config)
   (list niri
-        swaynotificationcenter
         swww
         wl-clipboard))
 

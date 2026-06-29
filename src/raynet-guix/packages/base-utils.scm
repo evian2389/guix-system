@@ -157,7 +157,6 @@
     ghostty-fixed
     zoxide
     ripgrep
-    dunst
     sshfs
     pixz
     element-desktop
@@ -177,4 +176,5 @@
     tmux
     gimp
     dank-material-shell
+    hyprlock
     ))
