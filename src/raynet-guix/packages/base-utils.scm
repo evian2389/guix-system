@@ -45,6 +45,7 @@
   #:use-module (gnu packages emacs)   ; neovim
   #:use-module (gnu packages web-browsers)     ; for qutebrowser
   #:use-module (gnu packages networking)     ; for blueman
+  #:use-module (gnu packages kde-internet)
   #:use-module (gnu packages compression)     ;
   #:use-module (gnu packages tls)
   #:use-module (gnu packages docker)
@@ -168,6 +169,7 @@
     powerlevel-10k
     qutebrowser
     blueman
+    kdeconnect
     gnome-keyring
     libsecret
     mcron
