@@ -113,6 +113,8 @@ animations {
     }
 }
 
+workspace "stash" { }
+
 // --- Keybindings ---
 binds {
     // Shortcuts Panel
@@ -120,7 +122,7 @@ binds {
 
     // Launcher: DankMaterialShell spotlight
     Mod+D hotkey-overlay-title="App Launcher: Spotlight" { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
-    Mod+B hotkey-overlay-title="Bluetooth Manager: Overskride" { spawn "overskride"; }
+    Mod+Shift+B hotkey-overlay-title="Bluetooth Manager: Overskride" { spawn "overskride"; }
     Mod+Ctrl+V hotkey-overlay-title="Audio Mixer: wiremix" { spawn "ghostty" "-e" "wiremix"; }
     Mod+V hotkey-overlay-title="Audio Mixer: easyeffects" { spawn "easyeffects"; }
     // Lock Screen via Hyprlock
@@ -202,6 +204,20 @@ binds {
     // Screenshots with Satty
     Print hotkey-overlay-title="Screenshot (Edit)" { spawn "sh" "-c" "grim - | satty -f -"; }
     Mod+P hotkey-overlay-title="Screenshot Area (Edit)" { spawn "sh" "-c" "grim -g \"$(slurp)\" - | satty -f -"; }
+    Mod+Shift+P hotkey-overlay-title="Screenshot Area (5s Delay)" { spawn "sh" "-c" "sleep 5; grim -g \"$(slurp)\" - | satty -f -"; }
+
+    // Window focus & run-or-raise
+    Mod+B { spawn "~/.config/niri/niri_run_or_raise.sh" "google-chrome" "google-chrome-stable"; }
+    Mod+S { spawn "~/.config/niri/niri_run_or_raise.sh" "vsclient" "vsclient"; }
+    Mod+E { spawn "~/.config/niri/niri_run_or_raise.sh" "emacs" "emacs"; }
+
+    // Scratchpad
+    Mod+T { spawn "niri-scratchpad" "target" "--spawn" "ghostty --title=scratchpad-term" "title" "scratchpad-term"; }
+    "Mod+Escape" { spawn "niri-scratch-pad" "show" "1" "--as-float"; }
+
+    // Dynamic window binding
+    Mod+Alt+G { spawn "~/.config/niri/niri-dynamic-bind.sh" "set_g"; }
+    Mod+G      { spawn "~/.config/niri/niri-dynamic-bind.sh" "go_g"; }
 }
 
 // --- Window Rules ---
@@ -246,10 +262,22 @@ window-rule {
     open-floating true
 }
 
+window-rule {
+    match title="^scratchpad-term$"
+    open-floating true
+    default-column-width { proportion 0.95; }
+    default-window-height { proportion 0.95; }
+}
+
 // Global window appearance
 window-rule {
     geometry-corner-radius 8
     clip-to-geometry true
+}
+
+// Always focus newly opened windows (e.g. Zed opened from yazi's gz)
+window-rule {
+    open-focused true
 }
 
 // --- Input ---

@@ -17,3 +17,59 @@ desc = "Delete a bookmark"
 on   = [ "b" ]
 run  = "plugin bunny"
 desc = "Bunny bookmark menu"
+
+[[mgr.prepend_keymap]]
+on   = [ "g", "t" ]
+run  = 'shell "ghostty --working-directory=$PWD &" --orphan'
+desc = "open terminal here"
+
+[[mgr.prepend_keymap]]
+on   = [ "g", "z" ]
+run  = 'shell --orphan -- zeditor %h'
+desc = "Open hovered directory/file in Zed"
+
+[[mgr.prepend_keymap]]
+on   = [ "u", "m" ]
+run  = 'shell "udiskie-umount $0" --confirm'
+desc = "Unmount selected device"
+
+[[mgr.prepend_keymap]]
+on = [ "t", "y" ]
+run = "plugin smart-tab"
+desc = "Create a tab and enter the hovered directory"
+
+[[mgr.prepend_keymap]]
+on   = [ "t", "t" ]
+run  = 'shell "if [ -d \"$1\" ]; then TARGET=\"$1\"; else TARGET=\"$(dirname \"$1\")\"; fi; zellij action new-tab --cwd \"$TARGET\"" --orphan'
+desc = "Open parent directory of hovered item in Zellij tab"
+
+# [[mgr.prepend_keymap]]
+# on   = [ "t", "t" ]
+# run  = 'shell "zellij action new-tab --cwd \"$1\"" --confirm'
+# desc = "Open hovered directory in a new Zellij tab"
+#
+
+
+[[mgr.prepend_keymap]]
+on = [ "c", "a" ]
+run = [
+    # 1. Yazi 내장 input 컴포넌트로 사용자 입력을 받습니다.
+    # 입력을 마치면 그 값이 자동으로 내장 변수($0)에 담겨 다음 shell 명령으로 넘어갑니다.
+    'input "Compress to zip name (without extension): "',
+
+    # 2. 넘겨받은 입력값($0)과 선택된 파일들($@)을 7z 명령으로 압축합니다.
+    'shell "7z a -tzip \"\$0.zip\" \"\$@\"" --confirm'
+]
+desc = "Compress selected items to ZIP using 7z"
+
+[[mgr.prepend_keymap]]
+on = [ "c", "x" ]
+run = '''
+shell '
+    for file in "$@"; do
+        out_dir="${file%.*}"
+        7z x "$file" -o"$out_dir"
+    done
+' --confirm
+'''
+desc = "Extract selected archives into separate folders using 7z"
