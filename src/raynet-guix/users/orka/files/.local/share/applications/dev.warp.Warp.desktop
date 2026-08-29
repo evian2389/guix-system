@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Warp
+GenericName=TerminalEmulator
+Exec=/home/orka/.local/bin/warp-wrapper %U
+StartupWMClass=dev.warp.Warp
+Keywords=shell;prompt;command;commandline;cmd;
+Icon=dev.warp.Warp
+Categories=System;TerminalEmulator;
+Terminal=false
+MimeType=x-scheme-handler/warp;

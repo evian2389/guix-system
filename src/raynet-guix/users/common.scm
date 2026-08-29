@@ -77,6 +77,7 @@
                                ;;("GTK_IM_MODULE" . "fcitx")
                                ;;("QT_IM_MODULE" . "fcitx")
                                ;;("SDL_IM_MODULE" . "fcitx")
+                               ("FONTCONFIG_FILE" . "$HOME/.guix-home/profile/etc/fonts/fonts.conf")
                                ("XDG_DATA_DIRS" . "$HOME/.local/share:$HOME/.guix-home/profile/share:$HOME/.nix-profile/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS")
                                ;; Best setup for KDE Plasma 5.27+ Wayland:                               ;; Do not set GTK_IM_MODULE, QT_IM_MODULE, or SDL_IM_MODULE.
                                ;; They should be unset to use the text-input protocol.

@@ -30,10 +30,16 @@ if command -v nix &> /dev/null; then
     nix_install_if_missing nodejs nixpkgs#nodejs
     nix_install_if_missing overskride nixpkgs#overskride
     nix_install_if_missing emulsion nixpkgs#emulsion
+    nix_install_if_missing ollama nixpkgs#ollama
+    nix_install_if_missing glab nixpkgs#glab
+    nix_install_if_missing warp-terminal nixpkgs#warp-terminal
 
     if command -v npm &> /dev/null; then
         npm config set prefix ~/.npm-global
         npm install -g @anthropic-ai/claude-code
+        npm install -g ctx7
+        echo "Setting up Context7 for Antigravity..."
+        ~/.npm-global/bin/ctx7 setup --antigravity -y < /dev/null || true
     fi
 
     # Install Google Antigravity GUI and IDE via Nix Flakes
@@ -68,6 +74,9 @@ if command -v cargo &> /dev/null; then
      cargo install cargo-watch   # not in Guix — file watcher for cargo
      cargo install --git https://github.com/e-tho/bzmenu
      cargo install zeekstd_cli
+     # NOTE: Pinned to 0.1.18 because newer versions (e.g. 0.1.22) require rustc >= 1.95,
+     # but the system's pinned Guix channels currently provide rustc 1.93.0.
+     cargo install pi_agent_rust --version 0.1.18
 
 else
     echo "Warning: cargo not found. Skipping cargo packages."

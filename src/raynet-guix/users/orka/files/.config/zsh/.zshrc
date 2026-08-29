@@ -25,7 +25,9 @@
 
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
-source ~/powerlevel10k/powerlevel10k.zsh-theme
+if [[ "$TERM_PROGRAM" != "WarpTerminal" && -z "$WARP_BOOTSTRAPPED" ]]; then
+  source ~/powerlevel10k/powerlevel10k.zsh-theme
+fi
 
   # Enable Vi mode
   bindkey -v
@@ -76,15 +78,19 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   fi
   #
   # ################
-  if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-    source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+  if [[ "$TERM_PROGRAM" != "WarpTerminal" && -z "$WARP_BOOTSTRAPPED" ]]; then
+    if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+      source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+    fi
   fi
 
 
  # source $HOME/dotfiles/config/zsh/cachyos-config.zsh
 
   # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-  [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+  if [[ "$TERM_PROGRAM" != "WarpTerminal" && -z "$WARP_BOOTSTRAPPED" ]]; then
+    [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+  fi
 
 
   # BEGIN opam configuration
@@ -106,8 +112,10 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   if [ "${gnupg_SSH_AUTH_SOCK_by:-0}" -ne $$ ]; then
     export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
   fi
-  export GPG_TTY=$(tty)
-  gpg-connect-agent updatestartuptty /bye >/dev/null
+  if [[ -t 0 && "$TERM_PROGRAM" != "WarpTerminal" && -z "$WARP_BOOTSTRAPPED" ]]; then
+    export GPG_TTY=$(tty 2>/dev/null)
+    gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1
+  fi
 
   alias em="emacs -nw"
   alias tree="eza --tree -a --icons"
@@ -121,6 +129,7 @@ source ~/powerlevel10k/powerlevel10k.zsh-theme
   alias claude="$HOME/.local/bin/claude-wrapper"
   alias claude-container='claude-code.sh'
   alias claude-nocontainer='claude-code-nocontainer.sh'
+  alias pi='LD_LIBRARY_PATH=/gnu/store/m31vlvwm79m89fk3xk0z4h7snk61y510-glibc-2.41/lib:/home/orka/.guix-home/profile/lib:$LD_LIBRARY_PATH /gnu/store/m31vlvwm79m89fk3xk0z4h7snk61y510-glibc-2.41/lib/ld-linux-x86-64.so.2 $HOME/.local/bin/pi'
 
   # Navigation
   alias ..='cd ..'
@@ -177,4 +186,6 @@ source /home/orka/.config/broot/launcher/bash/br
 
 
 # To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
-[[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
+if [[ "$TERM_PROGRAM" != "WarpTerminal" && -z "$WARP_BOOTSTRAPPED" ]]; then
+  [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
+fi
