@@ -61,6 +61,7 @@ if command -v flatpak &> /dev/null; then
     flatpak install -y flathub io.github.woelper.Oculante
     flatpak install -y flathub com.usebottles.bottles
     flatpak install -y flathub com.discordapp.Discord
+    flatpak install -y flathub app.zen_browser.zen
     #flatpak install -y flathub art.graphite.Graphite # image editor, not stable
     # flatpak install -y flathub com.valvesoftware.Steam
 else

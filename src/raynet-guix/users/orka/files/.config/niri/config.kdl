@@ -207,7 +207,7 @@ binds {
     Mod+Shift+P hotkey-overlay-title="Screenshot Area (5s Delay)" { spawn "sh" "-c" "sleep 5; grim -g \"$(slurp)\" - | satty -f -"; }
 
     // Window focus & run-or-raise
-    Mod+B { spawn "~/.config/niri/niri_run_or_raise.sh" "google-chrome" "google-chrome-stable"; }
+    Mod+B hotkey-overlay-title="Browser: Zen" { spawn "~/.config/niri/niri_run_or_raise.sh" "zen" "zen"; }
     Mod+S { spawn "~/.config/niri/niri_run_or_raise.sh" "vsclient" "vsclient"; }
     Mod+E { spawn "~/.config/niri/niri_run_or_raise.sh" "emacs" "emacs"; }
 

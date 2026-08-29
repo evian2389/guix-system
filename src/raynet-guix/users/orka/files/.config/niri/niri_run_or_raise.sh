@@ -5,7 +5,7 @@ APP_ID="$1"
 LAUNCH_CMD="$2"
 
 # Get the window ID of the first existing instance matching the app_id
-WINDOW_ID=$(niri msg --json windows | jq -r --arg app_id "$APP_ID" '.[] | select(.app_id == $app_id) | .id' | head -n1)
+WINDOW_ID=$(niri msg --json windows | jq -r --arg app_id "$APP_ID" '.[] | select(.app_id == $app_id or .app_id == "zen" or .app_id == "zen-alpha" or .app_id == "app.zen_browser.zen") | .id' | head -n1)
 
 if [ -n "$WINDOW_ID" ]; then
     # If it exists, pull focus to that window
@@ -17,6 +17,10 @@ else
             LAUNCH_CMD="google-chrome"
         elif command -v flatpak &>/dev/null && flatpak info com.google.Chrome &>/dev/null; then
             LAUNCH_CMD="flatpak run com.google.Chrome"
+        fi
+    elif [ "$LAUNCH_CMD" = "zen" ] && ! command -v zen &>/dev/null; then
+        if command -v flatpak &>/dev/null && flatpak info app.zen_browser.zen &>/dev/null; then
+            LAUNCH_CMD="flatpak run app.zen_browser.zen"
         fi
     fi
     # If it doesn't exist, spawn a new process completely detached
