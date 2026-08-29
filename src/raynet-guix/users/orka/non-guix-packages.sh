@@ -33,6 +33,9 @@ if command -v nix &> /dev/null; then
     nix_install_if_missing ollama nixpkgs#ollama
     nix_install_if_missing glab nixpkgs#glab
     nix_install_if_missing warp-terminal nixpkgs#warp-terminal
+    nix_install_if_missing steam-run nixpkgs#steam-run
+    nix_install_if_missing xclip nixpkgs#xclip
+    nix_install_if_missing wl-clipboard nixpkgs#wl-clipboard
 
     if command -v npm &> /dev/null; then
         npm config set prefix ~/.npm-global
