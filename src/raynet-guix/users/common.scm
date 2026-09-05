@@ -24,8 +24,7 @@
   #:use-module (raynet-guix home-services audio)
   #:use-module (raynet-guix home-services niri)
   #:use-module (raynet-guix home-services finance)
-  #:use-module (selected-guix-works packages fonts) ; For font-nerd-fonts-jetbrains-mono
-  #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding
+  #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding, font-nerd-font-jetbrainsmono
   #:use-module (gnu services)
   #:use-module (guix gexp) ; For define*
   #:use-module (ice-9 optargs)

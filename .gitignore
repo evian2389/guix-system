@@ -17,3 +17,25 @@ fonts/truetype/.uuid
 
 # Large binaries
 src/raynet-guix/users/orka/files/.local/bin/agy
+
+# Logs and scratch test files
+*.log
+test_*.scm
+override.txt
+tt
+026@apls06@
+.old-zshrc
+env/
+
+# Runtime state & user dotfile cache
+src/raynet-guix/users/orka/files/.config/zsh/.histfile
+src/raynet-guix/users/orka/files/.config/zsh/.zcompdump
+src/raynet-guix/users/orka/files/.config/mpv/script-opts/memo-history.log
+src/raynet-guix/users/orka/files/.openclaw/
+src/raynet-guix/users/orka/files/.password-store/account/
+
+# Agent local state
+.agent/
+.antigravitycli/
+.claude/
+

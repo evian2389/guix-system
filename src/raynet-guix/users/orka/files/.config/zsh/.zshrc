@@ -126,9 +126,9 @@ fi
   alias oculante='flatpak run io.github.woelper.Oculante'
   alias agy='/home/orka/.local/bin/agy-wrapper'
   alias surreal='/home/orka/.local/bin/surreal-wrapper'
-  # `claude` resolves via PATH to the Guix package (claude-code-bin, shikanox channel).
-  # `claude-latest` runs the native self-updating install (`claude-latest update` to bump).
-  alias claude-latest="$HOME/.local/bin/claude-latest"
+  # Native self-updating Claude Code: the autoupdater repoints ~/.local/bin/claude,
+  # and claude-wrapper runs it through the Guix Home glibc ld.so.
+  alias claude="$HOME/.local/bin/claude-wrapper"
   alias claude-container='claude-code.sh'
   alias claude-nocontainer='claude-code-nocontainer.sh'
   alias pi='LD_LIBRARY_PATH=/gnu/store/m31vlvwm79m89fk3xk0z4h7snk61y510-glibc-2.41/lib:/home/orka/.guix-home/profile/lib:$LD_LIBRARY_PATH /gnu/store/m31vlvwm79m89fk3xk0z4h7snk61y510-glibc-2.41/lib/ld-linux-x86-64.so.2 $HOME/.local/bin/pi'

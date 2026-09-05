@@ -8,8 +8,8 @@ spawn-at-startup "fcitx5" "-d"
 spawn-at-startup "waysunset"
 // spawn-sh-at-startup "GSK_RENDERER=cairo ironbar"
 spawn-sh-at-startup "env -u LD_LIBRARY_PATH hypridle"
-spawn-at-startup "swww-daemon"
-spawn-sh-at-startup "swww img ~/.config/niri/wallpaper.jpg"
+spawn-at-startup "awww-daemon"
+spawn-sh-at-startup "awww img ~/.config/niri/wallpaper.jpg"
 spawn-sh-at-startup "~/.nix-profile/bin/hyprlax ~/.config/niri/wallpaper.jpg"
 // spawn-at-startup "swaync"
 spawn-sh-at-startup "dms -c ~/.guix-home/profile/share/quickshell run"
@@ -124,6 +124,7 @@ binds {
     Mod+D hotkey-overlay-title="App Launcher: Spotlight" { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
     Mod+Shift+B hotkey-overlay-title="Bluetooth Manager: Overskride" { spawn "overskride"; }
     Mod+Ctrl+V hotkey-overlay-title="Audio Mixer: wiremix" { spawn "ghostty" "-e" "wiremix"; }
+    Mod+A hotkey-overlay-title="Audio Mixer: pipemixer" { spawn "ghostty" "-e" "pipemixer"; }
     Mod+V hotkey-overlay-title="Audio Mixer: easyeffects" { spawn "easyeffects"; }
     // Lock Screen via Hyprlock
     Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
