@@ -11,6 +11,7 @@
   #:use-module (raynet-guix home-services openclaw)   ; For home-openclaw-service-type
   #:use-module (raynet-guix home-services claude-code) ; For home-claude-code-service-type
   #:use-module (raynet-guix home-services mcron)      ; For home-mcron-config-service-type
+  #:use-module (raynet-guix home-services ollama)     ; For home-ollama-service-type
   #:use-module (srfi srfi-1)
   #:use-module (guix utils)
   #:use-module (raynet-guix packages base-utils)
@@ -26,12 +27,13 @@
    #:extra-packages (append orka-extra-packages extra-packages)
    #:extra-services
    (list
-    (service home-games-service-type)
+    ;; (service home-games-service-type)
     (service home-emacs-config-service-type)
     (service home-finance-service-type)
     ;; (service home-openclaw-service-type)
     (service home-claude-code-service-type)
     (service home-mcron-config-service-type)
+    (service home-ollama-service-type)
     ; (service home-dotfiles-service-type
     ;          (home-dotfiles-configuration
     ;           (source-directory (string-append (getcwd) "/src/raynet-guix/users/orka/files"))
