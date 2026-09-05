@@ -32,13 +32,14 @@
   #:use-module (gnu packages fonts)
   #:use-module (gnu packages ncdu)           ;;ncdu
   #:use-module (gnu packages terminals)
-  #:use-module (gnu packages wm)
+  #:use-module (gnu packages window-management)
   #:use-module (gnu packages kde-plasma)
   #:use-module (gnu packages gnome)
   #:use-module (gnu packages tex)
   #:use-module (gnu packages cups)        ;; For splix
   #:use-module (gnu packages scanner)     ;; For sane-airscan
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
+  #:use-module (gnu packages android)     ;; For android-udev-rules
   #:use-module (raynet-guix home-services games)
   #:use-module (gnu home)
   #:use-module (gnu home services)
@@ -134,10 +135,12 @@
                         zsh
                         alacritty
                         ghostty
-                        niri
-                        rfkill
+                        (@ (gnu packages window-management) niri)
+                        greetd
+                        tuigreet
+                        util-linux
                         bluedevil
-                        hypridle
+                        (@ (gnu packages window-management) hypridle)
                         simple-scan
                         (@ (gnu packages dns) nss-mdns)
                         (@ (gnu packages dns) avahi)
@@ -154,6 +157,8 @@
              (service plasma-desktop-service-type)
              ;; Add udev rules for Steam devices
              (udev-rules-service 'steam-devices steam-devices-udev-rules)
+             ;; Add udev rules for Android devices
+             (udev-rules-service 'android-udev android-udev-rules)
              (udev-rules-service 'disable-intel-bluetooth
                                  (udev-rule "99-disable-intel-bluetooth.rules"
                                             "SUBSYSTEM==\"usb\", ATTR{idVendor}==\"8087\", ATTR{idProduct}==\"0029\", ATTR{authorized}=\"0\"\n"))
@@ -176,20 +181,46 @@
                        (pam-services
                         '(("passwd" . passwd)
                           ("sddm" . login)
+                          ("greetd" . login)
                           ("gdm-password" . login)
                           ("gdm-autologin" . login)
-                          ("login" . login))))))
+                          ("login" . login)))))
+             ;; tuigreet (Rust TUI greeter) on greetd, launching niri by default.
+             (service greetd-service-type
+                      (greetd-configuration
+                       (greeter-supplementary-groups '("video" "input"))
+                       (terminals
+                        (list (greetd-terminal-configuration
+                               (terminal-vt "7")
+                               (terminal-switch #t)
+                               (default-session-command
+                                 (program-file
+                                  "tuigreet-niri"
+                                  #~(execl #$(file-append tuigreet "/bin/tuigreet")
+                                           "tuigreet"
+                                           "--time"
+                                           "--remember"
+                                           "--remember-user-session"
+                                           "--asterisks"
+                                           "--sessions"
+                                           "/run/current-system/profile/share/wayland-sessions"
+                                           "--xsessions"
+                                           "/run/current-system/profile/share/xsessions"
+                                           "--cmd" "niri --session")))))))))
        (if home-environment
            (list (service guix-home-service-type
                           `(("orka" ,home-environment))))
            '())
        (modify-services %desktop-services
          (delete pulseaudio-service-type)
+         ;; Replace GDM with greetd + tuigreet (configured above).
+         (delete gdm-service-type)
          (guix-service-type config => (nonguix-substitute-service config)))))
 
     (keyboard-layout (keyboard-layout "kr"))
     (groups (cons* (user-group (name "render") (system? #t))
                    (user-group (name "nix-users") (system? #t))
+                   (user-group (name "adbusers") (system? #t))
                    %base-groups))
     (users
       (cons* (user-account
@@ -201,7 +232,7 @@
                ;; User Groups: Your user account must be part of the video and lp
                ;; (sometimes required for specific compute tasks) groups to have
                ;; permission to access the /dev/dri/ device files.
-               (supplementary-groups '("wheel" "netdev" "audio" "video" "render" "lp" "scanner" "nix-users"))
+               (supplementary-groups '("wheel" "netdev" "audio" "video" "render" "lp" "scanner" "nix-users" "adbusers"))
                (password "$6$randomsalt$XNp4oTKzawAP8oMfu5HfpSLdBBJjQfGng8k8zfafP/13Z0WNgB4X7qe27uNMqPgx50rQ8h6e2MM7m5nrdwM1h0"))
               %base-user-accounts)))
   )

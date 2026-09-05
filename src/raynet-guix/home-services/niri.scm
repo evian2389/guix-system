@@ -1,6 +1,6 @@
 (define-module (raynet-guix home-services niri)
   #:use-module (gnu home services)
-  #:use-module (gnu packages wm)
+  #:use-module (gnu packages window-management)
   #:use-module (gnu packages xdisorg)
   #:use-module (gnu packages freedesktop)
   #:use-module (guix gexp)
@@ -8,7 +8,7 @@
 
 (define (home-niri-profile-service config)
   (list niri
-        swww
+        awww
         wl-clipboard))
 
 (define home-niri-service-type
