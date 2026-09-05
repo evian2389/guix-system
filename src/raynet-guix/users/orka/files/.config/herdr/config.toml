@@ -1,0 +1,13 @@
+# herdr configuration
+# Managed by guix-system (stow). Place at ~/.config/herdr/config.toml
+
+[ui]
+agent_panel_sort = "spaces"
+show_agent_labels_on_pane_borders = false
+
+[ui.toast]
+delivery = "system"
+
+[keys]
+# Enter prefix mode with Ctrl+A (tmux-style), instead of the default Ctrl+B.
+prefix = "ctrl+a"

@@ -19,7 +19,7 @@
                (make-forkexec-constructor
                 (list "/run/current-system/profile/bin/script"
                       "-qec"
-                      (string-append home "/.local/bin/claude-wrapper --channels plugin:discord@claude-plugins-official")
+                      (string-append home "/.guix-home/profile/bin/claude --channels plugin:discord@claude-plugins-official")
                       "/dev/null")
                 #:directory home
                 #:log-file log-file

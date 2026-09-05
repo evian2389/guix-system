@@ -1,2 +1,0 @@
-#!/bin/sh
-exec "$HOME/.guix-home/profile/lib/ld-linux-x86-64.so.2" "$HOME/.local/bin/claude" "$@"

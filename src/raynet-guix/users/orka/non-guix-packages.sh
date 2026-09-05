@@ -39,7 +39,8 @@ if command -v nix &> /dev/null; then
 
     if command -v npm &> /dev/null; then
         npm config set prefix ~/.npm-global
-        npm install -g @anthropic-ai/claude-code
+        # claude-code now provided by Guix (claude-code-bin, shika channel) via base-utils.scm
+        # npm install -g @anthropic-ai/claude-code
         npm install -g ctx7
         echo "Setting up Context7 for Antigravity..."
         ~/.npm-global/bin/ctx7 setup --antigravity -y < /dev/null || true
@@ -63,7 +64,7 @@ if command -v flatpak &> /dev/null; then
     flatpak install -y flathub com.discordapp.Discord
     flatpak install -y flathub app.zen_browser.zen
     #flatpak install -y flathub art.graphite.Graphite # image editor, not stable
-    # flatpak install -y flathub com.valvesoftware.Steam
+    flatpak install -y flathub com.valvesoftware.Steam
 else
     echo "Warning: flatpak not found. Skipping Flatpak packages."
 fi
@@ -78,12 +79,21 @@ if command -v cargo &> /dev/null; then
      cargo install cargo-watch   # not in Guix — file watcher for cargo
      cargo install --git https://github.com/e-tho/bzmenu
      cargo install zeekstd_cli
+     cargo install herdr
      # NOTE: Pinned to 0.1.18 because newer versions (e.g. 0.1.22) require rustc >= 1.95,
      # but the system's pinned Guix channels currently provide rustc 1.93.0.
      cargo install pi_agent_rust --version 0.1.18
 
 else
     echo "Warning: cargo not found. Skipping cargo packages."
+fi
+
+# Let herdr recognize coding agents (installs SessionStart/state hooks into each
+# agent's config dir, e.g. ~/.claude, ~/.codex, ~/.gemini/config). Idempotent.
+if command -v herdr &> /dev/null; then
+    for agent in claude codex antigravity-cli; do
+        herdr integration install "$agent" || true
+    done
 fi
 
 echo "Installing SurrealDB..."
@@ -106,10 +116,16 @@ mkdir -p ~/.local/state/claude-code
 
 corepack enable --install-directory ~/.local/bin pnpm
 
+# `claude` is now the Guix package (claude-code-bin, shikanox channel). Remove the
+# old native-install symlink/wrapper so they stop shadowing it on PATH. The native
+# install stays reachable as `claude-latest` (stow-managed script).
+rm -f ~/.local/bin/claude-wrapper
+[ -L ~/.local/bin/claude ] && rm -f ~/.local/bin/claude
+
 echo "Updating wrapper scripts with current glibc path..."
 GLIBC_LD=$(readlink -f ~/.guix-home/profile/lib/ld-linux-x86-64.so.2 2>/dev/null)
 if [ -f "$GLIBC_LD" ]; then
-    for wrapper in /home/orka/.local/bin/claude-wrapper /home/orka/.local/bin/agy-wrapper; do
+    for wrapper in /home/orka/.local/bin/agy-wrapper; do
         if [ -f "$wrapper" ]; then
             sed -i "s|/gnu/store/[a-z0-9]*-glibc-[^/]*/lib/ld-linux-x86-64\.so\.2|$GLIBC_LD|g" "$wrapper"
             echo "Updated $wrapper -> $GLIBC_LD"

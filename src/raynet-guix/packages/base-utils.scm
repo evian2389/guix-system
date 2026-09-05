@@ -28,11 +28,12 @@
   #:use-module (gnu packages lua)
   #:use-module (gnu packages java)
   #:use-module (gnu packages perl)
-  #:use-module (gnu packages wm)
+  #:use-module (gnu packages window-management)
   #:use-module (gnu packages video)
   #:use-module (gnu packages linux)   ; for brightnessctl
   #:use-module (gnu packages music)   ; for playerctl
   #:use-module (gnu packages sync)   ; for rclone
+  #:use-module (gnu packages android) ; for adb, fastboot
   #:use-module (gnu packages freedesktop) ; for xdg-desktop-portal
   #:use-module (gnu packages text-editors)   ; for helix
   #:use-module (gnu packages vim)   ; neovim
@@ -56,6 +57,7 @@
   #:use-module (gnu packages audio)       ; pipemixer
   #:use-module (gnu packages gnome)       ; for gnome-keyring, libsecret
   #:use-module (gnu packages tmux)       ; for tmux
+  #:use-module (gnu packages telegram)
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (nongnu packages messaging)     ; for element desktop messenger
@@ -63,6 +65,8 @@
   #:use-module (abbe packages zsh)         ; for ghostty
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (shika packages satty)
+  #:use-module (shika packages ai)         ; for claude-code-bin
+  ;; #:use-module (gnu packages codex)     ; for codex (OpenAI Codex CLI) — see below
   ; #:use-module (px packages editors)
   ; #:use-module (px packages tools)
   #:export (development-tools
@@ -95,7 +99,7 @@
     cmake
     ;make
     compiledb
-    uv
+    (@ (gnu packages build-tools) uv)
     bear
     autoconf
     pkg-config
@@ -133,9 +137,14 @@
     fuse-overlayfs
     distrobox
     coreutils
-    ; zed  ;;px
-    ; codex ;; px
+    zed
+    ;; codex           ;; OpenAI Codex CLI (official Guix) — builds from source
+                       ;; (no substitute at pinned rev) and OOM-kills rustc here.
+                       ;; Re-enable once a substitute is available or build host has more RAM.
+    claude-code-bin     ;; Claude Code CLI (shika channel)
     perl
+    adb
+    fastboot
     ))
 
 (define-public system-tools
@@ -148,6 +157,7 @@
     imv
     brightnessctl
     playerctl
+    pipemixer
     satty
     grim
     slurp
@@ -161,6 +171,7 @@
     sshfs
     pixz
     element-desktop
+    telegram-desktop
     mpv
     yt-dlp
     zsh
@@ -179,4 +190,7 @@
     gimp
     dank-material-shell
     hyprlock
+    zstd
+    archivemount
+    squashfs-tools
     ))
