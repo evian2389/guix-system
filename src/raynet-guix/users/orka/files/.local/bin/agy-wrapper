@@ -1,2 +1,12 @@
 #!/bin/sh
+# Antigravity CLI (native install), run through the Guix glibc ld.so because the
+# upstream binary hardcodes a /lib64 loader that does not exist on Guix.
+#
+# The foreground process is the ld.so, not `agy`, so herdr's process detection
+# can't recognize the agent; HERDR_AGENT=agy points herdr at the antigravity
+# screen manifest (id "agy") for this pane. The lifecycle hook installed by
+# `herdr integration install antigravity-cli` (~/.gemini/config/hooks) then
+# supplies authoritative idle/working/blocked state.
+export HERDR_AGENT=agy
+
 exec "$HOME/.guix-profile/lib/ld-linux-x86-64.so.2" "$HOME/.local/bin/agy" "$@"

@@ -65,7 +65,6 @@
   #:use-module (abbe packages zsh)         ; for ghostty
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (shika packages satty)
-  #:use-module (shika packages ai)         ; for claude-code-bin
   ;; #:use-module (gnu packages codex)     ; for codex (OpenAI Codex CLI) — see below
   ; #:use-module (px packages editors)
   ; #:use-module (px packages tools)
@@ -141,7 +140,8 @@
     ;; codex           ;; OpenAI Codex CLI (official Guix) — builds from source
                        ;; (no substitute at pinned rev) and OOM-kills rustc here.
                        ;; Re-enable once a substitute is available or build host has more RAM.
-    claude-code-bin     ;; Claude Code CLI (shika channel)
+    ;; claude-code: native self-updating install, not Guix. See users/orka/non-guix-packages.sh
+    ;; (npm -g @anthropic-ai/claude-code) + .local/bin/claude-wrapper.
     perl
     adb
     fastboot

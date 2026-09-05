@@ -39,8 +39,12 @@ if command -v nix &> /dev/null; then
 
     if command -v npm &> /dev/null; then
         npm config set prefix ~/.npm-global
-        # claude-code now provided by Guix (claude-code-bin, shika channel) via base-utils.scm
-        # npm install -g @anthropic-ai/claude-code
+        npm install -g @anthropic-ai/claude-code
+        # OpenAI Codex CLI — native install (not in Guix at the pinned rev; the
+        # official package builds from source and OOM-kills rustc here). The npm
+        # package ships a static musl binary, so it runs on Guix without a
+        # loader wrapper; herdr detects it by process name (`codex`).
+        npm install -g @openai/codex
         npm install -g ctx7
         echo "Setting up Context7 for Antigravity..."
         ~/.npm-global/bin/ctx7 setup --antigravity -y < /dev/null || true
@@ -115,12 +119,6 @@ fi
 mkdir -p ~/.local/state/claude-code
 
 corepack enable --install-directory ~/.local/bin pnpm
-
-# `claude` is now the Guix package (claude-code-bin, shikanox channel). Remove the
-# old native-install symlink/wrapper so they stop shadowing it on PATH. The native
-# install stays reachable as `claude-latest` (stow-managed script).
-rm -f ~/.local/bin/claude-wrapper
-[ -L ~/.local/bin/claude ] && rm -f ~/.local/bin/claude
 
 echo "Updating wrapper scripts with current glibc path..."
 GLIBC_LD=$(readlink -f ~/.guix-home/profile/lib/ld-linux-x86-64.so.2 2>/dev/null)

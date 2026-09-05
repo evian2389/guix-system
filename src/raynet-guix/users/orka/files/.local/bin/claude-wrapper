@@ -1,0 +1,25 @@
+#!/bin/sh
+# Native (self-updating) Claude Code install, run through the Guix Home glibc
+# ld.so because the upstream binary hardcodes a /lib64 loader that does not
+# exist on Guix. argv[0] is left as the real binary path so the native
+# autoupdater can locate its version directory and keep itself current.
+#
+# The autoupdater is left enabled: it drops new builds into
+# ~/.local/share/claude/versions/, and this wrapper always execs the newest one.
+#
+# Because the foreground process is the ld.so and not `claude`, herdr's process
+# detection can't recognize the agent; HERDR_AGENT=claude tells herdr which
+# screen manifest to use for this pane (scoped to this exec only).
+
+dir="$HOME/.local/share/claude/versions"
+latest="$(ls -1 "$dir" 2>/dev/null | sort -V | tail -n1)"
+
+if [ -z "$latest" ]; then
+    echo "claude-wrapper: no native install found in $dir" >&2
+    echo "install one with:  curl -fsSL https://claude.ai/install.sh | bash" >&2
+    exit 1
+fi
+
+export HERDR_AGENT=claude
+
+exec "$HOME/.guix-home/profile/lib/ld-linux-x86-64.so.2" "$dir/$latest" "$@"
