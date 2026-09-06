@@ -39,3 +39,9 @@ src/raynet-guix/users/orka/files/.password-store/account/
 .antigravitycli/
 .claude/
 
+
+# Local deploy helper (may hold a password)
+/deploy.sh
+
+# Large binary (like agy)
+src/raynet-guix/users/orka/files/.local/bin/claude

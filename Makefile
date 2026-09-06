@@ -20,7 +20,11 @@ CONFIG_DIR := $(SRC_DIR)/raynet-guix
 
 # Base guix time-machine command with common load paths
 # Explicitly set GUILE_LOAD_PATH for guix time-machine, prepending $(SRC_DIR).
-GUIX_TM_BASE = GUILE_LOAD_PATH=$(SRC_DIR):$(GUILE_LOAD_PATH) guix time-machine --debug=4 -L $(SRC_DIR)
+# Use an absolute path to the system guix: the `reconfigure-system` target runs
+# this under `sudo`, and the passwordless-guix sudoers rule matches this exact
+# path (a bare `guix` resolves elsewhere and would prompt for a password).
+GUIX_BIN ?= /run/current-system/profile/bin/guix
+GUIX_TM_BASE = GUILE_LOAD_PATH=$(SRC_DIR):$(GUILE_LOAD_PATH) $(GUIX_BIN) time-machine --debug=4 -L $(SRC_DIR)
 
 # Use 'guix time-machine' for reproducible builds based on the lock file.
 # Pass custom module load paths directly to time-machine.

@@ -12,7 +12,7 @@
        (name 'emacs)
        (url "https://github.com/garrgravarr/guix-emacs")
        (branch "master")
-       (commit "e6dc9facb12fc9c16a4932b049b065f535a617b6")
+       (commit "fef048dfb7f18e83ca43d50e1a7ccbd393a56dc2")
        (introduction
         (make-channel-introduction
          "d676ef5f94d2c1bd32f11f084d47dcb1a180fdd4"
@@ -22,7 +22,7 @@
        (name 'abbe)
        (url "https://codeberg.org/group/guix-modules.git")
        (branch "mainline")
-       (commit "c448ae9849a5fbd5b6a832b567ee20d9b16a72b5")
+       (commit "3fc42bce396749c1593db3598f71836d99afea31")
        (introduction
         (make-channel-introduction
          "8c754e3a4b49af7459a8c99de130fa880e5ca86a"
@@ -52,7 +52,7 @@
        (name 'guix)
        (url "https://git.guix.gnu.org/guix.git")
        (branch "master")
-       (commit "4b108c1a5b0682710ad52b0810d5b97d4be171e9")
+       (commit "cc99151c6a61e6f25534458cdffeb8d048928bcc")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"

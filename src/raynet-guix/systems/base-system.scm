@@ -44,11 +44,18 @@
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (nongnu packages linux)
-  #:use-module (abbe packages ghostty))
+  #:use-module (abbe packages ghostty)
+  #:use-module (srfi srfi-1)                 ;; fold, filter
+  #:use-module (srfi srfi-13))               ;; string-prefix?
 
 (define (nonguix-substitute-service config)
   (guix-configuration
     (inherit config)
+    ;; /tmp is a ~14 GiB tmpfs (50% of RAM); a from-source kernel build
+    ;; overflows it ("No space left on device" linking vmlinux).  Send
+    ;; guix-daemon builds to the disk-backed btrfs instead.  /var/tmp always
+    ;; exists, so no activation-time mkdir is required.
+    (tmpdir "/var/tmp")
     (substitute-urls
      (append (list "https://nonguix-proxy.ditigal.xyz"
                    "https://mirrors.sjtug.sjtu.edu.cn/guix"
@@ -106,14 +113,43 @@
     ;;(mapped-devices mapped-devices)
     (file-systems file-systems)
     (swap-devices
-     (let ((device->swap-space
-            (lambda (device)
-              (if (string? device)
-                  (swap-space (target device))
-                  device))))
+     ;; For a swap *file*, make its shepherd service depend on the file system
+     ;; that holds it — otherwise Guix only adds a udev dependency and `swapon`
+     ;; runs before the subvolume is mounted, failing the service at boot.
+     (let* ((holding-fs
+             (lambda (path)
+               (fold (lambda (fs best)
+                       (let ((mp (file-system-mount-point fs)))
+                         (if (and (string-prefix? mp path)
+                                  (or (not best)
+                                      (> (string-length mp)
+                                         (string-length
+                                          (file-system-mount-point best)))))
+                             fs best)))
+                     #f file-systems)))
+            (device->swap-space
+             (lambda (device)
+               (if (string? device)
+                   (let ((fs (holding-fs device)))
+                     (swap-space (target device)
+                                 (dependencies (if fs (list fs) '()))))
+                   device))))
        (map device->swap-space swap-devices)))
     (firmware firmware)
     (kernel-arguments kernel-arguments)
+    ;; Allow orka to run `guix` as root without a password, so unattended
+    ;; `guix system reconfigure` (deploy.sh / the mcron one-shot) doesn't stall
+    ;; on a sudo prompt. SETENV: is needed because the Makefile prefixes
+    ;; GUILE_LOAD_PATH=... before the command.
+    (sudoers-file
+     (plain-file "sudoers"
+                 (string-append
+                  "root ALL=(ALL) ALL\n"
+                  "%wheel ALL=(ALL) ALL\n"
+                  "orka ALL=(root) NOPASSWD:SETENV: "
+                  "/run/current-system/profile/bin/guix, "
+                  "/home/orka/.config/guix/current/bin/guix, "
+                  "/home/orka/guix-system/env/profile/bin/guix\n")))
     (packages (append (list
                         btrfs-progs
                         fuse-exfat

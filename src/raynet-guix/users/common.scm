@@ -1,6 +1,7 @@
 (define-module (raynet-guix users common)
   #:use-module (gnu home)
   #:use-module (gnu home services)
+  #:use-module (gnu home services gnupg) ; Added for gpg-agent
   #:use-module (gnu home services shells) ; Added for zsh
   #:use-module (gnu home services sound) ; Added for pipewire
   #:use-module (gnu home services desktop)
@@ -101,5 +102,11 @@ fi
              (service home-video-service-type)      ; For ffmpeg and v4l-utils
              (service home-audio-service-type)
              (service home-niri-service-type)
+             (service home-gpg-agent-service-type
+                      (home-gpg-agent-configuration
+                       (ssh-support? #t)
+                       (default-cache-ttl 1200)
+                       (max-cache-ttl 7200)
+                       (extra-content "allow-loopback-pinentry\nallow-emacs-pinentry\n")))
              ;; Add common home services here
              )))))

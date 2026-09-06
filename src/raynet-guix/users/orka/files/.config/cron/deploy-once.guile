@@ -1,0 +1,15 @@
+;; One-shot job: run the guix-system deploy once at 2026-09-09 10:00,
+;; then delete this file so it never fires again.
+;; NOTE: mcron's Vixie month field is 0-based, so 8 = September.
+(job "0 10 9 8 *"
+     (lambda ()
+       (false-if-exception
+        (delete-file "/home/orka/.config/cron/deploy-once.guile"))
+       (system
+        (string-append
+         "PATH=/home/orka/.config/guix/current/bin"
+         ":/home/orka/.guix-home/profile/bin:/home/orka/.guix-profile/bin"
+         ":/run/current-system/profile/bin:/usr/bin:/bin "
+         "/home/orka/guix-system/deploy.sh "
+         ">> /home/orka/guix-system/deploy-cron.log 2>&1")))
+     "deploy-once")

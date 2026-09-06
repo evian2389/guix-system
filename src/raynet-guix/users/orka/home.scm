@@ -27,7 +27,10 @@
    #:extra-packages (append orka-extra-packages extra-packages)
    #:extra-services
    (list
-    ;; (service home-games-service-type)
+    ;; (service home-games-service-type)   ; disabled — Guix `steam` currently fails to build:
+    ;; a flaky gst-plugins-good@1.28.1 matroskademux test (off-by-1ns duration assert) aborts
+    ;; the build, and it lives in a non-substitutable nonguix closure. Re-enable once a channel
+    ;; bump fixes/skips that test. Flatpak Steam is also disabled (non-guix-packages.sh).
     (service home-emacs-config-service-type)
     (service home-finance-service-type)
     ;; (service home-openclaw-service-type)

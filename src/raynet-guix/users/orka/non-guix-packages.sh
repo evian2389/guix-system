@@ -68,7 +68,9 @@ if command -v flatpak &> /dev/null; then
     flatpak install -y flathub com.discordapp.Discord
     flatpak install -y flathub app.zen_browser.zen
     #flatpak install -y flathub art.graphite.Graphite # image editor, not stable
-    flatpak install -y flathub com.valvesoftware.Steam
+    # Steam: prefer the Guix (nonguix) home-games-service-type. Flatpak Steam disabled —
+    # re-enable this (and the home service) once Guix `steam` builds again.
+    # flatpak install -y flathub com.valvesoftware.Steam
 else
     echo "Warning: flatpak not found. Skipping Flatpak packages."
 fi
@@ -84,6 +86,12 @@ if command -v cargo &> /dev/null; then
      cargo install --git https://github.com/e-tho/bzmenu
      cargo install zeekstd_cli
      cargo install herdr
+     # hermes-agent-cli removed: hermes-agent-cli-core 1.14.19 fails to build on
+     # Unix (broken fs::Permissions usage in auth.rs, missing libc dep — it's a
+     # Windows-first crate). Use kerux below instead.
+     # kerux — "hermes-rs", a self-contained Rust AI agent runtime (`kerux` binary).
+     # Not published to crates.io; workspace crate, MSRV 1.86 (ok on rustc 1.93).
+     cargo install --git https://github.com/eikarna/kerux kerux-cli
      # NOTE: Pinned to 0.1.18 because newer versions (e.g. 0.1.22) require rustc >= 1.95,
      # but the system's pinned Guix channels currently provide rustc 1.93.0.
      cargo install pi_agent_rust --version 0.1.18
