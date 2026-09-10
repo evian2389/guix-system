@@ -32,7 +32,10 @@ src/raynet-guix/users/orka/files/.config/zsh/.histfile
 src/raynet-guix/users/orka/files/.config/zsh/.zcompdump
 src/raynet-guix/users/orka/files/.config/mpv/script-opts/memo-history.log
 src/raynet-guix/users/orka/files/.openclaw/
+src/raynet-guix/users/orka/files/.zeroclaw/
+src/raynet-guix/users/orka/zeroclaw/.rendered.tmp
 src/raynet-guix/users/orka/files/.password-store/account/
+src/raynet-guix/users/orka/files/.password-store/zeroclaw/
 
 # Agent local state
 .agent/
