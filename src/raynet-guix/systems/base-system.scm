@@ -37,6 +37,7 @@
   #:use-module (gnu packages gnome)
   #:use-module (gnu packages tex)
   #:use-module (gnu packages cups)        ;; For splix
+  #:use-module (gnu packages compression) ;; For 7zip
   #:use-module (gnu packages scanner)     ;; For sane-airscan
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
   #:use-module (gnu packages android)     ;; For android-udev-rules
@@ -152,6 +153,7 @@
                   "/home/orka/guix-system/env/profile/bin/guix\n")))
     (packages (append (list
                         btrfs-progs
+                        (@ (gnu packages virtualization) bubblewrap)
                         fuse-exfat
                         exfat-utils
                         exfatprogs
@@ -182,6 +184,7 @@
                         (@ (gnu packages dns) avahi)
                         print-manager
                         cups
+                        7zip
                         )
                   packages))
 

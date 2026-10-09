@@ -125,6 +125,7 @@ binds {
     Mod+Shift+B hotkey-overlay-title="Bluetooth Manager: Overskride" { spawn "overskride"; }
     Mod+Alt+B hotkey-overlay-title="Toggle Status Bar" { spawn "dms" "-c" "/home/orka/.guix-home/profile/share/quickshell" "ipc" "call" "bar" "toggle"; }
     Mod+A hotkey-overlay-title="Audio Mixer: pipemixer" { spawn "ghostty" "-e" "pipemixer"; }
+    Mod+Shift+A hotkey-overlay-title="Audio Patchbay: helvum" { spawn "helvum"; }
     Mod+V hotkey-overlay-title="Audio Mixer: easyeffects" { spawn "easyeffects"; }
     // Lock Screen via Hyprlock
     Mod+Ctrl+L hotkey-overlay-title="Lock Screen" { spawn "hyprlock"; }
@@ -166,8 +167,8 @@ binds {
 
     // Layout Management
     Mod+R hotkey-overlay-title="Cycle Column Width" { switch-preset-column-width; }
-    Mod+F hotkey-overlay-title="Maximize Column" { maximize-column; }
-    Mod+Shift+F hotkey-overlay-title="Fullscreen Window" { fullscreen-window; }
+    Mod+Shift+F hotkey-overlay-title="Maximize Column" { maximize-column; }
+    Mod+F hotkey-overlay-title="Fullscreen Window" { fullscreen-window; }
     Mod+C hotkey-overlay-title="Center Column" { center-column; }
 
     // Resizing

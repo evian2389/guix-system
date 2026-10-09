@@ -1,0 +1,540 @@
+#!/usr/bin/env bash
+# Run one report-only A99 candidate-review stage. Failed/incomplete stages retry.
+set -euo pipefail
+umask 077
+STATE_DIR=/home/orka/.local/state/ai-wiki/helixdb-schema
+AUTO_DIR="$STATE_DIR/automation/a99-v1.65"
+FROZEN_DIR="$STATE_DIR/frozen/v1.65/190dd174faf4b9e004d41e678e44d34b5ee6b75d09f4439cbfc4bdb64fb2f111"
+REPORT_DIR="$STATE_DIR/working/v1.65/reviews"
+LOCK="$AUTO_DIR/runner.lock"
+LOG="$AUTO_DIR/runner.log"
+mkdir -p "$AUTO_DIR/attempts" "$REPORT_DIR"
+exec 9>"$LOCK"
+flock -n 9 || exit 0
+log(){ printf '[%s] %s\n' "$(date -Is)" "$*" >> "$LOG"; }
+[[ -s "$AUTO_DIR/stage" ]] || { log 'missing stage marker'; exit 1; }
+stage=$(cat "$AUTO_DIR/stage")
+if [[ "$stage" == done ]]; then exit 0; fi
+case "$stage" in
+  01-frontmatter|02-ownership|03-evaluator|04-cross-domain-index|05-index-audit|06-correction-backlog|07-a99-registry-contract|08-a99-registry-contract-audit|09-registry-contract-revision|10-registry-contract-r2-audit|11-multiproject-fixture-matrix|12-multiproject-fixture-audit|13-human-handoff|14-r3-contract-decision-packet|15-r3-contract-audit|16-r3-human-handoff|17-decision-output-crosswalk|18-decision-output-audit|19-decision-output-handoff|20-atomic-obligation-registry|21-atomic-registry-independent-audit|22-atomic-registry-handoff|23-atomic-registry-correction|24-atomic-registry-correction-audit|25-registry-audit-correction-matrix|26-corrected-atomic-registry-r2|27-corrected-atomic-registry-r2-audit|28-r2-audit-correction-matrix|29-corrected-atomic-registry-r3|30-corrected-atomic-registry-r3-audit|31-corrected-atomic-registry-r3-handoff|33-corrected-atomic-registry-r3-1|34-corrected-atomic-registry-r3-1-audit|35-corrected-atomic-registry-r3-1-handoff|35-corrected-atomic-registry-r3-2|36-corrected-atomic-registry-r3-2-audit|37-corrected-atomic-registry-r3-2-handoff|37-corrected-atomic-registry-r3-3|38-corrected-atomic-registry-r3-3-audit|39-corrected-atomic-registry-r3-3-metadata-r3-4|40-corrected-atomic-registry-r3-4-audit|41-corrected-atomic-registry-r3-4-handoff|42-r25-clause-decomposition|43-r25-clause-decomposition-audit|46-r25-decomposition-correction|47-r25-decomposition-correction-audit|48-r34-record-family-decomposition|49-r34-record-family-decomposition-audit|49b-r25-final-correction|49c-r25-final-correction-audit|49d-r34-row-corrections|49e-r34-row-corrections-audit|49f-r25-purpose-addendum|49g-r25-purpose-addendum-audit|49h-r34-authorityresolution-correction|49i-r34-authorityresolution-audit|50-r36-r37-query-temporal-decomposition|51-r36-r37-query-temporal-audit|51b-r36-r37-decomposition-correction|51c-r36-r37-decomposition-correction-audit|51d-r36-r37-correction-errata|51e-r36-r37-errata-audit|52-r39-evaluation-output-decomposition|53-r39-evaluation-output-audit|53b-r39-decomposition-correction|53c-r39-decomposition-correction-audit|54-r40-r42-identity-provenance-decomposition|55-r40-r42-identity-provenance-audit|55b-r40-r42-decomposition-correction|55c-r40-r42-decomposition-correction-audit|55d-r40-r42-correction-errata|55e-r40-r42-errata-audit|56-clause-decomposition-synthesis|57-clause-decomposition-synthesis-audit|57b-synthesis-correction|57c-synthesis-correction-audit|58-d1-d38-dependency-alternative-brief|59-d1-d38-brief-audit|59b-d1-d38-brief-correction|59c-d1-d38-correction-audit|60-pilot-context-reconciliation|61-pilot-context-reconciliation-audit|61b-pilot-context-correction|61c-pilot-context-correction-audit|62-reviewed-logical-schema-pilot-packet|63-logical-schema-pilot-packet-audit|64-logical-schema-pilot-packet-correction|65-logical-schema-pilot-packet-correction-audit|64b-packet-correction-errata|64c-packet-correction-errata-audit|66-consolidated-logical-schema-pilot-packet|67-consolidated-packet-independent-audit|68-consolidated-packet-correction|69-consolidated-packet-correction-audit|70-consolidated-packet-final-correction|71-consolidated-packet-final-audit|72-multimodel-findings-adjudication|73-multimodel-correction|74-multimodel-correction-audit|75-carryforward-correction|76-carryforward-correction-audit|77-final-multimodel-adjudication|78-final-correction|79-final-correction-audit|80-terminal-errata-correction|81-terminal-errata-audit|82-enumeration-completeness-correction|83-enumeration-completeness-audit|84-citation-errata-correction|85-final-packet-audit|86-final-formatting-audit) ;;
+  87-owner-review-sequence-synthesis|88-owner-review-sequence-audit|89-owner-review-sequence-correction|90-owner-review-sequence-correction-audit|91-owner-review-packet-final-correction|92-owner-review-packet-final-audit|93-cross-project-synthesis-correction|94-cross-project-synthesis-audit|95-cross-project-owner-agenda-addendum|96-cross-project-owner-agenda-audit|97-workspace-project-example-stress-map|98-workspace-project-example-stress-audit|99-workspace-project-example-correction|100-workspace-project-example-correction-audit|101-cross-project-owner-decision-brief|102-cross-project-owner-decision-brief-audit|103-owner-decision-brief-correction|104-owner-decision-brief-correction-audit|105-owner-decision-brief-final-correction|106-owner-decision-brief-final-audit|107-owner-decision-brief-clean-final|108-owner-decision-brief-clean-final-audit|109-owner-decision-brief-respondent-column-correction|110-owner-decision-brief-respondent-column-audit|111-owner-decision-brief-citation-correction|112-owner-decision-brief-citation-audit|113-owner-decision-brief-header-cleanup|114-owner-decision-brief-header-audit|115-synthetic-orthogonality-scenario-matrix|116-synthetic-orthogonality-scenario-audit|117-synthetic-scenario-correction|118-synthetic-scenario-correction-audit|119-synthetic-matrix-claude-correction|120-synthetic-matrix-claude-correction-audit|121-synthetic-matrix-citation-correction|122-synthetic-matrix-citation-audit|128-cross-workspace-adjudication-correction|129-cross-workspace-adjudication-audit|130-f0-owner-form-correction|131-f0-owner-form-audit|132-f0-owner-form-audit-correction|133-f0-owner-form-correction-audit|134-agy-multimodel-review|135-agy-multimodel-review-audit) ;;
+  *) log "invalid stage marker: $stage"; exit 1;;
+esac
+next_stage_for(){
+  case "$1" in
+    01-frontmatter) printf '02-ownership\n';;
+    02-ownership) printf '03-evaluator\n';;
+    03-evaluator) printf '04-cross-domain-index\n';;
+    04-cross-domain-index) printf '05-index-audit\n';;
+    05-index-audit) printf '06-correction-backlog\n';;
+    06-correction-backlog) printf '07-a99-registry-contract\n';;
+    07-a99-registry-contract) printf '08-a99-registry-contract-audit\n';;
+    08-a99-registry-contract-audit) printf '09-registry-contract-revision\n';;
+    09-registry-contract-revision) printf '10-registry-contract-r2-audit\n';;
+    10-registry-contract-r2-audit) printf '11-multiproject-fixture-matrix\n';;
+    11-multiproject-fixture-matrix) printf '12-multiproject-fixture-audit\n';;
+    12-multiproject-fixture-audit) printf '13-human-handoff\n';;
+    13-human-handoff) printf '14-r3-contract-decision-packet\n';;
+    14-r3-contract-decision-packet) printf '15-r3-contract-audit\n';;
+    15-r3-contract-audit) printf '16-r3-human-handoff\n';;
+    16-r3-human-handoff) printf '17-decision-output-crosswalk\n';;
+    17-decision-output-crosswalk) printf '18-decision-output-audit\n';;
+    18-decision-output-audit) printf '19-decision-output-handoff\n';;
+    19-decision-output-handoff) printf 'done\n';;
+    20-atomic-obligation-registry) printf '21-atomic-registry-independent-audit\n';;
+    21-atomic-registry-independent-audit) printf '22-atomic-registry-handoff\n';;
+    22-atomic-registry-handoff) printf 'done\n';;
+    23-atomic-registry-correction) printf '24-atomic-registry-correction-audit\n';;
+    24-atomic-registry-correction-audit) printf '25-atomic-registry-correction-handoff\n';;
+    25-registry-audit-correction-matrix) printf '26-corrected-atomic-registry-r2\n';;
+    26-corrected-atomic-registry-r2) printf '27-corrected-atomic-registry-r2-audit\n';;
+    27-corrected-atomic-registry-r2-audit) printf '28-corrected-atomic-registry-r2-handoff\n';;
+    28-r2-audit-correction-matrix) printf '29-corrected-atomic-registry-r3\n';;
+    29-corrected-atomic-registry-r3) printf '30-corrected-atomic-registry-r3-audit\n';;
+    30-corrected-atomic-registry-r3-audit) printf '31-corrected-atomic-registry-r3-handoff\n';;
+    31-corrected-atomic-registry-r3-handoff) printf 'done\n';;
+    33-corrected-atomic-registry-r3-1) printf '34-corrected-atomic-registry-r3-1-audit\n';;
+    34-corrected-atomic-registry-r3-1-audit) printf '35-corrected-atomic-registry-r3-1-handoff\n';;
+    35-corrected-atomic-registry-r3-1-handoff) printf 'done\n';;
+    35-corrected-atomic-registry-r3-2) printf '36-corrected-atomic-registry-r3-2-audit\n';;
+    36-corrected-atomic-registry-r3-2-audit) printf '37-corrected-atomic-registry-r3-2-handoff\n';;
+    37-corrected-atomic-registry-r3-2-handoff) printf 'done\n';;
+    37-corrected-atomic-registry-r3-3) printf '38-corrected-atomic-registry-r3-3-audit\n';;
+    38-corrected-atomic-registry-r3-3-audit) printf '39-corrected-atomic-registry-r3-3-metadata-r3-4\n';;
+    39-corrected-atomic-registry-r3-3-metadata-r3-4) printf '40-corrected-atomic-registry-r3-4-audit\n';;
+    40-corrected-atomic-registry-r3-4-audit) printf '41-corrected-atomic-registry-r3-4-handoff\n';;
+    41-corrected-atomic-registry-r3-4-handoff) printf 'done\n';;
+    42-r25-clause-decomposition) printf '43-r25-clause-decomposition-audit\n';;
+    43-r25-clause-decomposition-audit) printf '46-r25-decomposition-correction\n';;
+    46-r25-decomposition-correction) printf '47-r25-decomposition-correction-audit\n';;
+    47-r25-decomposition-correction-audit) printf '48-r34-record-family-decomposition\n';;
+    48-r34-record-family-decomposition) printf '49-r34-record-family-decomposition-audit\n';;
+    49-r34-record-family-decomposition-audit) printf '49b-r25-final-correction\n';;
+    49b-r25-final-correction) printf '49c-r25-final-correction-audit\n';;
+    49c-r25-final-correction-audit) printf '49d-r34-row-corrections\n';;
+    49d-r34-row-corrections) printf '49e-r34-row-corrections-audit\n';;
+    49e-r34-row-corrections-audit) printf '49f-r25-purpose-addendum\n';;
+    49f-r25-purpose-addendum) printf '49g-r25-purpose-addendum-audit\n';;
+    49g-r25-purpose-addendum-audit) printf '49h-r34-authorityresolution-correction\n';;
+    49h-r34-authorityresolution-correction) printf '49i-r34-authorityresolution-audit\n';;
+    49i-r34-authorityresolution-audit) printf '50-r36-r37-query-temporal-decomposition\n';;
+    50-r36-r37-query-temporal-decomposition) printf '51-r36-r37-query-temporal-audit\n';;
+    51-r36-r37-query-temporal-audit) printf '51b-r36-r37-decomposition-correction\n';;
+    51b-r36-r37-decomposition-correction) printf '51c-r36-r37-decomposition-correction-audit\n';;
+    51c-r36-r37-decomposition-correction-audit) printf '51d-r36-r37-correction-errata\n';;
+    51d-r36-r37-correction-errata) printf '51e-r36-r37-errata-audit\n';;
+    51e-r36-r37-errata-audit) printf '52-r39-evaluation-output-decomposition\n';;
+    52-r39-evaluation-output-decomposition) printf '53-r39-evaluation-output-audit\n';;
+    53-r39-evaluation-output-audit) printf '53b-r39-decomposition-correction\n';;
+    53b-r39-decomposition-correction) printf '53c-r39-decomposition-correction-audit\n';;
+    53c-r39-decomposition-correction-audit) printf '54-r40-r42-identity-provenance-decomposition\n';;
+    54-r40-r42-identity-provenance-decomposition) printf '55-r40-r42-identity-provenance-audit\n';;
+    55-r40-r42-identity-provenance-audit) printf '55b-r40-r42-decomposition-correction\n';;
+    55b-r40-r42-decomposition-correction) printf '55c-r40-r42-decomposition-correction-audit\n';;
+    55c-r40-r42-decomposition-correction-audit) printf '55d-r40-r42-correction-errata\n';;
+    55d-r40-r42-correction-errata) printf '55e-r40-r42-errata-audit\n';;
+    55e-r40-r42-errata-audit) printf '56-clause-decomposition-synthesis\n';;
+    56-clause-decomposition-synthesis) printf '57-clause-decomposition-synthesis-audit\n';;
+    57-clause-decomposition-synthesis-audit) printf '57b-synthesis-correction\n';;
+    57b-synthesis-correction) printf '57c-synthesis-correction-audit\n';;
+    57c-synthesis-correction-audit) printf '58-d1-d38-dependency-alternative-brief\n';;
+    58-d1-d38-dependency-alternative-brief) printf '59-d1-d38-brief-audit\n';;
+    59-d1-d38-brief-audit) printf '59b-d1-d38-brief-correction\n';;
+    59b-d1-d38-brief-correction) printf '59c-d1-d38-correction-audit\n';;
+    59c-d1-d38-correction-audit) printf '60-pilot-context-reconciliation\n';;
+    60-pilot-context-reconciliation) printf '61-pilot-context-reconciliation-audit\n';;
+    61-pilot-context-reconciliation-audit) printf '61b-pilot-context-correction\n';;
+    61b-pilot-context-correction) printf '61c-pilot-context-correction-audit\n';;
+    61c-pilot-context-correction-audit) printf '62-reviewed-logical-schema-pilot-packet\n';;
+    62-reviewed-logical-schema-pilot-packet) printf '63-logical-schema-pilot-packet-audit\n';;
+    63-logical-schema-pilot-packet-audit) printf '64-logical-schema-pilot-packet-correction\n';;
+    64-logical-schema-pilot-packet-correction) printf '65-logical-schema-pilot-packet-correction-audit\n';;
+    65-logical-schema-pilot-packet-correction-audit) printf '64b-packet-correction-errata\n';;
+    64b-packet-correction-errata) printf '64c-packet-correction-errata-audit\n';;
+    64c-packet-correction-errata-audit) printf 'done\n';;
+    66-consolidated-logical-schema-pilot-packet) printf '67-consolidated-packet-independent-audit\n';;
+    67-consolidated-packet-independent-audit) printf '68-consolidated-packet-correction\n';;
+    68-consolidated-packet-correction) printf '69-consolidated-packet-correction-audit\n';;
+    69-consolidated-packet-correction-audit) printf '70-consolidated-packet-final-correction\n';;
+    70-consolidated-packet-final-correction) printf '71-consolidated-packet-final-audit\n';;
+    71-consolidated-packet-final-audit) printf '72-multimodel-findings-adjudication\n';;
+    72-multimodel-findings-adjudication) printf '73-multimodel-correction\n';;
+    73-multimodel-correction) printf '74-multimodel-correction-audit\n';;
+    74-multimodel-correction-audit) printf '75-carryforward-correction\n';;
+    75-carryforward-correction) printf '76-carryforward-correction-audit\n';;
+    76-carryforward-correction-audit) printf '77-final-multimodel-adjudication\n';;
+    77-final-multimodel-adjudication) printf '78-final-correction\n';;
+    78-final-correction) printf '79-final-correction-audit\n';;
+    79-final-correction-audit) printf '80-terminal-errata-correction\n';;
+    80-terminal-errata-correction) printf '81-terminal-errata-audit\n';;
+    81-terminal-errata-audit) printf '82-enumeration-completeness-correction\n';;
+    82-enumeration-completeness-correction) printf '83-enumeration-completeness-audit\n';;
+    83-enumeration-completeness-audit) printf '84-citation-errata-correction\n';;
+    84-citation-errata-correction) printf '85-final-packet-audit\n';;
+    85-final-packet-audit) printf '86-final-formatting-audit\n';;
+    86-final-formatting-audit) printf 'done\n';;
+    87-owner-review-sequence-synthesis) printf '88-owner-review-sequence-audit\n';;
+    88-owner-review-sequence-audit) printf '89-owner-review-sequence-correction\n';;
+    89-owner-review-sequence-correction) printf '90-owner-review-sequence-correction-audit\n';;
+    90-owner-review-sequence-correction-audit) printf '91-owner-review-packet-final-correction\n';;
+    91-owner-review-packet-final-correction) printf '92-owner-review-packet-final-audit\n';;
+    92-owner-review-packet-final-audit) printf 'done\n';;
+    93-cross-project-synthesis-correction) printf '94-cross-project-synthesis-audit\n';;
+    94-cross-project-synthesis-audit) printf 'done\n';;
+    95-cross-project-owner-agenda-addendum) printf '96-cross-project-owner-agenda-audit\n';;
+    96-cross-project-owner-agenda-audit) printf 'done\n';;
+    97-workspace-project-example-stress-map) printf '98-workspace-project-example-stress-audit\n';;
+    98-workspace-project-example-stress-audit) printf 'done\n';;
+    99-workspace-project-example-correction) printf '100-workspace-project-example-correction-audit\n';;
+    100-workspace-project-example-correction-audit) printf 'done\n';;
+    101-cross-project-owner-decision-brief) printf '102-cross-project-owner-decision-brief-audit\n';;
+    102-cross-project-owner-decision-brief-audit) printf 'done\n';;
+    103-owner-decision-brief-correction) printf '104-owner-decision-brief-correction-audit\n';;
+    104-owner-decision-brief-correction-audit) printf 'done\n';;
+    105-owner-decision-brief-final-correction) printf '106-owner-decision-brief-final-audit\n';;
+    106-owner-decision-brief-final-audit) printf 'done\n';;
+    107-owner-decision-brief-clean-final) printf '108-owner-decision-brief-clean-final-audit\n';;
+    108-owner-decision-brief-clean-final-audit) printf 'done\n';;
+    109-owner-decision-brief-respondent-column-correction) printf '110-owner-decision-brief-respondent-column-audit\n';;
+    110-owner-decision-brief-respondent-column-audit) printf 'done\n';;
+    111-owner-decision-brief-citation-correction) printf '112-owner-decision-brief-citation-audit\n';;
+    112-owner-decision-brief-citation-audit) printf 'done\n';;
+    113-owner-decision-brief-header-cleanup) printf '114-owner-decision-brief-header-audit\n';;
+    114-owner-decision-brief-header-audit) printf 'done\n';;
+    115-synthetic-orthogonality-scenario-matrix) printf '116-synthetic-orthogonality-scenario-audit\n';;
+    116-synthetic-orthogonality-scenario-audit) printf 'done\n';;
+    117-synthetic-scenario-correction) printf '118-synthetic-scenario-correction-audit\n';;
+    118-synthetic-scenario-correction-audit) printf 'done\n';;
+    119-synthetic-matrix-claude-correction) printf '120-synthetic-matrix-claude-correction-audit\n';;
+    120-synthetic-matrix-claude-correction-audit) printf 'done\n';;
+    121-synthetic-matrix-citation-correction) printf '122-synthetic-matrix-citation-audit\n';;
+    122-synthetic-matrix-citation-audit) printf 'done\n';;
+    128-cross-workspace-adjudication-correction) printf '129-cross-workspace-adjudication-audit\n';;
+    129-cross-workspace-adjudication-audit) printf '130-f0-owner-form-correction\n';;
+    130-f0-owner-form-correction) printf '131-f0-owner-form-audit\n';;
+    131-f0-owner-form-audit) printf '132-f0-owner-form-audit-correction\n';;
+    132-f0-owner-form-audit-correction) printf '133-f0-owner-form-correction-audit\n';;
+    133-f0-owner-form-correction-audit) printf '134-agy-multimodel-review\n';;
+    134-agy-multimodel-review) printf '135-agy-multimodel-review-audit\n';;
+    135-agy-multimodel-review-audit) printf 'done\n';;
+    66-consolidated-logical-schema-pilot-packet) printf '67-consolidated-packet-independent-audit\n';;
+    67-consolidated-packet-independent-audit) printf 'done\n';;
+    *) return 1;;
+  esac
+}
+(if [[ "$stage" == 72-multimodel-findings-adjudication ]]; then
+  MM_DIR="$STATE_DIR/working/v1.65/multi-model"
+  CLAUDE_REPORT="$MM_DIR/final-packet-claude-review.md"
+  AGY_REPORT="$MM_DIR/final-packet-agy-review.md"
+  CODEX_M4_REPORT="$MM_DIR/codex-final-packet-multiproject-review.md"
+  CODEX_INTEGRITY_REPORT="$MM_DIR/codex-final-packet-integrity-review.md"
+  FROZEN_HASH="$FROZEN_DIR"
+  if [[ ! -s "$AGY_REPORT" ]] || [[ "$(wc -c < "$AGY_REPORT")" -lt 1000 ]]; then
+    BACKOFF="$MM_DIR/agy-backoff"
+    mkdir -p "$BACKOFF" "$AUTO_DIR/attempts"
+    fail_file="$BACKOFF/failures"
+    after_file="$BACKOFF/retry-after"
+    now=$(date +%s)
+    retry_after=0
+    [[ -s "$after_file" ]] && read -r retry_after < "$after_file" || true
+    if [[ "$retry_after" =~ ^[0-9]+$ ]] && (( now < retry_after )); then
+      log "stage 72 Agy/Gemini retry cooling down until $(date -d "@$retry_after" -Is)"
+      exit 1
+    fi
+    agy_prompt_file="$MM_DIR/final-packet-agy-review.prompt.md"
+    if [[ ! -s "$agy_prompt_file" ]]; then log "stage 72 missing Agy prompt: $agy_prompt_file"; exit 1; fi
+    attempt="$AUTO_DIR/attempts/72-agy-$(date +%Y%m%dT%H%M%S%z)"
+    mkdir -m 700 "$attempt"
+    cat "$agy_prompt_file" > "$attempt/prompt.md"
+    chmod 600 "$attempt/prompt.md"
+    output="$attempt/report.md"
+    agy_log="$attempt/agy.log"
+    set +e
+    timeout 20m /home/orka/.local/bin/agy-wrapper --sandbox \
+      --add-dir "$REPORT_DIR" --add-dir "$FROZEN_HASH" \
+      --print-timeout 15m --prompt "$(cat "$attempt/prompt.md")" > "$output" 2> "$agy_log"
+    agy_result=$?
+    set -e
+    agy_bytes=0
+    [[ ! -s "$output" ]] || agy_bytes=$(wc -c < "$output")
+    if [[ "$agy_result" -eq 0 && "$agy_bytes" -ge 1000 ]] \
+      && ! head -n 5 "$output" | grep -Eiq 'API Error:|OVERLOADED_ERROR|RESOURCE_EXHAUSTED|rate limit|too many requests|temporarily unavailable'; then
+      mv "$output" "$AGY_REPORT"
+      chmod 600 "$AGY_REPORT"
+      printf '0\n' > "$fail_file"
+      printf '0\n' > "$after_file"
+      log "stage 72 saved fresh Agy/Gemini packet review: $AGY_REPORT"
+    else
+      [[ -s "$output" ]] && chmod 600 "$output"
+      failures=0
+      [[ -s "$fail_file" ]] && read -r failures < "$fail_file" || true
+      [[ "$failures" =~ ^[0-9]+$ ]] || failures=0
+      failures=$((failures + 1))
+      delay=900
+      for ((i=1; i<failures && delay<14400; i++)); do delay=$((delay * 2)); done
+      (( delay > 14400 )) && delay=14400
+      retry_after=$((now + delay))
+      printf '%s\n' "$failures" > "$fail_file.tmp"
+      printf '%s\n' "$retry_after" > "$after_file.tmp"
+      chmod 600 "$fail_file.tmp" "$after_file.tmp"
+      mv "$fail_file.tmp" "$fail_file"
+      mv "$after_file.tmp" "$after_file"
+      log "stage 72 Agy/Gemini review incomplete (exit $agy_result, ${agy_bytes} bytes); retry after ${delay}s at $(date -d "@$retry_after" -Is)"
+      exit 1
+    fi
+  fi
+  if [[ ! -s "$CLAUDE_REPORT" ]] || [[ "$(wc -c < "$CLAUDE_REPORT")" -lt 1000 ]]; then
+    log 'stage 72 waiting for complete fresh Claude packet review; Agy report is retained if already complete'
+    exit 1
+  fi
+  if [[ ! -s "$CODEX_M4_REPORT" ]] || [[ "$(wc -c < "$CODEX_M4_REPORT")" -lt 1000 ]] \
+    || [[ ! -s "$CODEX_INTEGRITY_REPORT" ]] || [[ "$(wc -c < "$CODEX_INTEGRITY_REPORT")" -lt 1000 ]]; then
+    log 'stage 72 waiting for both independent Codex peer reports'
+    exit 1
+  fi
+fi)
+if [[ "$stage" == 77-final-multimodel-adjudication ]]; then
+  MM_DIR="$STATE_DIR/working/v1.65/multi-model"
+  mkdir -p "$MM_DIR"
+  CLAUDE_REPORT="$MM_DIR/final-packet-claude-r2-review.md"
+  AGY_REPORT="$MM_DIR/final-packet-agy-r2-review.md"
+  CLAUDE_PROMPT="$AUTO_DIR/77-claude-final-review.prompt.md"
+  AGY_PROMPT="$AUTO_DIR/77-agy-final-review.prompt.md"
+  for f in "$CLAUDE_PROMPT" "$AGY_PROMPT"; do [[ -s "$f" ]] || { log "stage 77 missing external-review prompt: $f"; exit 1; }; done
+  if [[ ! -s "$CLAUDE_REPORT" ]] || [[ "$(wc -c < "$CLAUDE_REPORT")" -lt 1000 ]]; then
+    attempt="$AUTO_DIR/attempts/77-claude-$(date +%Y%m%dT%H%M%S%z)"
+    mkdir -m 700 "$attempt"
+    cat "$CLAUDE_PROMPT" > "$attempt/prompt.md"
+    printf '\n\nFrozen snapshot root: %s\n' "$FROZEN_DIR" >> "$attempt/prompt.md"
+    chmod 600 "$attempt/prompt.md"
+    : > "$attempt/report.md"
+    set +e
+    timeout 30m /home/orka/.guix-profile/lib/ld-linux-x86-64.so.2 \
+      /home/orka/.npm-global/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe \
+      --restricted --tools Read Grep Glob --add-dir "$REPORT_DIR" "$FROZEN_DIR" \
+      --output-format text -p "$(cat "$attempt/prompt.md")" \
+      > "$attempt/report.md" 2> "$attempt/claude.log"
+    claude_result=$?
+    set -e
+    claude_bytes=$(wc -c < "$attempt/report.md")
+    if [[ "$claude_result" -eq 0 && "$claude_bytes" -ge 1000 ]] \
+      && ! head -n 8 "$attempt/report.md" | grep -Eiq 'API Error:|OVERLOADED_ERROR|RESOURCE_EXHAUSTED|rate limit|temporarily unavailable'; then
+      cp "$attempt/report.md" "$CLAUDE_REPORT.tmp"
+      chmod 600 "$CLAUDE_REPORT.tmp"; mv "$CLAUDE_REPORT.tmp" "$CLAUDE_REPORT"
+      log "stage 77 saved fresh Claude final-packet review: $CLAUDE_REPORT"
+    else
+      log "stage 77 Claude review incomplete (exit $claude_result, ${claude_bytes} bytes); retry at next hourly tick"
+      exit 1
+    fi
+  fi
+  if [[ ! -s "$AGY_REPORT" ]] || [[ "$(wc -c < "$AGY_REPORT")" -lt 1000 ]]; then
+    BACKOFF="$MM_DIR/agy-r2-backoff"
+    mkdir -p "$BACKOFF" "$AUTO_DIR/attempts"
+    fail_file="$BACKOFF/failures"; after_file="$BACKOFF/retry-after"
+    now=$(date +%s); retry_after=0
+    [[ -s "$after_file" ]] && read -r retry_after < "$after_file" || true
+    if [[ "$retry_after" =~ ^[0-9]+$ ]] && (( now < retry_after )); then
+      log "stage 77 Agy/Gemini retry cooling down until $(date -d "@$retry_after" -Is)"; exit 1
+    fi
+    attempt="$AUTO_DIR/attempts/77-agy-$(date +%Y%m%dT%H%M%S%z)"
+    mkdir -m 700 "$attempt"
+    cat "$AGY_PROMPT" > "$attempt/prompt.md"
+    printf '\n\nFrozen snapshot root: %s\n' "$FROZEN_DIR" >> "$attempt/prompt.md"
+    chmod 600 "$attempt/prompt.md"; : > "$attempt/report.md"
+    set +e
+    timeout 20m /home/orka/.local/bin/agy-wrapper --sandbox \
+      --add-dir "$REPORT_DIR" --add-dir "$FROZEN_DIR" \
+      --print-timeout 15m --prompt "$(cat "$attempt/prompt.md")" \
+      > "$attempt/report.md" 2> "$attempt/agy.log"
+    agy_result=$?; set -e
+    agy_bytes=$(wc -c < "$attempt/report.md")
+    if [[ "$agy_result" -eq 0 && "$agy_bytes" -ge 1000 ]] \
+      && ! head -n 8 "$attempt/report.md" | grep -Eiq 'API Error:|OVERLOADED_ERROR|RESOURCE_EXHAUSTED|rate limit|too many requests|temporarily unavailable'; then
+      cp "$attempt/report.md" "$AGY_REPORT.tmp"
+      chmod 600 "$AGY_REPORT.tmp"; mv "$AGY_REPORT.tmp" "$AGY_REPORT"
+      printf '0\n' > "$fail_file"; printf '0\n' > "$after_file"
+      log "stage 77 saved fresh Agy/Gemini final-packet review: $AGY_REPORT"
+    else
+      failures=0; [[ -s "$fail_file" ]] && read -r failures < "$fail_file" || true
+      [[ "$failures" =~ ^[0-9]+$ ]] || failures=0
+      failures=$((failures + 1)); delay=900
+      for ((i=1; i<failures && delay<14400; i++)); do delay=$((delay * 2)); done
+      (( delay > 14400 )) && delay=14400
+      retry_after=$((now + delay))
+      printf '%s\n' "$failures" > "$fail_file.tmp"; printf '%s\n' "$retry_after" > "$after_file.tmp"
+      chmod 600 "$fail_file.tmp" "$after_file.tmp"; mv "$fail_file.tmp" "$fail_file"; mv "$after_file.tmp" "$after_file"
+      log "stage 77 Agy/Gemini review incomplete (exit $agy_result, ${agy_bytes} bytes); retry after ${delay}s"
+      exit 1
+    fi
+  fi
+fi
+if [[ "$stage" == 134-agy-multimodel-review ]]; then
+  MM_DIR="$STATE_DIR/working/v1.65/multi-model/workspace-pattern-review-20261005"
+  BACKOFF="$STATE_DIR/provider-backoff"
+  AGY_REPORT="$MM_DIR/agy-review-retry.md"
+  AGY_PROMPT="$AUTO_DIR/134-agy-external-review.prompt.md"
+  mkdir -p "$MM_DIR" "$BACKOFF"
+  [[ -s "$AGY_PROMPT" ]] || { log "stage 134 missing Agy external-review prompt: $AGY_PROMPT"; exit 1; }
+  if [[ -e "$AGY_REPORT" ]]; then
+    if [[ -s "$AGY_REPORT" ]] && [[ "$(wc -c < "$AGY_REPORT")" -ge 1000 ]] \
+      && ! head -n 8 "$AGY_REPORT" | grep -Eiq 'API Error:|OVERLOADED_ERROR|RESOURCE_EXHAUSTED|rate limit|too many requests|temporarily unavailable'; then
+      log "stage 134 reusing completed Agy/Gemini review: $AGY_REPORT"
+    else
+      log "stage 134 found an existing incomplete Agy report; refusing overwrite: $AGY_REPORT"
+      exit 1
+    fi
+  else
+    # Share both the provider lock and cooldown state with the 15-minute runner.
+    exec 8>"$STATE_DIR/lock"
+    flock -n 8 || { log 'stage 134 deferred because another provider task holds the shared lock'; exit 1; }
+    fail_file="$BACKOFF/agy-failures"; after_file="$BACKOFF/agy-retry-after"
+    now=$(date +%s); retry_after=0
+    [[ -s "$after_file" ]] && read -r retry_after < "$after_file" || true
+    if [[ "$retry_after" =~ ^[0-9]+$ ]] && (( now < retry_after )); then
+      log "stage 134 Agy/Gemini retry cooling down until $(date -d "@$retry_after" -Is)"
+      exit 1
+    fi
+    attempt="$AUTO_DIR/attempts/134-agy-$(date +%Y%m%dT%H%M%S%z)"
+    context_dir="$attempt/context"
+    mkdir -m 700 "$attempt"
+    mkdir -m 700 "$context_dir"
+    (cd "$FROZEN_DIR" && sha256sum --status -c SHA256SUMS) || { log 'stage 134 frozen source checksum failure before Agy call'; exit 1; }
+    cp -a "$FROZEN_DIR" "$context_dir/frozen"
+    input_files=(
+      "$REPORT_DIR/v1.65-a99-longterm-126-cross-workspace-review-adjudication-20261005.md"
+      "$REPORT_DIR/v1.65-a99-longterm-127-stage126-independent-audit-20261005.md"
+      "$REPORT_DIR/v1.65-a99-longterm-128-cross-workspace-adjudication-correction-20261005.md"
+      "$REPORT_DIR/v1.65-a99-longterm-129-cross-workspace-adjudication-audit-20261005.md"
+      "$REPORT_DIR/v1.65-a99-longterm-130-f0-owner-form-correction-20261005.md"
+      "$REPORT_DIR/v1.65-a99-longterm-131-f0-owner-form-audit-20261005.md"
+      "$REPORT_DIR/v1.65-a99-longterm-132-f0-owner-form-audit-correction-20261005.md"
+      "$REPORT_DIR/v1.65-a99-longterm-133-f0-owner-form-correction-audit-20261005.md"
+      "$REPORT_DIR/v1.65-a99-cross-project-doc-evidence-review-20261005.md"
+      "$REPORT_DIR/v1.65-tcg-workspace-context-stress-review-20261005.md"
+      "$MM_DIR/claude-review.md"
+      "/home/orka/work/stock-trading/docs/helixdb-schema-manual.md"
+    )
+    for input_file in "${input_files[@]}"; do
+      [[ -s "$input_file" ]] || { log "stage 134 missing review input: $input_file"; exit 1; }
+    done
+    install -m 400 "${input_files[0]}" "$context_dir/stage126.md"
+    install -m 400 "${input_files[1]}" "$context_dir/stage127.md"
+    install -m 400 "${input_files[2]}" "$context_dir/stage128.md"
+    install -m 400 "${input_files[3]}" "$context_dir/stage129.md"
+    install -m 400 "${input_files[4]}" "$context_dir/stage130.md"
+    install -m 400 "${input_files[5]}" "$context_dir/stage131.md"
+    install -m 400 "${input_files[6]}" "$context_dir/stage132.md"
+    install -m 400 "${input_files[7]}" "$context_dir/stage133.md"
+    install -m 400 "${input_files[8]}" "$context_dir/ai-workflow-stock-trading-review.md"
+    install -m 400 "${input_files[9]}" "$context_dir/tcg-workspace-review.md"
+    install -m 400 "${input_files[10]}" "$context_dir/claude-review.md"
+    install -m 400 "${input_files[11]}" "$context_dir/stock-trading-manual.md"
+    {
+      cat <<'EOF_SOURCE_MAP'
+# Stage 134 read-only review context
+
+- `frozen/`: copy of the hash-verified six-file v1.65 snapshot; verify with `frozen/SHA256SUMS`.
+EOF_SOURCE_MAP
+      printf -- '- `stage126.md`: %s\n' "${input_files[0]}"
+      printf -- '- `stage127.md`: %s\n' "${input_files[1]}"
+      printf -- '- `stage128.md`: %s\n' "${input_files[2]}"
+      printf -- '- `stage129.md`: %s\n' "${input_files[3]}"
+      printf -- '- `stage130.md`: %s\n' "${input_files[4]}"
+      printf -- '- `stage131.md`: %s\n' "${input_files[5]}"
+      printf -- '- `stage132.md`: %s\n' "${input_files[6]}"
+      printf -- '- `stage133.md`: %s\n' "${input_files[7]}"
+      printf -- '- `ai-workflow-stock-trading-review.md`: %s\n' "${input_files[8]}"
+      printf -- '- `tcg-workspace-review.md`: %s\n' "${input_files[9]}"
+      printf -- '- `claude-review.md`: %s\n' "${input_files[10]}"
+      printf -- '- `stock-trading-manual.md`: %s\n' "${input_files[11]}"
+    } > "$context_dir/SOURCE-MAP.md"
+    chmod -R a-w "$context_dir"
+    (cd "$context_dir/frozen" && sha256sum --status -c SHA256SUMS) || { log 'stage 134 frozen copy checksum failure before Agy call'; exit 1; }
+    cat "$AGY_PROMPT" > "$attempt/prompt.md"
+    printf '\n\nRead-only review context: %s\nFrozen snapshot copy: %s/frozen\nSource mapping: %s/SOURCE-MAP.md\n' "$context_dir" "$context_dir" "$context_dir" >> "$attempt/prompt.md"
+    chmod 600 "$attempt/prompt.md"; : > "$attempt/report.md"
+    set +e
+    (cd "$context_dir" && timeout 20m /home/orka/.local/bin/agy-wrapper --sandbox \
+      --print-timeout 15m --prompt "$(cat "$attempt/prompt.md")") \
+      > "$attempt/report.md" 2> "$attempt/agy.log"
+    agy_result=$?; set -e
+    agy_bytes=$(wc -c < "$attempt/report.md")
+    (cd "$context_dir/frozen" && sha256sum --status -c SHA256SUMS) || { log 'stage 134 Agy modified the isolated frozen copy; rejecting report'; exit 1; }
+    (cd "$FROZEN_DIR" && sha256sum --status -c SHA256SUMS) || { log 'stage 134 frozen source checksum failure after Agy call'; exit 1; }
+    if [[ "$agy_result" -eq 0 && "$agy_bytes" -ge 1000 ]] \
+      && ! head -n 8 "$attempt/report.md" | grep -Eiq 'API Error:|OVERLOADED_ERROR|RESOURCE_EXHAUSTED|rate limit|too many requests|temporarily unavailable'; then
+      cp "$attempt/report.md" "$AGY_REPORT.tmp"
+      chmod 600 "$AGY_REPORT.tmp"; mv "$AGY_REPORT.tmp" "$AGY_REPORT"
+      printf '0\n' > "$fail_file"; printf '0\n' > "$after_file"
+      log "stage 134 saved Agy/Gemini review: $AGY_REPORT"
+      flock -u 8; exec 8>&-
+    else
+      failures=0; [[ -s "$fail_file" ]] && read -r failures < "$fail_file" || true
+      [[ "$failures" =~ ^[0-9]+$ ]] || failures=0
+      failures=$((failures + 1)); delay=900
+      for ((i=1; i<failures && delay<14400; i++)); do delay=$((delay * 2)); done
+      (( delay > 14400 )) && delay=14400
+      retry_after=$(($(date +%s) + delay))
+      printf '%s\n' "$failures" > "$fail_file.tmp"; printf '%s\n' "$retry_after" > "$after_file.tmp"
+      chmod 600 "$fail_file.tmp" "$after_file.tmp"; mv "$fail_file.tmp" "$fail_file"; mv "$after_file.tmp" "$after_file"
+      log "stage 134 Agy/Gemini review incomplete (exit $agy_result, ${agy_bytes} bytes); retry after ${delay}s at $(date -d "@$retry_after" -Is)"
+      exit 1
+    fi
+  fi
+fi
+(cd "$FROZEN_DIR" && sha256sum --status -c SHA256SUMS) || { log 'frozen source checksum failure before run'; exit 1; }
+name="v1.65-a99-longterm-${stage}-$(date +%Y%m%d).md"
+final="$REPORT_DIR/$name"
+if [[ -s "$final" ]]; then
+  if grep -q -- "- Stage: \`$stage\`" "$final" \
+    && (cd "$FROZEN_DIR" && sha256sum --status -c SHA256SUMS); then
+    next=$(next_stage_for "$stage")
+    printf '%s\n' "$next" > "$AUTO_DIR/stage.tmp"
+    mv "$AUTO_DIR/stage.tmp" "$AUTO_DIR/stage"
+    printf '# A99 automated review queue status\n\n- Updated: %s\n- Recovered completed report: `%s`\n- Next stage: `%s`\n- Mode: report-only; no schema decisions are adopted.\n' "$(date -Is)" "$final" "$next" > "$AUTO_DIR/status.md.tmp"
+    chmod 600 "$AUTO_DIR/status.md.tmp"; mv "$AUTO_DIR/status.md.tmp" "$AUTO_DIR/status.md"
+    log "recovered stage $stage from its already completed report; next=$next"
+    exit 0
+  fi
+  log "stage report exists but does not verify against stage/checksum; refusing overwrite: $final"
+  exit 1
+fi
+stamp=$(date +%Y%m%dT%H%M%S%z)
+attempt="$AUTO_DIR/attempts/${stage}-${stamp}"
+mkdir -m 700 "$attempt"
+printf '# Automated A99 report attempt\n\n- Stage: `%s`\n- Started: %s\n- Frozen snapshot: `%s`\n- State: running\n' "$stage" "$(date -Is)" "$FROZEN_DIR" > "$attempt/status.md"
+chmod 600 "$attempt/status.md"
+prompt_file="$AUTO_DIR/$stage.prompt.md"
+[[ -s "$prompt_file" ]] || { log "missing prompt: $prompt_file"; exit 1; }
+output="$attempt/report.md"
+logfile="$attempt/codex.log"
+cat "$prompt_file" > "$attempt/prompt.md"
+printf '\n\nFrozen snapshot root: %s\nUse read-only tools to inspect and verify the named input files. Do not write or modify files. Return only the complete standalone report; the runner saves your final response.\n' "$FROZEN_DIR" >> "$attempt/prompt.md"
+chmod 600 "$attempt/prompt.md"
+set +e
+timeout 30m /home/orka/.npm-global/bin/codex exec --sandbox read-only --ephemeral --skip-git-repo-check \
+  -C "$REPORT_DIR" -o "$output" < "$attempt/prompt.md" > /dev/null 2> "$logfile"
+result=$?
+set -e
+if [[ "$result" -ne 0 ]] && grep -Eiq 'Selected model is at capacity|OVERLOADED_ERROR|RESOURCE_EXHAUSTED|rate limit|too many requests' "$logfile"; then
+  fallback_log="$attempt/codex-fallback.log"
+  rm -f "$output"
+  log "capacity/rate response for $stage; retrying once with gpt-6-sol"
+  set +e
+  timeout 30m /home/orka/.npm-global/bin/codex exec --model gpt-6-sol --sandbox read-only --ephemeral --skip-git-repo-check \
+    -C "$REPORT_DIR" -o "$output" < "$attempt/prompt.md" > /dev/null 2> "$fallback_log"
+  fallback_result=$?
+  set -e
+  cat "$fallback_log" >> "$logfile"
+  result=$fallback_result
+  if [[ "$result" -ne 0 ]] && grep -Eiq 'Selected model is at capacity|OVERLOADED_ERROR|RESOURCE_EXHAUSTED|rate limit|too many requests|tokens used' "$fallback_log"; then
+    fallback2_log="$attempt/codex-fallback2.log"
+    rm -f "$output"
+    log "fallback gpt-6-sol unavailable for $stage; retrying once with gpt-6.1-sol"
+    set +e
+    timeout 30m /home/orka/.npm-global/bin/codex exec --model gpt-6.1-sol --sandbox read-only --ephemeral --skip-git-repo-check \
+      -C "$REPORT_DIR" -o "$output" < "$attempt/prompt.md" > /dev/null 2> "$fallback2_log"
+    fallback2_result=$?
+    set -e
+    cat "$fallback2_log" >> "$logfile"
+    result=$fallback2_result
+    if [[ "$result" -ne 0 ]] && grep -Eiq 'Selected model is at capacity|OVERLOADED_ERROR|RESOURCE_EXHAUSTED|rate limit|too many requests' "$fallback2_log"; then
+      fallback3_log="$attempt/codex-fallback3.log"
+      rm -f "$output"
+      log "fallback gpt-6.1-sol unavailable for $stage; retrying once with gpt-5.6-sol"
+      set +e
+      timeout 30m /home/orka/.npm-global/bin/codex exec --model gpt-5.6-sol --sandbox read-only --ephemeral --skip-git-repo-check \
+        -C "$REPORT_DIR" -o "$output" < "$attempt/prompt.md" > /dev/null 2> "$fallback3_log"
+      fallback3_result=$?
+      set -e
+      cat "$fallback3_log" >> "$logfile"
+      result=$fallback3_result
+    fi
+  fi
+fi
+if ! (cd "$FROZEN_DIR" && sha256sum --status -c SHA256SUMS); then
+  printf 'Frozen input checksum drift detected after review; report is untrusted and stage will retry.\n' >> "$attempt/status.md"
+  log "checksum drift after $stage; not advancing"
+  exit 1
+fi
+if [[ "$result" -eq 0 && -s "$output" && $(wc -c < "$output") -ge 1200 ]] && ! head -n 8 "$output" | grep -Eiq 'API Error:|OVERLOADED_ERROR|RESOURCE_EXHAUSTED|rate limit|too many requests|temporarily unavailable'; then
+  {
+    printf '# Automated A99 report\n\n- Stage: `%s`\n- Completed: %s\n- Frozen snapshot: `%s`\n- State: complete; report-only.\n\n---\n\n' "$stage" "$(date -Is)" "$FROZEN_DIR"
+    cat "$output"
+  } > "$final.tmp"
+  chmod 600 "$final.tmp"
+  mv "$final.tmp" "$final"
+  printf 'complete\n' > "$attempt/result"
+  next=$(next_stage_for "$stage")
+  printf '%s\n' "$next" > "$AUTO_DIR/stage.tmp"
+  mv "$AUTO_DIR/stage.tmp" "$AUTO_DIR/stage"
+  printf '# A99 automated review queue status\n\n- Updated: %s\n- Last completed: `%s`\n- Report: `%s`\n- Next stage: `%s`\n- Mode: report-only; inputs remain frozen and no schema decisions are adopted.\n' "$(date -Is)" "$stage" "$final" "$next" > "$AUTO_DIR/status.md.tmp"
+  chmod 600 "$AUTO_DIR/status.md.tmp"; mv "$AUTO_DIR/status.md.tmp" "$AUTO_DIR/status.md"
+  log "completed $stage report: $final; next=$next"
+else
+  printf 'retry\n' > "$attempt/result"
+  printf 'Codex exit status: %s\n' "$result" >> "$attempt/status.md"
+  chmod 600 "$attempt"/* 2>/dev/null || true
+  log "stage $stage incomplete (exit $result); report retained in $attempt and will retry at the next hourly tick"
+  exit 1
+fi

@@ -1,0 +1,12 @@
+(job '(next-minute (range 0 60 15))
+     "/home/orka/work/ai-wiki/scripts/helix-schema-followup.sh"
+     "helix-schema-followup")
+(job '(next-minute (range 0 60 15))
+     "/home/orka/work/ai-wiki/scripts/helix-schema-consolidate.sh"
+     "helix-schema-consolidate")
+(job '(next-minute (range 0 60 15))
+     "/home/orka/work/ai-wiki/scripts/helix-schema-claude-followup-retry.sh"
+     "helix-schema-claude-followup-retry")
+(job '(next-minute (range 7 60 60))
+     "/home/orka/.local/bin/helix-schema-a99-step"
+     "helix-schema-a99-longterm")

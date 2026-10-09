@@ -1,8 +1,11 @@
 (define-module (raynet-guix packages base-utils)
   #:use-module (guix packages)
+  #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix gexp)
+  #:use-module (guix build-system trivial)
   #:use-module (guix utils)
   #:use-module (gnu packages version-control)
+  #:use-module (gnu packages bash)
   #:use-module (gnu packages file-systems)
   #:use-module (gnu packages commencement)
   #:use-module (gnu packages password-utils)
@@ -37,6 +40,8 @@
   #:use-module (gnu packages freedesktop) ; for xdg-desktop-portal
   #:use-module (gnu packages text-editors)   ; for helix
   #:use-module (gnu packages vim)   ; neovim
+  #:use-module (gnu packages curl)  ; for blink.cmp
+  #:use-module (gnu packages tree-sitter) ; for nvim-treesitter
   #:use-module (gnu packages shells) ; For shell utils
   #:use-module (gnu packages shellutils) ; For shell utils
   #:use-module (gnu packages terminals) ; For terminal utils
@@ -65,12 +70,43 @@
   #:use-module (abbe packages zsh)         ; for ghostty
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (shika packages satty)
+  #:use-module (shika packages lazygit)
   ;; #:use-module (gnu packages codex)     ; for codex (OpenAI Codex CLI) — see below
   ; #:use-module (px packages editors)
   ; #:use-module (px packages tools)
   #:export (development-tools
             system-tools
-            ghostty-fixed))
+            ghostty-fixed
+            7z-compat))
+
+(define-public 7z-compat
+  (package
+    (name "7z-compat")
+    (version "1")
+    (source #f)
+    (build-system trivial-build-system)
+    (arguments
+    (list
+      #:modules '((guix build utils))
+      #:builder
+      #~(begin
+          (use-modules (guix build utils))
+          (let ((script (string-append #$output "/bin/7z")))
+            (mkdir-p (dirname script))
+            (call-with-output-file script
+              (lambda (port)
+                (format port "#!~a/bin/sh\nexec ~a/bin/7zz \"$@\"\n"
+                        #$(this-package-input "bash")
+                        #$(this-package-input "7zip"))))
+            (chmod script #o755)))))
+    (inputs
+     (list (list "bash" bash-minimal)
+           (list "7zip" 7zip)))
+    (synopsis "Compatibility command for 7-Zip")
+    (description "Provide the traditional @command{7z} command name for the
+@command{7zz} executable shipped by the 7zip package.")
+    (home-page "https://7-zip.org/")
+    (license license:lgpl2.1+)))
 
 (define-public ghostty-fixed
   (package
@@ -104,6 +140,8 @@
     pkg-config
     openssl
     zlib
+    unzip
+    xdotool
     patch
     gdb
     node
@@ -152,6 +190,9 @@
     fd
     eza
     bat
+    curl
+    tree-sitter-cli
+    lazygit
     fzf-tab  ; for default completion menu of the zsh
     fzf
     imv
@@ -192,6 +233,7 @@
     dank-material-shell
     hyprlock
     zstd
+    7z-compat
     archivemount
     squashfs-tools
     ))

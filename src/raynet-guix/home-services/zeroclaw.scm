@@ -9,11 +9,12 @@
 ;; Runs `zeroclaw daemon` (gateway + channels + heartbeat + cron scheduler) as a
 ;; Guix Home shepherd service so the Telegram bot answers 24/7.
 ;;
-;; This is unrelated to herdr: herdr 0.8.2 has no `zeroclaw` agent kind, so
-;; zeroclaw cannot be tracked as a herdr agent. herdr users just run
-;; `zeroclaw agent` in a plain pane.
+;; Interactive `zeroclaw agent` runs report lifecycle state to Herdr when
+;; launched inside a Herdr pane. The integration is opt-in through Herdr's
+;; HERDR_ENV/HERDR_SOCKET_PATH/HERDR_PANE_ID environment contract; the daemon
+;; below remains a separate background service.
 ;;
-;; The binary is the cargo install at ~/.cargo/bin/zeroclaw (see
+;; The binary is installed at ~/.local/bin/zeroclaw (see
 ;; users/orka/non-guix-packages.sh). Config is rendered to ~/.zeroclaw/config.toml
 ;; by users/orka/zeroclaw/render-config.sh; OAuth lives in
 ;; ~/.zeroclaw/auth-profiles.json (encrypted, not in git) — refresh out of band
@@ -28,7 +29,7 @@
     (auto-start? #t)
     (start #~(let* ((home (passwd:dir (getpwuid (getuid))))
                     (log-file (string-append home "/.local/state/zeroclaw-daemon.log"))
-                    (zeroclaw-bin (string-append home "/.cargo/bin/zeroclaw"))
+                    (zeroclaw-bin (string-append home "/.local/bin/zeroclaw"))
                     (ca-bundle "/run/current-system/profile/etc/ssl/certs/ca-certificates.crt"))
                (mkdir-p (string-append home "/.local/state"))
                (make-forkexec-constructor

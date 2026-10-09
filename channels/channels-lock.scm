@@ -2,7 +2,7 @@
        (name 'shikanox)
        (url "https://codeberg.org/ch4og/shikanox.git")
        (branch "main")
-       (commit "4c1f16554877e3f5cdffb4b84586b0a8946b99a5")
+       (commit "202d6e80226434e80fb1b4ff5022626f0af09ae1")
        (introduction
         (make-channel-introduction
          "fe3b5f72aa676c69f4d43507bdd18fb051906917"
@@ -12,7 +12,7 @@
        (name 'emacs)
        (url "https://github.com/garrgravarr/guix-emacs")
        (branch "master")
-       (commit "fef048dfb7f18e83ca43d50e1a7ccbd393a56dc2")
+       (commit "28ba059a698073559cc2d6476ef4b8ffe2ec3980")
        (introduction
         (make-channel-introduction
          "d676ef5f94d2c1bd32f11f084d47dcb1a180fdd4"
@@ -22,7 +22,7 @@
        (name 'abbe)
        (url "https://codeberg.org/group/guix-modules.git")
        (branch "mainline")
-       (commit "3fc42bce396749c1593db3598f71836d99afea31")
+       (commit "27b199a3c78cd55942acb0cb6c968929418fc646")
        (introduction
         (make-channel-introduction
          "8c754e3a4b49af7459a8c99de130fa880e5ca86a"
@@ -32,7 +32,7 @@
        (name 'rde)
        (url "https://git.sr.ht/~abcdw/rde")
        (branch "master")
-       (commit "ef75e4ca5e1eecab233ad7eb2c1a643967f35a08")
+       (commit "022bd2a97e0eb3e31221c3eb0e6595cafb7894cb")
        (introduction
         (make-channel-introduction
          "257cebd587b66e4d865b3537a9a88cccd7107c95"
@@ -42,7 +42,7 @@
        (name 'nonguix)
        (url "https://gitlab.com/nonguix/nonguix")
        (branch "master")
-       (commit "accdba77be815bbe00868145dd66d68056eecf7a")
+       (commit "c0192e90a52cafb4d33b04734cbe9bbedd703a04")
        (introduction
         (make-channel-introduction
          "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -52,7 +52,7 @@
        (name 'guix)
        (url "https://git.guix.gnu.org/guix.git")
        (branch "master")
-       (commit "cc99151c6a61e6f25534458cdffeb8d048928bcc")
+       (commit "6754acb1c65cd6f93c7444b1d4f96244e7bbf072")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"

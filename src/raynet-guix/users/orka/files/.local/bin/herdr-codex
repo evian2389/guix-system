@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Launch the OpenAI Codex CLI in the CURRENT pane.
+#
+# We exec `codex` directly rather than going through `herdr agent start`:
+# that subcommand drives an agent into a SEPARATE pane that is sitting idle at
+# its shell prompt, so pointing it at "$HERDR_PANE_ID" (the pane running this
+# script) fails with `agent_pane_busy: not an available shell`. codex ships a
+# static musl binary, so herdr recognizes it by process name once it's the
+# foreground process; HERDR_AGENT pins the screen manifest regardless.
+
+export HERDR_AGENT=codex
+
+exec codex "$@"

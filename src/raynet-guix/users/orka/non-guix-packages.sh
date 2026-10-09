@@ -53,6 +53,32 @@ if command -v nix &> /dev/null; then
     # Install Google Antigravity GUI and IDE via Nix Flakes
     nix_install_if_missing antigravity-nix github:jacopone/antigravity-nix
     nix_install_if_missing google-antigravity-ide github:jacopone/antigravity-nix#google-antigravity-ide
+
+    # Hermes Agent (NousResearch) — Python agent + TUI, built from its own
+    # flake (uv2nix). Native pip/uv installs are fragile on Guix: uv's managed
+    # CPython hardcodes /lib64/ld-linux, and a venv bound to a Guix store python
+    # dies on the next `guix gc` / `guix home reconfigure`. The Nix package is
+    # patchelf'd and GC-managed, so it survives both. `hermes` on PATH is the
+    # ~/.local/bin/hermes symlink pointing at ~/.nix-profile/bin/hermes.
+    # herdr already ships a `hermes` integration + ~/.hermes/plugins hook, so
+    # `hermes --tui` gets real idle/working/blocked reporting in herdr panes.
+    HERMES_SRC="$HOME/.hermes/hermes-agent"
+    if [ ! -d "$HERMES_SRC/.git" ]; then
+        echo "Cloning hermes-agent..."
+        mkdir -p "$HOME/.hermes"
+        git clone https://github.com/NousResearch/hermes-agent.git "$HERMES_SRC"
+    fi
+    if [ -d "$HERMES_SRC/.git" ] && \
+       ! nix profile list --extra-experimental-features "nix-command flakes" \
+         | sed 's/\x1b\[[0-9;]*m//g' | grep -q "Name:[[:space:]]*hermes-agent$"; then
+        # Build from whatever revision is checked out (pull + rebuild manually
+        # to update — avoids clobbering local edits and surprise rebuilds).
+        # --impure: the flake reads its own git rev for the version string.
+        echo "Installing hermes-agent from local flake..."
+        nix profile install --extra-experimental-features "nix-command flakes" \
+            --impure "git+file://$HERMES_SRC#default" || \
+            echo "Warning: hermes-agent nix build failed; skipping."
+    fi
 else
     echo "Warning: nix command not found. Skipping Nix packages."
 fi
@@ -86,6 +112,14 @@ if command -v cargo &> /dev/null; then
      cargo install --git https://github.com/e-tho/bzmenu
      cargo install zeekstd_cli
      cargo install herdr
+     # Bookokrat — terminal EPUB/PDF/DJVU reader.
+     CC=clang CXX=clang++ cargo install bookokrat
+     # Miro PDF — native Wayland/X11 PDF viewer.
+     # Bindgen needs libclang, which is in the Clang store input rather than
+     # necessarily exposed in the active profile's library path.
+     LIBCLANG_PATH="$(dirname "$(readlink -f "$(clang -print-file-name=libclang.so)")")"
+     CC=clang CXX=clang++ LIBCLANG_PATH="$LIBCLANG_PATH" \
+         CARGO_BUILD_JOBS=1 cargo install miro-pdf
      # hermes-agent-cli removed: hermes-agent-cli-core 1.14.19 fails to build on
      # Unix (broken fs::Permissions usage in auth.rs, missing libc dep — it's a
      # Windows-first crate). Use kerux below instead.
@@ -95,6 +129,55 @@ if command -v cargo &> /dev/null; then
      # NOTE: Pinned to 0.1.18 because newer versions (e.g. 0.1.22) require rustc >= 1.95,
      # but the system's pinned Guix channels currently provide rustc 1.93.0.
      cargo install pi_agent_rust --version 0.1.18
+     # ZeroClaw is built from the Herdr integration PR until that change lands
+     # upstream. The PR is closed but its head remains available, so pin the
+     # exact commit rather than following a moving branch. Override
+     # ZEROCLAW_HERDR_REV to test another commit, or set it empty to install the
+     # official MUSL release instead.
+     if [ "${ZEROCLAW_HERDR_REV+x}" != x ]; then
+         ZEROCLAW_HERDR_REV="5d32cfd10bb88a20045121f070602309b95e7e9f"
+         RUSTC_VERSION="$(rustc --version | awk '{print $2}')"
+         if [ "$(printf '%s\n' "$RUSTC_VERSION" 1.96.0 | sort -V | head -n1)" != "1.96.0" ]; then
+             echo "rustc $RUSTC_VERSION is older than ZeroClaw's 1.96.0 MSRV; using the official release binary."
+             ZEROCLAW_HERDR_REV=""
+         fi
+     fi
+     if [ -n "$ZEROCLAW_HERDR_REV" ]; then
+         echo "Installing ZeroClaw with Herdr integration ($ZEROCLAW_HERDR_REV)..."
+         cargo install --locked --force --root "$HOME/.local" \
+             --git https://github.com/zeroclaw-labs/zeroclaw \
+             --rev "$ZEROCLAW_HERDR_REV" zeroclaw
+     else
+         # Official MUSL release fallback. Override ZEROCLAW_VERSION for a
+         # controlled rollback or staging test.
+         ZEROCLAW_VERSION="${ZEROCLAW_VERSION:-0.8.5}"
+     ZEROCLAW_MACHINE="$(uname -m)"
+     case "$ZEROCLAW_MACHINE" in
+         x86_64) ZEROCLAW_TARGET="x86_64-unknown-linux-musl" ;;
+         aarch64) ZEROCLAW_TARGET="aarch64-unknown-linux-musl" ;;
+         *)
+             echo "Warning: unsupported ZeroClaw architecture: $ZEROCLAW_MACHINE"
+             ZEROCLAW_TARGET=""
+             ;;
+     esac
+     if [ -n "$ZEROCLAW_TARGET" ]; then
+         ZEROCLAW_ASSET="zeroclaw-${ZEROCLAW_TARGET}.tar.gz"
+         ZEROCLAW_URL="https://github.com/zeroclaw-labs/zeroclaw/releases/download/v${ZEROCLAW_VERSION}/${ZEROCLAW_ASSET}"
+         ZEROCLAW_SUMS_URL="https://github.com/zeroclaw-labs/zeroclaw/releases/download/v${ZEROCLAW_VERSION}/SHA256SUMS"
+         ZEROCLAW_TMP="$(mktemp -d "${TMPDIR:-/tmp}/zeroclaw.XXXXXX")"
+         trap 'rm -rf "$ZEROCLAW_TMP"' EXIT
+         curl --fail --silent --show-error --location "$ZEROCLAW_URL" \
+             --output "$ZEROCLAW_TMP/$ZEROCLAW_ASSET"
+         curl --fail --silent --show-error --location "$ZEROCLAW_SUMS_URL" \
+             --output "$ZEROCLAW_TMP/SHA256SUMS"
+         (cd "$ZEROCLAW_TMP" && grep "  $ZEROCLAW_ASSET$" SHA256SUMS \
+             | sha256sum --check --strict -)
+         tar --extract --gzip --file "$ZEROCLAW_TMP/$ZEROCLAW_ASSET" \
+             --directory "$ZEROCLAW_TMP"
+         install -Dm755 "$ZEROCLAW_TMP/zeroclaw" "$HOME/.local/bin/zeroclaw"
+         echo "Installed ZeroClaw v$ZEROCLAW_VERSION ($ZEROCLAW_TARGET)"
+     fi
+     fi
 
 else
     echo "Warning: cargo not found. Skipping cargo packages."
@@ -107,6 +190,11 @@ if command -v herdr &> /dev/null; then
         herdr integration install "$agent" || true
     done
 fi
+
+# Render ~/.zeroclaw/config.toml from the committed template, injecting bot
+# tokens from `pass`. ZeroClaw has no keyring support and rewrites its config in
+# place, so this re-asserts the declarative config on every reconfigure-home.
+"$(dirname "$0")/zeroclaw/render-config.sh" || echo "Warning: zeroclaw config render failed"
 
 echo "Installing SurrealDB..."
 if ! command -v surreal &> /dev/null; then

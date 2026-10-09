@@ -62,7 +62,6 @@
    emacs-default-text-scale
 
    emacs-password-store
-   emacs-auth-source-pass
 
    emacs-xclip
 

@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# Miro is installed with Cargo. Prefer the Guix Home library set at runtime;
+# otherwise mixed system/profile fontconfig and Pango libraries can conflict.
+exec env LD_LIBRARY_PATH="$HOME/.guix-home/profile/lib:$HOME/.guix-profile/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  "$HOME/.cargo/bin/miro-pdf" "$@"

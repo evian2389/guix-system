@@ -1,0 +1,3 @@
+(job '(next-minute (range 0 60 15))
+     "/home/orka/.local/state/ai-wiki/helixdb-schema/automation/technical-v1.65/runner.sh"
+     "helix-schema-technical-v1.65")
