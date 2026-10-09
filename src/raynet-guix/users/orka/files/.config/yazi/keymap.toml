@@ -24,6 +24,11 @@ run  = 'shell --orphan -- ghostty -e bookokrat "$0"'
 desc = "Open hovered file in Bookokrat window"
 
 [[mgr.prepend_keymap]]
+on   = [ "<Enter>" ]
+run  = "open"
+desc = "Open hovered file"
+
+[[mgr.prepend_keymap]]
 on   = [ "g", "t" ]
 run  = 'shell "ghostty --working-directory=$PWD &" --orphan'
 desc = "open terminal here"

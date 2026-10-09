@@ -1,3 +1,4 @@
+onboarding = false
 # herdr configuration
 # Managed by guix-system (stow). Place at ~/.config/herdr/config.toml
 
@@ -14,3 +15,6 @@ delivery = "system"
 [keys]
 # Enter prefix mode with Alt+A, instead of the default Ctrl+B.
 prefix = "alt+a"
+
+[experimental]
+kitty_graphics = true

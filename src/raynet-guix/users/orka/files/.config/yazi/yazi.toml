@@ -8,9 +8,16 @@ miro_pdf = [
 zed_custom = [
     { run = 'zeditor "$@"', block = false, desc = "Zed Editor" },
 ]
+open = [
+  { run = 'imv %s1', orphan = true, desc = "Open image in imv" },
+]
+gimp = [
+  { run = 'gimp %s1', orphan = true, desc = "Open image in GIMP (print)" },
+]
 
 [open]
 prepend_rules = [
+  { mime = "image/*", use = ["open", "gimp"] },
   { mime = "application/pdf", use = "miro_pdf" },
   { mime = "text/*", use = "edit" },
 ]
@@ -19,12 +26,10 @@ prepend_rules = [
 prepend_previewers = [
     { mime = "application/pdf", run = "bookokrat-preview" },
 ]
-append_previewers = [
-    { url = "*", run = "file-extra-metadata" }
-]
 append_spotters = [
     { url = "*", run = "file-extra-metadata" }
 ]
 
 [mgr]
+ratio = [1, 4, 3]
 linemode = "size" # Options: "none", "size", "mtime", "btime", "permissions", "owner"
