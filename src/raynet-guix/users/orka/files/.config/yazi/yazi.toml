@@ -11,13 +11,16 @@ zed_custom = [
 open = [
   { run = 'imv %s1', orphan = true, desc = "Open image in imv" },
 ]
+gthumb = [
+  { run = 'gthumb --new-window %s', orphan = true, desc = "Open selected images in gThumb (print)" },
+]
 gimp = [
   { run = 'gimp %s1', orphan = true, desc = "Open image in GIMP (print)" },
 ]
 
 [open]
 prepend_rules = [
-  { mime = "image/*", use = ["open", "gimp"] },
+  { mime = "image/*", use = ["open", "gthumb", "gimp"] },
   { mime = "application/pdf", use = "miro_pdf" },
   { mime = "text/*", use = "edit" },
 ]

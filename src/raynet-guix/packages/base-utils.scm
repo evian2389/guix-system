@@ -188,6 +188,7 @@
     nomacs
     tmux
     gimp
+    gthumb
     dank-material-shell
     hyprlock
     zstd
