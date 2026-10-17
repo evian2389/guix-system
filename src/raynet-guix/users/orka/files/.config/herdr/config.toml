@@ -16,5 +16,27 @@ delivery = "system"
 # Enter prefix mode with Alt+A, instead of the default Ctrl+B.
 prefix = "alt+a"
 
+[theme]
+name = "gruvbox"
+auto_switch = false
+
+[[keys.command]]
+key = "prefix+shift+g"
+type = "popup"
+command = "lazygit"
+description = "open lazygit"
+
+[[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "herdr-file-viewer.open-file-viewer"
+description = "open file viewer in split"
+
+[[keys.command]]
+key = "prefix+shift+f"
+type = "plugin_action"
+command = "herdr-file-viewer.open-file-viewer-tab"
+description = "open file viewer in tab"
+
 [experimental]
 kitty_graphics = true

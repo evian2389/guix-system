@@ -1216,7 +1216,7 @@ I also use it as the core for my personal productivity system which revolves lar
            :empty-lines 0
            :unnarrowed t)
           ("m" "Meeting"
-           entry (file+datetree "meetings/meetings.org")
+           entry (file+olp+datetree "meetings/meetings.org")
            "* %? :meeting:%^g \n:Created: %T\n** Attendees\n*** \n** Notes\n** Action Items\n*** TODO [#B]  [/]\n"
            :tree-type week
            :clock-in t
@@ -1328,6 +1328,8 @@ I also use it as the core for my personal productivity system which revolves lar
 I'm leveraging the =projectile= package to manage the tasks I perform around the projects I'm working on.
 
 #+begin_src emacs-lisp :tangle modules/dw-develop.el
+
+  ;; -*- lexical-binding: t; -*-
 
   (use-package projectile
     :ensure nil
@@ -1637,7 +1639,8 @@ I use GPG primarily when authenticating with Git remotes or opening =pass= entri
   (use-package pinentry
     :demand t
     :config
-    (pinentry-start))
+    (unless noninteractive
+      (pinentry-start)))
 
   (provide 'dw-auth)
 
@@ -1646,6 +1649,8 @@ I use GPG primarily when authenticating with Git remotes or opening =pass= entri
 ** =dw-mail= - Reading and sending e-mail
 
 #+begin_src emacs-lisp :tangle modules/dw-mail.el
+
+  ;; -*- lexical-binding: t; -*-
 
   (use-package gnus
     :ensure nil
@@ -1749,6 +1754,8 @@ This module uses =xterm-color= to improve ANSI escape handling in eshell and =M-
 I've been using Claude Code lately to assist with writing tools to enhance my workflow in certain areas.  These packages make it easier to interact with Claude Code in Emacs.
 
 #+begin_src emacs-lisp :tangle modules/dw-ai.el
+
+  ;; -*- lexical-binding: t; -*-
 
   (use-package aider
     :ensure nil
@@ -1969,6 +1976,8 @@ I've been using Claude Code lately to assist with writing tools to enhance my wo
 
 #+begin_src emacs-lisp :tangle modules/dw-extras.el
 
+  ;; -*- lexical-binding: t; -*-
+
   (use-package vundo
     :ensure nil
     :commands (vundo)
@@ -2019,6 +2028,8 @@ This section contains settings that are specific to various systems, particularl
 Guix 🐃
 
 #+begin_src emacs-lisp :tangle systems/ser8.el
+
+  ;; -*- lexical-binding: t; -*-
 
   (setq dw/use-config-modules
    (append dw/common-config-modules

@@ -4,6 +4,7 @@
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (gnu home services dotfiles)
+  #:use-module (gnu packages task-management) ; zk note-taking CLI
   #:use-module (raynet-guix users common)
   #:use-module (raynet-guix home-services games)      ; For home-steam-service-type
   #:use-module (raynet-guix home-services emacs)      ; For home-emacs-config-service-type
@@ -21,13 +22,18 @@
 
 (define orka-extra-packages
   (append development-tools
-          system-tools))
+          system-tools
+          (list zk)))
 
 (define orka-home-environment
   (common-home-environment
    #:extra-packages (append orka-extra-packages extra-packages)
    #:extra-services
    (list
+    (simple-service 'notes-vault-environment
+                    home-environment-variables-service-type
+                    '(("NOTES_VAULT_DIR" . "$HOME/notes/nvim-vault")
+                      ("ZK_NOTEBOOK_DIR" . "$HOME/notes/nvim-vault")))
     (service home-games-service-type)
     (service home-emacs-config-service-type)
     (service home-finance-service-type)

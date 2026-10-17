@@ -1,13 +1,6 @@
-;; Optionally use the `orderless' completion style.
-(use-package orderless
-  :custom
-  ;; Configure a custom style dispatcher (see the Consult wiki)
-  ;; (orderless-style-dispatchers '(+orderless-consult-dispatch orderless-affix-dispatch))
-  ;; (orderless-component-separator #'orderless-escapable-split-on-space)
-  (completion-styles '(orderless basic))
-  (completion-category-overrides '((file (styles partial-completion))))
-  (completion-category-defaults nil) ;; Disable defaults, use our settings
-  (completion-pcm-leading-wildcard t)) ;; Emacs 31: partial-completion behaves like substring
+;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
+
+;;; Additional package configuration
 
 (use-package blamer
   :bind (("s-i" . blamer-show-commit-info))
@@ -61,8 +54,6 @@
   (global-auto-revert-mode 1)
   (auto-revert-mode 1))
 
-  ;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
-  
   ;; Place your private configuration here! Remember, you do not need to run 'doom
   ;; sync' after modifying this file!
   
@@ -181,12 +172,11 @@
   
   (setq auto-save-list-file-prefix "~/.config/emacs")
   
-  (setq display-line-numbers-type `relative)
+  (setq display-line-numbers-type 'relative)
   (setq-default truncate-lines t)
   ;;set ui-helpers
   (global-display-line-numbers-mode 1)
   (setq display-line-numbers 'relative)
-  (setq display-line-numbers-width 'auto)
   (setq display-line-numbers-width 4)
   (setq display-line-numbers-grow-only t)
   (setq display-line-numbers-width-start t)
@@ -244,10 +234,6 @@
     "Run consult-ripgrep with the last regex from regex-search-ring."
     (interactive)
     (consult-ripgrep nil (car regexp-search-ring)))
-  
-  (with-eval-after-load 'simple
-    (setq-default display-fill-column-indicator-column 80)
-    (add-hook 'prog-mode-hook 'display-fill-column-indicator-mode))
   
   (setopt text-mode-ispell-word-completion nil)
   (which-function-mode 1)
@@ -424,9 +410,6 @@
     (vertico-cycle t) ;; Enable cycling for `vertico-next/previous'
     :init
     (vertico-mode 1)
-    ;; Configure Orderless as the primary completion style
-    (setq completion-styles '(orderless basic))
-    (setq orderless-matching-styles '(orderless-literal orderless-regexp))
     ;; Enable Consult commands (optional, but highly recommended)
     ;;(global-set-key (kbd "C-x C-f") 'consult-find-file)
     )
@@ -458,7 +441,6 @@
   
   ;; Option 2: Replace `vertico-insert' to enable TAB prefix expansion.
   ;; (keymap-set vertico-map "TAB" #'minibuffer-complete)
-  (setq completion-styles '(basic substring partial-completion flex))
   (setq read-file-name-completion-ignore-case t
         read-buffer-completion-ignore-case t
         completion-ignore-case t)
@@ -473,6 +455,7 @@
     (completion-category-overrides '((file (styles partial-completion))))
     (completion-category-defaults nil) ;; Disable defaults, use our settings
     (completion-pcm-leading-wildcard t)) ;; Emacs 31: partial-completion behaves like substring
+
   (use-package blamer
     :bind (("s-i" . blamer-show-commit-info))
     :defer 20
@@ -668,19 +651,12 @@
     :init
     (add-to-list 'completion-at-point-functions #'cape-dabbrev)
     (add-to-list 'completion-at-point-functions #'cape-file)
-    (add-to-list 'completion-at-point-functions #'cape-keyword)
     (add-to-list 'completion-at-point-functions #'cape-line)
     (add-to-list 'completion-at-point-functions #'cape-keyword)
     :config
     ;; Example: Merge LSP and snippet completion sources
     ;;(add-hook 'completion-at-point-functions #'cape-super-capf)
     )
-  
-  ;; Configure specific completion styles for file paths
-  (after! corfu
-    (setq completion-category-overrides '((file (styles partial-completion))))
-    ;; Use orderless as your primary style, with basic as a fallback.
-    (setq completion-styles '(orderless basic)))
   
   (defun lsp-booster--advice-json-parse (old-fn &rest args)
     "Try to parse bytecode instead of json."
@@ -904,14 +880,22 @@
                         ("accomplishment" . ?a)
                         ))
   
-  (use-package org-roam
-    :ensure t
+  (use-package! org-roam
     :init
     (setq org-roam-v2-ack t)
     :custom
     (org-roam-completion-everywhere t)
     :config
     (org-roam-setup))
+
+  (use-package! consult-org-roam
+    :after org-roam
+    :config
+    (consult-org-roam-mode 1))
+
+  (map! :leader
+        :desc "Search Org-roam"
+        "s r" #'consult-org-roam-search)
   
            ;;; find by titles and tags  :TODO:check if this works..
   
