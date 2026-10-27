@@ -24,6 +24,8 @@
   #:use-module (raynet-guix home-services video)      ; For home-video-service-type
   #:use-module (raynet-guix home-services audio)
   #:use-module (raynet-guix home-services niri)
+  #:use-module (raynet-guix home-services udiskie)
+  #:use-module (raynet-guix packages xwayland-satellite)
   #:use-module (raynet-guix home-services finance)
   #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding, font-nerd-font-jetbrainsmono
   #:use-module (gnu services)
@@ -54,7 +56,7 @@
    bibata-cursor-theme
    xrdb
    xwayland-run
-   xwayland-satellite
+   xwayland-satellite-0.8.3
    xorg-server-xwayland
    ))
 
@@ -78,7 +80,7 @@
                                ;;("QT_IM_MODULE" . "fcitx")
                                ;;("SDL_IM_MODULE" . "fcitx")
                                ("FONTCONFIG_FILE" . "$HOME/.guix-home/profile/etc/fonts/fonts.conf")
-                               ("XDG_DATA_DIRS" . "$HOME/.local/share:$HOME/.guix-home/profile/share:$HOME/.nix-profile/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS")
+                               ("XDG_DATA_DIRS" . "$HOME/.local/share:$HOME/.guix-home/profile/share:$HOME/.guix-profiles/orka-extra/share:$HOME/.nix-profile/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS")
                                ;; Best setup for KDE Plasma 5.27+ Wayland:                               ;; Do not set GTK_IM_MODULE, QT_IM_MODULE, or SDL_IM_MODULE.
                                ;; They should be unset to use the text-input protocol.
                                ;; However, Steam (Xwayland) and many games (SDL) still need them.
@@ -102,6 +104,7 @@ fi
              (service home-video-service-type)      ; For ffmpeg and v4l-utils
              (service home-audio-service-type)
              (service home-niri-service-type)
+             (service home-udiskie-service-type)
              (service home-gpg-agent-service-type
                       (home-gpg-agent-configuration
                        (ssh-support? #t)

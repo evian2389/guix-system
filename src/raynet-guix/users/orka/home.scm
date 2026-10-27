@@ -7,7 +7,7 @@
   #:use-module (gnu packages task-management) ; zk note-taking CLI
   #:use-module (raynet-guix users common)
   #:use-module (raynet-guix home-services games)      ; For home-steam-service-type
-  #:use-module (raynet-guix home-services emacs)      ; For home-emacs-config-service-type
+  ;; #:use-module (raynet-guix home-services emacs)      ; For home-emacs-config-service-type
   #:use-module (raynet-guix home-services finance)    ; For home-finance-service-type
   #:use-module (raynet-guix home-services openclaw)   ; For home-openclaw-service-type
   #:use-module (raynet-guix home-services claude-code) ; For home-claude-code-service-type
@@ -35,7 +35,7 @@
                     '(("NOTES_VAULT_DIR" . "$HOME/notes/nvim-vault")
                       ("ZK_NOTEBOOK_DIR" . "$HOME/notes/nvim-vault")))
     (service home-games-service-type)
-    (service home-emacs-config-service-type)
+    ;; (service home-emacs-config-service-type)
     (service home-finance-service-type)
     ;; (service home-openclaw-service-type)
     (service home-claude-code-service-type)

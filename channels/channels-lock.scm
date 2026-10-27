@@ -2,7 +2,7 @@
        (name 'shikanox)
        (url "https://codeberg.org/ch4og/shikanox.git")
        (branch "main")
-       (commit "202d6e80226434e80fb1b4ff5022626f0af09ae1")
+       (commit "9f23b8148e0b4e3c0fcd4849e40411ec02bb5173")
        (introduction
         (make-channel-introduction
          "fe3b5f72aa676c69f4d43507bdd18fb051906917"
@@ -12,7 +12,7 @@
        (name 'emacs)
        (url "https://github.com/garrgravarr/guix-emacs")
        (branch "master")
-       (commit "28ba059a698073559cc2d6476ef4b8ffe2ec3980")
+       (commit "1cef190a9ba0cc3a35ce224b038c55aafa38f28f")
        (introduction
         (make-channel-introduction
          "d676ef5f94d2c1bd32f11f084d47dcb1a180fdd4"
@@ -22,17 +22,27 @@
        (name 'abbe)
        (url "https://codeberg.org/group/guix-modules.git")
        (branch "mainline")
-       (commit "27b199a3c78cd55942acb0cb6c968929418fc646")
+       (commit "b3926f04272e79170e306bacecc409ab2f2c02f0")
        (introduction
         (make-channel-introduction
          "8c754e3a4b49af7459a8c99de130fa880e5ca86a"
          (openpgp-fingerprint
           "F682 CDCC 39DC 0FEA E116  20B6 C746 CFA9 E74F A4B0"))))
       (channel
+       (name 'pantherx)
+       (url "https://codeberg.org/gofranz/panther.git")
+       (branch "master")
+       (commit "ecf07e28670b1c72c031f2db3eef64850212089c")
+       (introduction
+        (make-channel-introduction
+         "54b4056ac571611892c743b65f4c47dc298c49da"
+         (openpgp-fingerprint
+          "A36A D41E ECC7 A871 1003  5D24 524F EB1A 9D33 C9CB"))))
+      (channel
        (name 'rde)
        (url "https://git.sr.ht/~abcdw/rde")
        (branch "master")
-       (commit "022bd2a97e0eb3e31221c3eb0e6595cafb7894cb")
+       (commit "6821d6f604caf3e2bb8ddd38ca55c0aa5756b0e1")
        (introduction
         (make-channel-introduction
          "257cebd587b66e4d865b3537a9a88cccd7107c95"
@@ -42,7 +52,7 @@
        (name 'nonguix)
        (url "https://gitlab.com/nonguix/nonguix")
        (branch "master")
-       (commit "c0192e90a52cafb4d33b04734cbe9bbedd703a04")
+       (commit "47c20df59dd9f27c9154ef20a81d383a19d4ad7f")
        (introduction
         (make-channel-introduction
          "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
@@ -52,7 +62,7 @@
        (name 'guix)
        (url "https://git.guix.gnu.org/guix.git")
        (branch "master")
-       (commit "6754acb1c65cd6f93c7444b1d4f96244e7bbf072")
+       (commit "a639dc9f4767b55d5a9240a76c82957533273657")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"

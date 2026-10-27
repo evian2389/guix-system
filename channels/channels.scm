@@ -25,15 +25,15 @@
         "8c754e3a4b49af7459a8c99de130fa880e5ca86a"
         (openpgp-fingerprint
           "F682 CDCC 39DC 0FEA E116  20B6 C746 CFA9 E74F A4B0"))))
-  ; (channel
-  ;       (name 'pantherx)
-  ;       (url "https://codeberg.org/gofranz/panther.git")
-  ;       ;; Enable signature verification
-  ;       (introduction
-  ;        (make-channel-introduction
-  ;         "54b4056ac571611892c743b65f4c47dc298c49da"
-  ;         (openpgp-fingerprint
-  ;          "A36A D41E ECC7 A871 1003  5D24 524F EB1A 9D33 C9CB"))))
+  (channel
+   (name 'pantherx)
+   (url "https://codeberg.org/gofranz/panther.git")
+   ;; Enable signature verification
+   (introduction
+    (make-channel-introduction
+     "54b4056ac571611892c743b65f4c47dc298c49da"
+     (openpgp-fingerprint
+      "A36A D41E ECC7 A871 1003  5D24 524F EB1A 9D33 C9CB"))))
   (channel
     (name 'rde)
     (url "https://git.sr.ht/~abcdw/rde")

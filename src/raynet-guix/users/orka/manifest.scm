@@ -8,12 +8,14 @@
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
+  #:use-module (px packages ai)               ; for chatgpt
   #:export (orka-manifest))
 
 (define orka-manifest
   (packages->manifest
    (list
     godot
+    chatgpt
          )))
 
 orka-manifest
