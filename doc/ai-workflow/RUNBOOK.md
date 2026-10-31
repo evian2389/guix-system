@@ -1,5 +1,7 @@
 # M1 운영 방법
 
+터미널에서 MicroClaw를 쓰는 실험용 Pi 연결은 [PI-MICROCLAW.md](PI-MICROCLAW.md)를 따른다.
+
 ## 실행과 상태
 
 ```sh

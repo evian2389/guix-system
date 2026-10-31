@@ -18,6 +18,9 @@
 (define evolve-script
   (local-file "../users/orka/files/.local/bin/microclaw-evolve"))
 
+(define pi-microclaw-script
+  (local-file "../users/orka/files/.local/bin/pi-microclaw"))
+
 ;; Seed mutable state once; subsequent reconfigurations preserve evolved skills.
 (define (home-microclaw-activation config)
   #~(begin
@@ -37,7 +40,10 @@
         (error "MicroClaw Web password initialization failed"))
       (unless (zero? (system* #$(file-append python "/bin/python3")
                              #$evolve-script "snapshot"))
-        (error "Evolution snapshot failed"))))
+        (error "Evolution snapshot failed"))
+      (unless (zero? (system* #$(file-append python "/bin/python3")
+                             #$pi-microclaw-script "setup"))
+        (error "Pi MicroClaw profile initialization failed"))))
 
 (define (home-microclaw-jobs config)
   (list #~(job '(next-minute '(0 30))
