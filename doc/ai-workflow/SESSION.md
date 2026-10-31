@@ -58,3 +58,19 @@ lease를 붙인다. MicroClaw 기본 도구/스킬 설명으로 요청당 약 12
 실제 비용·컨텍스트 감소도 M2에서 측정한다. 별도 벡터/그래프 서버는 아직 필요하지 않다.
 
 작업 전부터 있던 채널·패키지·zeroclaw 전환 변경은 유지했다. 이번 변경을 commit/push하지 않았다.
+
+## 2026-10-31 Pi 연결 후속 검증
+
+Pi frontend에 관측 hook 기반 실시간 도구 진행 표시와 native 승인 카드 전달을 추가했다.
+확인 옵션이 켜진 Pi backend에서는 모든 bash 명령이 MicroClaw의 기존 승인 경로를 거친다.
+실행 모델은 Terra 6.1이다. 승인 대기는 진화 실패 후보에서 제외하고 기존 관찰 행은 보존한다.
+
+진화 29개/어댑터 17개, 합계 46개 unittest가 통과했다. 실제 Herdr Pi에서 README 읽기와
+도구 시작/완료를 확인했고, 무해한 printf 요청이 실행 전 native 승인 카드 및 blocked로
+멈추는 것을 확인했다. 이 실제 승인 요청에는 응답하지 않았다. 자동 검사에서는 사용자
+승인/거절 원문 전달과 HTTP 재시도의 중복 호출 방지를 확인했다.
+
+`make reconfigure-home NON_GUIX_UPDATES=0` 종료 코드 0. Home generation은
+`/gnu/store/mvmwkwm5xad5jv2hfbhdava9c1ip5js3-home`이다. gateway/mcron은 계속 실행 중이며
+이번 변경 때문에 재시작할 필요가 없다. 다음 과제와 사용법은 [PI-MICROCLAW.md](PI-MICROCLAW.md).
+최초 보고의 commit/push 미실행 서술은 당시 기록이며, 이 후속 변경은 별도 commit/push한다.

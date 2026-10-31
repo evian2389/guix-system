@@ -2,6 +2,8 @@
 """Pi terminal frontend for MicroClaw. One temporary loopback bridge per PC."""
 import argparse
 from collections import OrderedDict
+from contextlib import closing
+from datetime import datetime, timezone
 import hashlib
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -11,9 +13,11 @@ from pathlib import Path
 import re
 import secrets
 import select
+import shlex
 import shutil
 import signal
 import socket
+import sqlite3
 import subprocess
 import tempfile
 import threading
@@ -25,6 +29,51 @@ PROVIDER = {'api':'openai-completions','baseUrl':f'http://127.0.0.1:{PORT}/v1',
             'models':[{'id':'microclaw','name':'MicroClaw backend','reasoning':False,
                        'input':['text'],'contextWindow':65536,'maxTokens':4096}],
             'compat':{'supportsStore':False,'supportsDeveloperRole':False,'supportsReasoningEffort':False}}
+
+def install_observer(source, home):
+    config=json.loads(source.read_text())
+    data=Path(config['data_dir']).expanduser()
+    root=data.parent if data.name=='runtime' else data
+    metadata={'name':'pi-microclaw-progress','description':'Observe Pi tool progress; never authorize tools',
+              'events':['BeforeLLMCall','BeforeToolCall','AfterToolCall'],
+              'command':shlex.quote(str(home/'.local/bin/pi-microclaw'))+' observe',
+              'timeout_ms':1500,'priority':200,'enabled':True}
+    atomic(root/'hooks/pi-microclaw-progress/HOOK.md','---\n'+json.dumps(metadata)+'\n---\n')
+
+def observe(payload, path):
+    """Observational hook: discard prompts, arguments, results and credentials."""
+    name=payload.get('tool_name','tool')
+    name=name if isinstance(name,str) and re.fullmatch(r'[a-zA-Z0-9_.:-]{1,80}',name) else 'tool'
+    event=payload.get('event')
+    if event=='BeforeToolCall': item={'event':'tool_start','tool':name}
+    elif event=='AfterToolCall':
+        result=payload.get('result',{})
+        item={'event':'tool_result','tool':name,'is_error':bool(result.get('is_error')),
+              'approval_required':result.get('error_type')=='approval_required'}
+    elif event=='BeforeLLMCall': item={'event':'thinking'}
+    else: return {'action':'allow'}
+    if path is not None:
+        fd=os.open(path,os.O_WRONLY|os.O_APPEND|os.O_CREAT|os.O_NOFOLLOW,0o600)
+        try:
+            if os.fstat(fd).st_size<2*1024*1024:
+                os.write(fd,(json.dumps(item)+'\n').encode())
+        finally: os.close(fd)
+    return {'action':'allow'}
+
+def pending_approval(data, chat_id):
+    """Read the engine's pending marker without consuming or granting it."""
+    if not isinstance(chat_id,int): return None
+    data=Path(data)
+    database=(data if data.name=='runtime' else data/'runtime')/'microclaw.db'
+    try:
+        with closing(sqlite3.connect(database.resolve().as_uri()+'?mode=ro',uri=True,timeout=1)) as db:
+            row=db.execute('SELECT value FROM db_meta WHERE key=?',('pending_approval_tool:'+str(chat_id),)).fetchone()
+        if not row: return None
+        tool,stamp=row[0].split('\n',1)
+        elapsed=(datetime.now(timezone.utc)-datetime.fromisoformat(stamp.replace('Z','+00:00'))).total_seconds()
+        if 0<=elapsed<3600: return tool
+    except (sqlite3.Error,OSError,ValueError,TypeError): pass
+    return None
 
 def atomic(path, text):
     path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -76,7 +125,18 @@ def extract_prompt(body):
 def project_config(source, workspace, project):
     config=json.loads(source.read_text())
     workspace.mkdir(parents=True,exist_ok=True)
-    config.update(working_dir=str(project.resolve()),working_dir_isolation='direct',channels={'web':{'enabled':True}})
+    hooks=config.get('channels',{}).get('hooks',{'enabled':True})
+    if hooks.get('enabled',True) is False:
+        raise ValueError('Pi progress requires MicroClaw hooks; hooks are disabled in gateway.json')
+    # The native headless channel omits the web/work high-risk chat gate.
+    # Use its native command-content approval gate for every nonempty bash
+    # command when confirmation is enabled. This adds no control-chat grants
+    # and keeps the engine responsible for pending markers and human replies.
+    if config.get('high_risk_tool_user_confirmation_required',True):
+        patterns=config.setdefault('bash_dangerous_patterns',[])
+        if '(?s).+' not in patterns: patterns.append('(?s).+')
+    config.update(working_dir=str(project.resolve()),working_dir_isolation='direct',
+                  channels={'web':{'enabled':True},'hooks':hooks})
     # Credentials remain in this private temporary config; never print or commit it.
     path=workspace/'config.json'
     atomic(path,json.dumps(config))
@@ -90,17 +150,30 @@ def stop(process):
             os.killpg(process.pid,signal.SIGKILL)
             process.wait()
 
-def invoke(argv,cancel,timeout):
+def invoke(argv,cancel,timeout,events=None,emit=None,data=None):
+    emit=emit or (lambda event: None)
+    reader=open(events) if events is not None else None
+    def progress():
+        if reader is None: return
+        while True:
+            position=reader.tell()
+            line=reader.readline()
+            if not line.endswith('\n'):
+                reader.seek(position);break
+            try: emit(json.loads(line))
+            except json.JSONDecodeError: continue
     with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as error:
         process=subprocess.Popen(argv,stdout=output,stderr=error,start_new_session=True)
         try:
             deadline=time.monotonic()+timeout
             while process.poll() is None:
+                progress()
                 if cancel(): raise InterruptedError('Frontend disconnected; MicroClaw run cancelled')
                 if time.monotonic()>deadline: raise TimeoutError('MicroClaw task timed out')
                 if os.fstat(output.fileno()).st_size>8*1024*1024:
                     raise ValueError('MicroClaw output exceeded 8 MiB')
                 time.sleep(0.1)
+            progress()
             if process.returncode:
                 raise ValueError('MicroClaw run failed; inspect gateway configuration and auth')
             output.seek(0)
@@ -114,9 +187,11 @@ def invoke(argv,cancel,timeout):
                     for match in re.findall(r'input_tokens=(\d+) output_tokens=(\d+)',line)]
             usage={'prompt_tokens':sum(int(a) for a,_ in counts),'completion_tokens':sum(int(b) for _,b in counts)}
             usage['total_tokens']=sum(usage.values())
-            return {'text':result['response'],'usage':usage}
+            approval=pending_approval(data,result.get('chat_id')) if data is not None else None
+            return {'text':result['response'],'usage':usage,'approval':approval}
         finally:
             stop(process)
+            if reader is not None: reader.close()
 
 class App:
     def __init__(self,token,run,report=None):
@@ -126,6 +201,15 @@ class App:
         self.cache=OrderedDict()
         self.stopping=threading.Event()
         self.report=report or (lambda state: None)
+        self.approval=None
+
+def progress_text(event):
+    if event.get('event')=='tool_start': return '[MicroClaw] 시작: '+event['tool']+'\n'
+    if event.get('event')=='tool_result':
+        status='승인 필요' if event.get('approval_required') else ('오류' if event.get('is_error') else '완료')
+        return '[MicroClaw] '+status+': '+event['tool']+'\n'
+    if event.get('event')=='thinking': return '[MicroClaw] 응답 준비 중…\n'
+    return ''
 
 class Server(ThreadingHTTPServer):
     daemon_threads=False
@@ -156,6 +240,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         app=self.server.app
         acquired=False
+        streaming=False
         try:
             if not self.authorized(): self.send_json(401,{'error':{'message':'Unauthorized'}});return
             if self.path!='/v1/chat/completions': self.send_json(404,{'error':{'message':'Not found'}});return
@@ -169,34 +254,49 @@ class Handler(BaseHTTPRequestHandler):
             app.report('working')
             # Retries of the same frontend turn reuse a successful result.
             key=hashlib.sha256(json.dumps(body['messages'],sort_keys=True).encode()).hexdigest()
-            if key not in app.cache:
-                app.cache[key]=app.run(prompt,self.disconnected)
-                if len(app.cache)>32: app.cache.popitem(last=False)
-            result=app.cache[key]
             response_id='chatcmpl-'+key[:20]
+            def chunk(content='',finish=None,usage=None):
+                value={'id':response_id,'object':'chat.completion.chunk','created':int(time.time()),'model':'microclaw',
+                       'choices':[{'index':0,'delta':{'content':content} if finish is None else {},'finish_reason':finish}]}
+                if usage is not None: value['usage']=usage
+                self.wfile.write(('data: '+json.dumps(value)+'\n\n').encode());self.wfile.flush()
+            def emit(event):
+                text=progress_text(event)
+                if streaming and text: chunk(text)
             if body.get('stream'):
                 self.send_response(200)
                 self.send_header('Content-Type','text/event-stream')
                 self.send_header('Cache-Control','no-cache')
                 self.end_headers()
-                for delta,finish,usage in (({'role':'assistant','content':result['text']},None,None),({},'stop',result['usage'])):
-                    chunk={'id':response_id,'object':'chat.completion.chunk','created':int(time.time()),'model':'microclaw',
-                           'choices':[{'index':0,'delta':delta,'finish_reason':finish}]}
-                    if usage is not None: chunk['usage']=usage
-                    self.wfile.write(('data: '+json.dumps(chunk)+'\n\n').encode())
+                streaming=True
+            if key not in app.cache:
+                app.cache[key]=app.run(prompt,self.disconnected,emit)
+                if len(app.cache)>32: app.cache.popitem(last=False)
+            result=app.cache[key]
+            app.approval=result.get('approval')
+            text=result['text']
+            if app.approval:
+                text+='\n\n[MicroClaw 승인 대기] Pi 입력창에 1(이번만 승인), 2(이 대화에서 항상 허용), 3(거절)을 직접 입력하세요. 자동 응답하지 않습니다.'
+            if streaming:
+                chunk(text)
+                chunk(finish='stop',usage=result['usage'])
                 self.wfile.write(b'data: [DONE]\n\n');self.wfile.flush()
             else:
                 self.send_json(200,{'id':response_id,'object':'chat.completion','created':int(time.time()),'model':'microclaw',
-                    'choices':[{'index':0,'message':{'role':'assistant','content':result['text']},'finish_reason':'stop'}],'usage':result['usage']})
+                    'choices':[{'index':0,'message':{'role':'assistant','content':text},'finish_reason':'stop'}],'usage':result['usage']})
         except (BrokenPipeError,ConnectionResetError,InterruptedError): pass
-        except TimeoutError:
-            self.send_json(504,{'error':{'message':'MicroClaw timed out'}})
-        except (ValueError,KeyError,TypeError) as exc:
-            self.send_json(400,{'error':{'message':str(exc)}})
+        except (TimeoutError,ValueError,KeyError,TypeError,OSError) as exc:
+            message='MicroClaw timed out' if isinstance(exc,TimeoutError) else str(exc)
+            if streaming:
+                try:
+                    self.wfile.write(('data: '+json.dumps({'error':{'message':message}})+'\n\n').encode())
+                    self.wfile.write(b'data: [DONE]\n\n');self.wfile.flush()
+                except OSError: pass
+            else: self.send_json(504 if isinstance(exc,TimeoutError) else 400,{'error':{'message':message}})
         finally:
             if acquired:
-                app.lock.release()
-                app.report('idle')
+                try: app.report('blocked' if app.approval else 'idle')
+                finally: app.lock.release()
 
 def report_herdr(state):
     pane=os.environ.get('HERDR_PANE_ID')
@@ -244,12 +344,20 @@ def pi_command():
 def main():
     os.umask(0o077)
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',nargs='?',choices=['setup','run'],default='run')
+    parser.add_argument('command',nargs='?',choices=['setup','run','observe'],default='run')
     parser.add_argument('--session',default='default',help='MicroClaw conversation label within this project')
     parser.add_argument('--timeout',type=int,default=600)
     parser.add_argument('--prompt',help='Single noninteractive smoke request through Pi')
     args=parser.parse_args()
+    if args.command=='observe':
+        path=os.environ.get('PI_MICROCLAW_EVENTS')
+        if not path: print('{"action":"allow"}');return
+        payload=json.load(__import__('sys').stdin)
+        print(json.dumps(observe(payload,Path(path))))
+        return
     profile=setup_profile(Path.home())
+    source=Path.home()/'.local/share/microclaw-workflow/gateway.json'
+    if source.exists(): install_observer(source,Path.home())
     if args.command=='setup': print('Registered microclaw-local Pi provider');return
     def terminate(signum,frame): raise KeyboardInterrupt
     signal.signal(signal.SIGTERM,terminate)
@@ -258,7 +366,6 @@ def main():
         parser.error('Session must be 1..80 letters/digits/._-; timeout must be 1..3600')
     label='pi-'+hashlib.sha256(str(project).encode()).hexdigest()[:12]+'-'+args.session
     token=secrets.token_urlsafe(32)
-    source=Path.home()/'.local/share/microclaw-workflow/gateway.json'
     with tempfile.TemporaryDirectory(prefix='pi-microclaw-') as temp:
         config=project_config(source,Path(temp)/'workspace',project)
         # This installed Pi release treats custom-provider env key names literally.
@@ -269,9 +376,13 @@ def main():
         atomic(runtime_profile/'settings.json',(profile/'settings.json').read_text())
         if (profile/'extensions').exists():
             (runtime_profile/'extensions').symlink_to(profile/'extensions',target_is_directory=True)
-        def run(prompt,cancel):
+        events=Path(temp)/'events.jsonl'
+        atomic(events,'')
+        data=json.loads(config.read_text())['data_dir']
+        def run(prompt,cancel,emit):
+            atomic(events,'')
             return invoke([str(Path.home()/'.local/bin/microclaw'),'--config',str(config),'run',
-                           '--json','--session',label,'--prompt',prompt],cancel,args.timeout)
+                           '--json','--session',label,'--prompt',prompt],cancel,args.timeout,events,emit,data)
         reporter=report_herdr if args.prompt is None else (lambda state: None)
         try: server=Server(('127.0.0.1',PORT),App(token,run,reporter))
         except OSError as exc: raise ValueError('Bridge port 10962 unavailable; only one pi-microclaw may run per PC') from exc
@@ -280,6 +391,9 @@ def main():
         env['PI_CODING_AGENT_DIR']=str(runtime_profile)
         env['PI_CONFIG_PATH']=str(runtime_profile/'settings.json')
         env['PI_SESSIONS_DIR']=str(profile/'sessions')
+        # Only this launcher and its owned backend inherit the observational path.
+        # The gateway sees no event path and the hook becomes a no-op there.
+        os.environ['PI_MICROCLAW_EVENTS']=str(events)
         command=pi_command()+['--provider','microclaw-local','--model','microclaw','--no-tools','--no-skills','--no-prompt-templates']
         if args.prompt is not None: command+=['--print',args.prompt]
         print('MicroClaw session: '+label+' | workspace: '+str(project),flush=True)

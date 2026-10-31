@@ -9,6 +9,8 @@ import urllib.request
 import urllib.error
 import subprocess
 import sys
+import sqlite3
+from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'src/raynet-guix/users/orka/files/.local/bin/pi-microclaw'
@@ -77,6 +79,17 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(Path(loaded['working_dir']),project)
         self.assertFalse(project.is_symlink())
         self.assertFalse(loaded['channels'].get('telegram',{}).get('enabled',False))
+        self.assertIn('(?s).+',loaded['bash_dangerous_patterns'])
+        self.assertNotIn('control_chat_ids',loaded)
+
+    def test_explicit_confirmation_opt_out_is_preserved(self):
+        source=self.root/'gateway.json'
+        source.write_text(json.dumps({'data_dir':'/data','high_risk_tool_user_confirmation_required':False,
+                                      'bash_dangerous_patterns':['custom-policy'],
+                                      'channels':{'hooks':{'enabled':True,'max_input_bytes':65536}}}))
+        config=json.loads(b.project_config(source,self.root/'work',self.root).read_text())
+        self.assertEqual(config['bash_dangerous_patterns'],['custom-policy'])
+        self.assertEqual(config['channels']['hooks']['max_input_bytes'],65536)
 
     def test_cancel_stops_owned_subprocess(self):
         with self.assertRaises(InterruptedError):
@@ -94,7 +107,7 @@ class BridgeTests(unittest.TestCase):
 
     def start_server(self):
         calls=[]
-        def run(prompt,cancel):
+        def run(prompt,cancel,emit):
             calls.append(prompt)
             return {'text':'backend '+prompt,'usage':{'prompt_tokens':7,'completion_tokens':2,'total_tokens':9}}
         app=b.App('test-token',run)
@@ -103,6 +116,74 @@ class BridgeTests(unittest.TestCase):
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         return server,calls
+
+    def test_observer_keeps_only_tool_metadata_and_never_changes_policy(self):
+        events=self.root/'events.jsonl'
+        payload={'event':'BeforeToolCall','tool_name':'bash','tool_input':{'command':'secret fixture'},
+                 'chat_id':17,'caller_channel':'headless'}
+        self.assertEqual(b.observe(payload,events),{'action':'allow'})
+        self.assertEqual(json.loads(events.read_text()),{'event':'tool_start','tool':'bash'})
+        self.assertNotIn('secret',events.read_text())
+        payload.update(event='AfterToolCall',result={'is_error':True,'error_type':'approval_required','content':'private'})
+        b.observe(payload,events)
+        last=json.loads(events.read_text().splitlines()[-1])
+        self.assertEqual(last,{'event':'tool_result','tool':'bash','is_error':True,'approval_required':True})
+
+    def test_pending_approval_is_read_only_scoped_and_expires(self):
+        data=self.root/'data';(data/'runtime').mkdir(parents=True)
+        db=data/'runtime/microclaw.db'
+        with sqlite3.connect(db) as c:
+            c.execute('CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+            c.executemany('INSERT INTO db_meta VALUES (?,?)',[
+                ('pending_approval_tool:17','bash\n'+datetime.now(timezone.utc).isoformat()),
+                ('pending_approval_tool:18','bash\n'+(datetime.now(timezone.utc)-timedelta(hours=2)).isoformat())])
+        self.assertEqual(b.pending_approval(data,17),'bash')
+        self.assertIsNone(b.pending_approval(data,18))
+        self.assertIsNone(b.pending_approval(data,19))
+        with sqlite3.connect(db) as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM db_meta').fetchone()[0],2)
+
+    def test_sse_tool_progress_is_flushed_before_backend_finishes(self):
+        server,calls=self.start_server()
+        started=threading.Event(); release=threading.Event()
+        self.addCleanup(release.set)
+        def run(prompt,cancel,emit):
+            emit({'event':'tool_start','tool':'read_file'})
+            started.set()
+            if not release.wait(2): raise TimeoutError('test frontend did not read progress')
+            return {'text':'finished','usage':{},'approval':None}
+        server.app.run=run
+        body={'model':'microclaw','stream':True,'messages':[{'role':'user','content':'read'}]}
+        with self.request(server,body) as response:
+            self.assertTrue(started.wait(1))
+            progress=response.readline().decode()
+            self.assertIn('read_file',progress)
+            release.set()
+            text=response.read().decode()
+        self.assertIn('finished',text)
+        self.assertIn('[DONE]',text)
+
+    def test_pending_approval_reports_blocked_and_passes_only_human_followup(self):
+        for reply in ('1','3'):
+            with self.subTest(reply=reply):
+                server,calls=self.start_server()
+                states=[];server.app.report=states.append
+                def run(prompt,cancel,emit):
+                    calls.append(prompt)
+                    return {'text':'native approval card','usage':{},'approval':'bash' if len(calls)==1 else None}
+                server.app.run=run
+                messages=[{'role':'user','content':'run the command'}]
+                with self.request(server,{'model':'microclaw','messages':messages}) as response: json.load(response)
+                with server.app.lock:
+                    self.assertEqual(states[-1],'blocked')
+                self.assertEqual(calls,['run the command'])
+                messages += [{'role':'assistant','content':'native approval card'},{'role':'user','content':reply}]
+                body={'model':'microclaw','messages':messages}
+                with self.request(server,body) as response: json.load(response)
+                with self.request(server,body) as response: json.load(response)
+                self.assertEqual(calls,['run the command',reply])
+                with server.app.lock:
+                    self.assertEqual(states[-1],'idle')
 
     def request(self,server,body,token='test-token'):
         req=urllib.request.Request('http://127.0.0.1:'+str(server.server_port)+'/v1/chat/completions',

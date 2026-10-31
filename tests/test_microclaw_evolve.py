@@ -39,6 +39,24 @@ class EvolutionTests(unittest.TestCase):
         self.assertNotIn('secret123456', row[0])
         self.assertEqual(row[1], 1)
 
+    def test_approval_pause_does_not_feed_failure_evolution(self):
+        self.w.record({'event':'AfterToolCall','tool_name':'bash',
+                       'result':{'is_error':True,'error_type':'approval_required','content':'approval card'}})
+        row=self.w.db().execute('select payload,failed from traces').fetchone()
+        self.assertEqual(row[1],0)
+        self.assertEqual(json.loads(row[0])['outcome'],'unknown')
+        with self.assertRaisesRegex(ValueError,'no new failed tool evidence'):
+            self.w.propose()
+
+    def test_init_reclassifies_legacy_approval_without_deleting_evidence(self):
+        payload=json.dumps({'error_type':'approval_required','outcome':'failure','content':'approval card'})
+        with self.w.db() as db:
+            db.execute('insert into traces(created,failed,payload) values(?,?,?)',('fixture',1,payload))
+        self.w.init()
+        row=self.w.db().execute('select payload,failed from traces').fetchone()
+        self.assertEqual(row[1],0)
+        self.assertEqual(json.loads(row[0])['content'],'approval card')
+
     def test_candidate_does_not_replace_champion(self):
         before = self.w.active.read_text()
         self.candidate()

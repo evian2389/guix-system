@@ -318,6 +318,11 @@ class Workflow:
             create table if not exists attempts(day text primary key);
             create table if not exists promotions(id integer primary key, candidate text, previous text, current text);
             ''')
+            # Waiting for a human is not task failure. Preserve older evidence
+            # while excluding native approval pauses from failure proposals.
+            db.execute("update traces set failed=0, payload=json_set(payload,'$.outcome','unknown') "
+                       "where json_valid(payload) and json_extract(payload,'$.error_type')='approval_required' "
+                       "and failed=1")
 
     @contextlib.contextmanager
     def lock(self):
@@ -327,13 +332,15 @@ class Workflow:
 
     def record(self, event):
         result = event.get('result', {})
+        approval = result.get('error_type') == 'approval_required'
+        failed = result.get('is_error') is True and not approval
         # Do not store tool arguments (may contain credentials) or successful output.
         payload = {'schema_version': 1, 'agent': 'microclaw', 'kind': 'tool',
-                   'outcome': 'failure' if result.get('is_error') is True else 'success' if result.get('is_error') is False else 'unknown',
+                   'outcome': 'failure' if failed else 'unknown' if approval else 'success' if result.get('is_error') is False else 'unknown',
                    'event': event.get('event'), 'tool': event.get('tool_name'),
                    'chat': event.get('chat_id'), 'error_type': result.get('error_type'),
-                   'content': redact(str(result.get('content', ''))) if result.get('is_error') is True else ''}
-        return self.store_trace(payload, result.get('is_error') is True)
+                   'content': redact(str(result.get('content', ''))) if failed else ''}
+        return self.store_trace(payload, failed)
 
     def store_trace(self, payload, failed):
         with self.db() as db:
