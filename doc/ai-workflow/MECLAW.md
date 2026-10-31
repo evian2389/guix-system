@@ -152,8 +152,9 @@ full conversation/job recovery is needed; Git exports only evolution knowledge.
 
 ```sh
 cd ~/guix-system
-make reconfigure-home NON_GUIX_UPDATES=0
-herd status meclaw
+make reconfigure-home NON_GUIX_UPDATES=0   # stops the old user-level service
+make reconfigure-system                    # system Shepherd starts it in /sys/fs/cgroup/meclaw
+sudo herd status meclaw                    # log: /var/log/meclaw.log
 meclaw-workflow status
 meclaw-workflow ask --channel terminal --prompt '연결 상태를 설명해줘'
 meclaw-workflow snapshot

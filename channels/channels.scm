@@ -28,21 +28,12 @@
   (channel
    (name 'pantherx)
    (url "https://codeberg.org/gofranz/panther.git")
-   ;; Enable signature verification
+   (branch "master")
    (introduction
     (make-channel-introduction
      "54b4056ac571611892c743b65f4c47dc298c49da"
      (openpgp-fingerprint
       "A36A D41E ECC7 A871 1003  5D24 524F EB1A 9D33 C9CB"))))
-  (channel
-    (name 'rde)
-    (url "https://git.sr.ht/~abcdw/rde")
-    (branch "master")
-    (introduction
-      (make-channel-introduction
-        "257cebd587b66e4d865b3537a9a88cccd7107c95"
-        (openpgp-fingerprint
-          "2841 9AC6 5038 7440 C7E9  2FFA 2208 D209 58C1 DEB0"))))
   ; (channel
   ;   (name 'saayix)
   ;   (branch "main")

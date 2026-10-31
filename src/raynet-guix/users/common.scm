@@ -13,8 +13,6 @@
   #:use-module (gnu packages shellutils) ; For shell utils
   #:use-module (gnu packages terminals) ; For terminal utils
   #:use-module (gnu packages fonts) ; For Google Noto CJK fonts
-  #:use-module (gnu packages rust)
-  #:use-module (gnu packages rust-apps)
   #:use-module (gnu packages video)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages gnome)
@@ -74,7 +72,7 @@
                        (enable-pulseaudio? #t)))
              (simple-service 'common-environment-variables
                              home-environment-variables-service-type
-                             '(("PATH" . "$HOME/.local/bin:$HOME/.guix-home/profile/bin:$PATH:$HOME/.npm-global/bin:$HOME/.cargo/bin:$HOME/.npm-packages/bin:$HOME/.config/emacs/bin/:$HOME/.nix-profile/bin:$HOME/.local/share/flatpak/exports/bin")
+                             '(("PATH" . "$HOME/.local/bin:$HOME/.nix-profile/bin:$HOME/.cargo/bin:$HOME/.guix-home/profile/bin:$PATH:$HOME/.npm-global/bin:$HOME/.npm-packages/bin:$HOME/.config/emacs/bin/:$HOME/.local/share/flatpak/exports/bin")
                                ("XMODIFIERS" . "@im=fcitx")
                                ;;("GTK_IM_MODULE" . "fcitx")
                                ;;("QT_IM_MODULE" . "fcitx")

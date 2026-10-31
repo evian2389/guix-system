@@ -20,9 +20,13 @@ if command -v nix &> /dev/null; then
     }
 
     echo "Upgrading existing Nix packages..."
-    nix profile upgrade --extra-experimental-features "nix-command flakes" '.*' || true
+    nix profile upgrade --extra-experimental-features "nix-command flakes" --impure --all || true
 
     nix_install_if_missing hyprlax nixpkgs#hyprlax
+    # Install the non-Guix Rust toolchain before installing Cargo applications.
+    nix_install_if_missing rustc nixpkgs#rustc
+    nix_install_if_missing cargo nixpkgs#cargo
+    nix_install_if_missing rust-analyzer nixpkgs#rust-analyzer
     nix_install_if_missing wiremix nixpkgs#wiremix
     nix_install_if_missing yazi nixpkgs#yazi
     nix_install_if_missing bun nixpkgs#bun
@@ -103,6 +107,8 @@ fi
 
 
 echo "Installing/Updating Rust packages..."
+export PATH="$HOME/.nix-profile/bin:$HOME/.cargo/bin:$PATH"
+
 if command -v cargo &> /dev/null; then
      # xtask ; steel scheme is available in cargo repo
      # cargo xtask install
@@ -124,64 +130,72 @@ if command -v cargo &> /dev/null; then
      # Unix (broken fs::Permissions usage in auth.rs, missing libc dep — it's a
      # Windows-first crate). Use kerux below instead.
      # kerux — "hermes-rs", a self-contained Rust AI agent runtime (`kerux` binary).
-     # Not published to crates.io; workspace crate, MSRV 1.86 (ok on rustc 1.93).
+     # Not published to crates.io; workspace crate, MSRV 1.86.
      cargo install --git https://github.com/eikarna/kerux kerux-cli
-     # NOTE: Pinned to 0.1.18 because newer versions (e.g. 0.1.22) require rustc >= 1.95,
-     # but the system's pinned Guix channels currently provide rustc 1.93.0.
-     cargo install pi_agent_rust --version 0.1.18
-     # ZeroClaw is built from the Herdr integration PR until that change lands
-     # upstream. The PR is closed but its head remains available, so pin the
-     # exact commit rather than following a moving branch. Override
-     # ZEROCLAW_HERDR_REV to test another commit, or set it empty to install the
-     # official MUSL release instead.
-     if [ "${ZEROCLAW_HERDR_REV+x}" != x ]; then
-         ZEROCLAW_HERDR_REV="5d32cfd10bb88a20045121f070602309b95e7e9f"
-         RUSTC_VERSION="$(rustc --version | awk '{print $2}')"
-         if [ "$(printf '%s\n' "$RUSTC_VERSION" 1.96.0 | sort -V | head -n1)" != "1.96.0" ]; then
-             echo "rustc $RUSTC_VERSION is older than ZeroClaw's 1.96.0 MSRV; using the official release binary."
-             ZEROCLAW_HERDR_REV=""
-         fi
-     fi
-     if [ -n "$ZEROCLAW_HERDR_REV" ]; then
-         echo "Installing ZeroClaw with Herdr integration ($ZEROCLAW_HERDR_REV)..."
-         cargo install --locked --force --root "$HOME/.local" \
-             --git https://github.com/zeroclaw-labs/zeroclaw \
-             --rev "$ZEROCLAW_HERDR_REV" zeroclaw
-     else
-         # Official MUSL release fallback. Override ZEROCLAW_VERSION for a
-         # controlled rollback or staging test.
-         ZEROCLAW_VERSION="${ZEROCLAW_VERSION:-0.8.5}"
-     ZEROCLAW_MACHINE="$(uname -m)"
-     case "$ZEROCLAW_MACHINE" in
-         x86_64) ZEROCLAW_TARGET="x86_64-unknown-linux-musl" ;;
-         aarch64) ZEROCLAW_TARGET="aarch64-unknown-linux-musl" ;;
-         *)
-             echo "Warning: unsupported ZeroClaw architecture: $ZEROCLAW_MACHINE"
-             ZEROCLAW_TARGET=""
-             ;;
-     esac
-     if [ -n "$ZEROCLAW_TARGET" ]; then
-         ZEROCLAW_ASSET="zeroclaw-${ZEROCLAW_TARGET}.tar.gz"
-         ZEROCLAW_URL="https://github.com/zeroclaw-labs/zeroclaw/releases/download/v${ZEROCLAW_VERSION}/${ZEROCLAW_ASSET}"
-         ZEROCLAW_SUMS_URL="https://github.com/zeroclaw-labs/zeroclaw/releases/download/v${ZEROCLAW_VERSION}/SHA256SUMS"
-         ZEROCLAW_TMP="$(mktemp -d "${TMPDIR:-/tmp}/zeroclaw.XXXXXX")"
-         trap 'rm -rf "$ZEROCLAW_TMP"' EXIT
-         curl --fail --silent --show-error --location "$ZEROCLAW_URL" \
-             --output "$ZEROCLAW_TMP/$ZEROCLAW_ASSET"
-         curl --fail --silent --show-error --location "$ZEROCLAW_SUMS_URL" \
-             --output "$ZEROCLAW_TMP/SHA256SUMS"
-         (cd "$ZEROCLAW_TMP" && grep "  $ZEROCLAW_ASSET$" SHA256SUMS \
-             | sha256sum --check --strict -)
-         tar --extract --gzip --file "$ZEROCLAW_TMP/$ZEROCLAW_ASSET" \
-             --directory "$ZEROCLAW_TMP"
-         install -Dm755 "$ZEROCLAW_TMP/zeroclaw" "$HOME/.local/bin/zeroclaw"
-         echo "Installed ZeroClaw v$ZEROCLAW_VERSION ($ZEROCLAW_TARGET)"
-     fi
+     # MicroClaw's server CLI is distributed as a release binary, not a
+     # crates.io executable. Keep the ELF binary out of PATH and expose it via
+     # the Guix-compatible wrapper installed from files/.local/bin/microclaw.
+     echo "Installing MicroClaw release..."
+     (
+         MICROCLAW_INSTALLER="$(mktemp "${TMPDIR:-/tmp}/microclaw-install.XXXXXX")"
+         trap 'rm -f "$MICROCLAW_INSTALLER"' EXIT
+         curl --fail --silent --show-error --location \
+             https://microclaw.org/install.sh --output "$MICROCLAW_INSTALLER"
+         mkdir -p "$HOME/.local/libexec"
+         MICROCLAW_INSTALL_DIR="$HOME/.local/libexec" \
+             MICROCLAW_INSTALL_SKIP_RUN=1 sh "$MICROCLAW_INSTALLER" --skip-run
+     )
+     # Remove the manually tested binary from cargo/bin so the wrapper on PATH
+     # always supplies Guix's loader and native runtime library paths.
+     rm -f "$HOME/.cargo/bin/microclaw" "$HOME/.local/bin/moltis"
+     if command -v herd &> /dev/null; then
+         herd stop moltis || true
      fi
 
 else
     echo "Warning: cargo not found. Skipping cargo packages."
 fi
+
+# Herdr Orch: build the CLI from its source checkout, install a wrapper that
+# keeps each project's orchestration state on a verified RAM-backed tmpfs,
+# and install the controller/participant skills for Codex.
+HERDR_ORCH_SRC="$HOME/tools/herdr-orchestrator"
+HERDR_ORCH_URL="https://github.com/kylezk777/herdr-orchestrator.git"
+if ! command -v cargo &> /dev/null; then
+    echo "Error: cargo is required to build herdr-orchestrator."
+    exit 1
+fi
+if [ ! -e "$HERDR_ORCH_SRC" ]; then
+    mkdir -p "$(dirname "$HERDR_ORCH_SRC")"
+    git clone "$HERDR_ORCH_URL" "$HERDR_ORCH_SRC"
+elif [ ! -d "$HERDR_ORCH_SRC/.git" ]; then
+    echo "Error: Orch source path exists but is not a Git checkout: $HERDR_ORCH_SRC"
+    exit 1
+fi
+if [ "$(git -C "$HERDR_ORCH_SRC" remote get-url origin)" != "$HERDR_ORCH_URL" ]; then
+    echo "Error: unexpected Orch origin at $HERDR_ORCH_SRC"
+    exit 1
+fi
+HERDR_ORCH_PATCH="$(dirname "$0")/herdr-orchestrator-rust-1.93.patch"
+if ! git -C "$HERDR_ORCH_SRC" apply --reverse --check "$HERDR_ORCH_PATCH" 2>/dev/null; then
+    git -C "$HERDR_ORCH_SRC" apply "$HERDR_ORCH_PATCH"
+fi
+(cd "$HERDR_ORCH_SRC" && cargo build --release --locked)
+HERDR_ORCH_WRAPPER="$(dirname "$0")/files/.local/bin/orch"
+if [ -e "$HOME/.local/bin/orch" ] && [ "$HERDR_ORCH_WRAPPER" -ef "$HOME/.local/bin/orch" ]; then
+    chmod 755 "$HOME/.local/bin/orch"
+else
+    install -Dm755 "$HERDR_ORCH_WRAPPER" "$HOME/.local/bin/orch"
+fi
+bash "$HERDR_ORCH_SRC/scripts/install-skills.sh" \
+    --mode controller \
+    --target-dir "${CODEX_HOME:-$HOME/.codex}/skills"
+for HERDR_SKILL_DIR in "$HOME/.claude/skills" "$HOME/.gemini/antigravity-cli/skills"; do
+    bash "$HERDR_ORCH_SRC/scripts/install-skills.sh" \
+        --mode participant \
+        --target-dir "$HERDR_SKILL_DIR"
+done
+echo "Installed Herdr Orch CLI, RAM-backed state wrapper, and Codex skills."
 
 # Let herdr recognize coding agents (installs SessionStart/state hooks into each
 # agent's config dir, e.g. ~/.claude, ~/.codex, ~/.gemini/config). Idempotent.
@@ -191,10 +205,9 @@ if command -v herdr &> /dev/null; then
     done
 fi
 
-# Render ~/.zeroclaw/config.toml from the committed template, injecting bot
-# tokens from `pass`. ZeroClaw has no keyring support and rewrites its config in
-# place, so this re-asserts the declarative config on every reconfigure-home.
-"$(dirname "$0")/zeroclaw/render-config.sh" || echo "Warning: zeroclaw config render failed"
+# The old ZeroClaw service is removed by Guix Home reconfiguration above.
+# Remove its standalone binaries while keeping ~/.zeroclaw data for recovery.
+rm -f "$HOME/.local/bin/zeroclaw" "$HOME/.local/bin/zeroclaw.bak"
 
 echo "Installing SurrealDB..."
 if ! command -v surreal &> /dev/null; then

@@ -1,0 +1,21 @@
+diff --git a/src/ops.rs b/src/ops.rs
+--- a/src/ops.rs
++++ b/src/ops.rs
+@@ -2553,3 +2553,8 @@ fn write_review_to_phase_file(
+     let now = Utc::now().to_rfc3339();
++    let blocking = if scope_result.ok() {
++        "(none)".to_string()
++    } else {
++        scope_result.summary()
++    };
+ 
+     let review_body = format!(
+@@ -2564,7 +2569,3 @@ fn write_review_to_phase_file(
+         findings = findings.unwrap_or("(none)"),
+-        blocking = if scope_result.ok() {
+-            "(none)"
+-        } else {
+-            &scope_result.summary()
+-        },
++        blocking = blocking,
+         fixes = if status == ReviewStatus::ChangesRequested {

@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+set -u
+
+readonly REAL_ORCH="${HERDR_ORCH_BIN:-$HOME/tools/herdr-orchestrator/target/release/orch}"
+
+fail() {
+    printf 'orch wrapper: %s\n' "$*" >&2
+    exit 1
+}
+
+if [[ ! -x "$REAL_ORCH" ]]; then
+    fail "underlying Orch binary is missing or not executable: $REAL_ORCH"
+fi
+
+# Keep CLI help and introspection commands free of workspace side effects.
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help|--version)
+            exec "$REAL_ORCH" "$@"
+            ;;
+    esac
+done
+
+case "${1:-}" in
+    help|schema|doctor)
+        exec "$REAL_ORCH" "$@"
+        ;;
+esac
+
+args=("$@")
+root_arg=""
+has_root_arg=0
+for ((i = 0; i < ${#args[@]}; i++)); do
+    case "${args[i]}" in
+        --root)
+            if ((i + 1 < ${#args[@]})); then
+                root_arg="${args[i + 1]}"
+                has_root_arg=1
+            else
+                exec "$REAL_ORCH" "$@"
+            fi
+            break
+            ;;
+        --root=*)
+            root_arg="${args[i]#--root=}"
+            has_root_arg=1
+            break
+            ;;
+    esac
+done
+
+if ((has_root_arg)); then
+    case "$root_arg" in
+        "~")
+            root_arg="$HOME"
+            ;;
+        "~/"*)
+            root_arg="$HOME/${root_arg#~/}"
+            ;;
+    esac
+    if ! workspace_root="$(cd -- "$root_arg" 2>/dev/null && pwd -P)"; then
+        fail "cannot resolve --root directory: $root_arg"
+    fi
+else
+    if ! workspace_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+        fail "cannot identify a project root; run inside a Git worktree or pass --root"
+    fi
+    if ! workspace_root="$(cd -- "$workspace_root" 2>/dev/null && pwd -P)"; then
+        fail "cannot resolve project root: $workspace_root"
+    fi
+fi
+
+hash_output="$(printf '%s' "$workspace_root" | sha256sum)" ||
+    fail "could not derive a project-specific state directory"
+project_id="${hash_output%% *}"
+uid="$(id -u)" || fail "could not determine the current user ID"
+
+is_tmpfs() {
+    [[ -d "$1" ]] && [[ "$(stat -f -c '%T' -- "$1" 2>/dev/null)" == "tmpfs" ]]
+}
+
+if [[ -n "${XDG_RUNTIME_DIR:-}" &&
+      -d "$XDG_RUNTIME_DIR" &&
+      ! -L "$XDG_RUNTIME_DIR" &&
+      -O "$XDG_RUNTIME_DIR" &&
+      -w "$XDG_RUNTIME_DIR" &&
+      is_tmpfs "$XDG_RUNTIME_DIR" ]]; then
+    runtime_root="$(cd -- "$XDG_RUNTIME_DIR" && pwd -P)" ||
+        fail "cannot resolve XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
+    state_base="$runtime_root/herdr-orch"
+else
+    if ! is_tmpfs /dev/shm; then
+        fail "no RAM-backed tmpfs is available (XDG_RUNTIME_DIR and /dev/shm are not tmpfs)"
+    fi
+    state_base="/dev/shm/herdr-orch-$uid"
+fi
+
+state_root="$state_base/$project_id"
+orch_link="$workspace_root/.orchestration"
+
+if [[ -L "$orch_link" ]]; then
+    link_target="$(readlink -- "$orch_link")" ||
+        fail "cannot read existing .orchestration symlink"
+    if [[ "$link_target" != "$state_root" ]]; then
+        fail ".orchestration already points elsewhere ($link_target); refusing to replace it"
+    fi
+elif [[ -e "$orch_link" ]]; then
+    fail ".orchestration already exists and is not the expected symlink; refusing to move it"
+fi
+
+ensure_private_dir() {
+    local path="$1"
+
+    if [[ -L "$path" ]]; then
+        fail "refusing to use symlink as state directory: $path"
+    fi
+    if [[ -e "$path" && ( ! -d "$path" || ! -O "$path" ) ]]; then
+        fail "state directory is not a user-owned directory: $path"
+    fi
+    mkdir -p -- "$path" || fail "cannot create state directory: $path"
+    if [[ -L "$path" || ! -O "$path" ]]; then
+        fail "state directory is not a user-owned directory: $path"
+    fi
+    chmod 700 -- "$path" || fail "cannot secure state directory: $path"
+}
+
+ensure_private_dir "$state_base"
+ensure_private_dir "$state_root"
+
+if git -C "$workspace_root" rev-parse --show-toplevel >/dev/null 2>&1; then
+    exclude_file="$(git -C "$workspace_root" rev-parse --path-format=absolute --git-path info/exclude)" ||
+        fail "cannot locate the repository's local Git exclude file"
+    if git -C "$workspace_root" check-ignore --quiet --no-index -- .orchestration; then
+        :
+    else
+        check_ignore_status=$?
+        if ((check_ignore_status != 1)); then
+            fail "could not check whether .orchestration is already ignored"
+        fi
+        printf '\n# Herdr Orch RAM-backed state link\n/.orchestration\n' >> "$exclude_file" ||
+            fail "cannot exclude the RAM-backed .orchestration symlink from Git"
+    fi
+fi
+
+if [[ ! -L "$orch_link" ]]; then
+    if ! ln -s -- "$state_root" "$orch_link"; then
+        if [[ ! -L "$orch_link" ]] || [[ "$(readlink -- "$orch_link")" != "$state_root" ]]; then
+            fail "cannot create .orchestration symlink"
+        fi
+    fi
+fi
+
+if ((has_root_arg)); then
+    exec "$REAL_ORCH" "$@"
+else
+    exec "$REAL_ORCH" --root "$workspace_root" "$@"
+fi

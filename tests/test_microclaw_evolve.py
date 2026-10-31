@@ -5,6 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 import subprocess
+import sys
 from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'src/raynet-guix/users/orka/files/.local/bin/microclaw-evolve'
@@ -161,6 +162,59 @@ class EvolutionTests(unittest.TestCase):
         self.assertIn('build failed', (path / 'trace.json').read_text())
         self.assertNotIn('secret123456', (path / 'trace.json').read_text())
         self.assertEqual((path / 'meta-skill.md').read_text(), (self.w.state / 'meta-skill.md').read_text())
+
+    def set_config(self, **values):
+        path = self.w.state / 'config.json'
+        config = json.loads(path.read_text())
+        config.update(values)
+        path.write_text(json.dumps(config))
+
+    def test_record_and_search_do_not_wait_for_worker_lock(self):
+        lock = (self.w.state / 'worker.lock').open('w')
+        self.addCleanup(lock.close)
+        e.fcntl.flock(lock, e.fcntl.LOCK_EX | e.fcntl.LOCK_NB)
+        event = json.dumps({'schema_version': 1, 'agent': 'codex', 'kind': 'tool',
+                            'outcome': 'failure', 'summary': 'concurrent fixture'})
+        for command in ('record', 'search'):
+            result = subprocess.run([sys.executable, str(SCRIPT), '--root', str(self.w.root),
+                                     '--query', 'concurrent', command],
+                                    input=event, capture_output=True, text=True, timeout=60)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.w.status()['traces'], 1)
+
+    def test_multiple_pending_candidates_use_distinct_evidence(self):
+        self.set_config(max_pending=2)
+        for n in range(3):
+            self.w.record({'result': {'is_error': True, 'content': 'failure %d' % n}})
+        with patch.object(e, 'llm', return_value='Procedure'):
+            first, second = self.w.propose(), self.w.propose()
+            with self.assertRaisesRegex(ValueError, 'pending'):
+                self.w.propose()
+        traces = {(self.w.candidate_path(c) / 'trace.json').read_text() for c in (first, second)}
+        self.assertEqual(len(traces), 2)
+
+    def test_daily_budget_is_configurable(self):
+        self.set_config(max_pending=3, daily_proposals=2)
+        for n in range(3):
+            self.w.record({'result': {'is_error': True, 'content': 'failure %d' % n}})
+        with patch.object(e, 'llm', return_value='Procedure'):
+            self.assertRegex(self.w.tick(), r'^[a-f0-9]{12}$')
+            self.assertRegex(self.w.tick(), r'^[a-f0-9]{12}$')
+            self.assertEqual(self.w.tick(), 'daily proposal budget exhausted')
+
+    def test_second_candidate_on_same_baseline_must_reevaluate(self):
+        self.set_config(max_pending=2)
+        for n in range(2):
+            self.w.record({'result': {'is_error': True, 'content': 'failure %d' % n}})
+        with patch.object(e, 'llm', side_effect=['Procedure one', 'Procedure two']):
+            first, second = self.w.propose(), self.w.propose()
+        for cid in (first, second):
+            with patch.object(e, 'llm', side_effect=['wrong', 'ok', 'ok', 'ok']):
+                self.assertTrue(self.w.evaluate(cid)['eligible'])
+        self.w.promote(first)
+        with self.assertRaisesRegex(ValueError, 'reevaluate'):
+            self.w.promote(second)
+        self.assertIn('Procedure one', self.w.active.read_text())
 
 class RepositoryWiringTests(unittest.TestCase):
     def setUp(self):

@@ -98,8 +98,13 @@
   #:hostname "ser8"
 
 ;; This safely adds your subvolume flag to the Guix defaults
+ ;; lsm=: the kernel has CONFIG_SECURITY_LANDLOCK=y but CONFIG_LSM omits it,
+ ;; so Landlock is inactive (EOPNOTSUPP) unless listed here. Keep the
+ ;; built-in CONFIG_LSM order and only prepend landlock (agent sandboxing).
  #:kernel-arguments
- (append '("rootflags=subvol=@") %default-kernel-arguments)
+ (append '("rootflags=subvol=@"
+           "lsm=landlock,yama,loadpin,safesetid,integrity,apparmor,selinux,smack,tomoyo")
+         %default-kernel-arguments)
 
  #:bootloader
  (bootloader-configuration

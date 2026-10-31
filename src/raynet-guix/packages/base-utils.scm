@@ -26,8 +26,7 @@
   #:use-module (gnu packages ocaml)
   #:use-module (gnu packages haskell)
   #:use-module (gnu packages haskell-apps)
-  #:use-module (gnu packages rust)
-  #:use-module (gnu packages rust-apps)
+  #:use-module (gnu packages rust-apps) ; difftastic
   #:use-module (gnu packages lua)
   #:use-module (gnu packages java)
   #:use-module (gnu packages perl)
@@ -155,9 +154,6 @@
     esbuild
     gopls
     openjdk
-    rust
-    (list rust "cargo")
-    rust-analyzer
     guile-lsp-server
     ocaml
     ocaml-lsp-server

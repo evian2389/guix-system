@@ -32,29 +32,9 @@
                              "--bridge-helper" #$pi-bridge-helper))
         (error "MeClaw Pi frontend initialization failed"))))
 
-(define (services config)
-  (list
-   (shepherd-service
-    (provision '(meclaw))
-    (documentation "MeClaw coordinator, authenticated local bridge and Telegram.")
-    (requirement '())
-    (start #~(let* ((home (getenv "HOME"))
-                   (ca "/run/current-system/profile/etc/ssl/certs/ca-certificates.crt"))
-               (make-forkexec-constructor
-                (append (list #$(file-append python "/bin/python3") #$integration-script
-                              "serve" "--binary" #$(file-append meclaw "/bin/meclaw"))
-                        '#$(if (home-meclaw-configuration-telegram? config) '("--telegram") '()))
-                #:directory home
-                #:log-file (string-append home "/.local/state/meclaw.log")
-                #:environment-variables
-                (list (string-append "HOME=" home)
-                      (string-append "PATH=" #$(file-append python "/bin") ":" home "/.local/bin:"
-                                     home "/.cargo/bin:" home "/.npm-global/bin:" home "/.nix-profile/bin:"
-                                     home "/.guix-home/profile/bin:/run/current-system/profile/bin")
-                      (string-append "SSL_CERT_FILE=" ca)
-                      (string-append "SSL_CERT_DIR=" "/run/current-system/profile/etc/ssl/certs")
-                      (string-append "CURL_CA_BUNDLE=" ca)))))
-    (stop #~(make-kill-destructor)))))
+;; The daemon itself is started by the system Shepherd, see
+;; (raynet-guix services meclaw): only a root-started process can enter its
+;; delegated cgroup. Home still owns the package and the state wiring.
 
 (define home-meclaw-service-type
   (service-type
@@ -62,6 +42,5 @@
    (description "A small MeClaw colony with shared evolution evidence and Codex integration.")
    (extensions
     (list (service-extension home-profile-service-type (const (list meclaw)))
-          (service-extension home-activation-service-type activation)
-          (service-extension home-shepherd-service-type services)))
+          (service-extension home-activation-service-type activation)))
    (default-value (home-meclaw-configuration))))

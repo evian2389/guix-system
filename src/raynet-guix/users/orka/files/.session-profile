@@ -47,7 +47,7 @@ export XDG_DATA_DIRS="$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/
 # Input Method and other environment variables
 export XMODIFIERS="@im=fcitx"
 export GLFW_IM_MODULE="fcitx"
-export BROWSER="google-chrome"
+export BROWSER="$HOME/.local/bin/zen"
 export EDITOR="helix"
 export VISUAL="helix"
 export LANG="en_US.UTF-8"
