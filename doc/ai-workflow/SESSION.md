@@ -74,3 +74,46 @@ Pi frontend에 관측 hook 기반 실시간 도구 진행 표시와 native 승�
 `/gnu/store/mvmwkwm5xad5jv2hfbhdava9c1ip5js3-home`이다. gateway/mcron은 계속 실행 중이며
 이번 변경 때문에 재시작할 필요가 없다. 다음 과제와 사용법은 [PI-MICROCLAW.md](PI-MICROCLAW.md).
 최초 보고의 commit/push 미실행 서술은 당시 기록이며, 이 후속 변경은 별도 commit/push한다.
+
+## 2026-10-31 MeClaw 적용
+
+MeClaw 0.76.6의 SHA256 고정 static musl 릴리스를 Guix package로 설치했다.
+MeClaw 네이티브 ChatGPT 인증 + Terra 6.1, 네이티브 Codex TUI용 MCP, Telegram adapter,
+Herdr 단일 Codex 작업 큐를 연결했다. 전체 meclaw-os/Argus 대신 4개 cell의 작은 colony다.
+기존 MicroClaw는 rollback용으로 보존하고 gateway만 중지·비활성화했다.
+
+`make reconfigure-home NON_GUIX_UPDATES=0` 실행과 후속 수정 재배포 모두 종료 코드 0. 최종 generation:
+`/gnu/store/ay96wap7bdk183lqv3rssaaip3ab66s3-home`.
+MeClaw 및 mcron 실행, 배포된 meclaw-workflow/microclaw-evolve와 소스 SHA 일치를 확인했다.
+관련 없는 채널·패키지·zeroclaw 작업은 이번 commit에 포함하지 않는다.
+
+검증 결과:
+
+- 진화 31개 + 기존 Pi 17개 + MeClaw 17개 = 65개 unittest 통과.
+- 실제 응답 `MECLAW_TERRA_READY`, `MECLAW_WIRED_READY`, `TOOL_SEARCH_READY`,
+  `EVOLVE_MECLAW_READY`, 배포 후 `MECLAW_GUIX_READY`, 재시작 후 `MECLAW_FINAL_READY`.
+- Responses 도구 정의의 중첩 형식 오류를 재현하고 flat schema로 수정했다.
+  native callback의 call ID 보존·추론 token 합산·비정상 call 차단을 검사했다.
+- 기존 Codex 0.166.0 버전 헤더로 Terra 6.1 사용을 확인했다. 기본 0.147.0은 거부됐다.
+- 진화 후보 `24418e135d8c`: MeClaw로 생성 후 4회 비교 추론, 5.524초, 양쪽 모두 2/2.
+  eligible=false라 명시적으로 reject했다. 실제 코딩 성능 향상을 주장하지 않는다.
+- champion SHA `fd192e10fa0c11f4128dd4e0b83ad0660f5587d74466b6b9a7d43687e19836b9` 유지.
+- 기존 Telegram 토큰 getMe 성공 및 MeClaw adapter의 정상 getUpdates poll을 확인했다.
+  사용자 메시지에 대한 실제 송수신은 아직 별도 확인하지 않았다.
+- Codex MCP 등록, 실제 Codex가 meclaw_status를 요청하는 것까지 확인했다. 첫 도구
+  승인 화면에서 blocked이며 사용자에게 요청했다. 대신 선택하지 않았다.
+- native delegate_codex가 검증 작업 `34d739f84361288c`를 생성했고 실제 큐는 queued다.
+  dispatcher는 worker가 idle이 될 때까지 claim하지 않는다. Codex 수행 완료는 미검증이다.
+- HTTP 인증, Telegram 허용 사용자·개인 채팅 제한, jobs dedup/recovery,
+  대화 turn 경계 보존, Codex 설정/symlink 보존, 도구 없는 evaluator를 검사했다.
+- symlink 실행 경로에서 공용 스킬을 찾지 못하는 문제를 재현해 canonical root로 수정했다.
+  실제 native brain의 저장된 system.instructions에 현재 champion과 workflow-evidence,
+  이 배포의 Herdr 위임 계약이 포함되는 것을 읽기 전용으로 확인했다.
+- native transport 오류는 사용자 원문 없이 구성 요소의 관찰로 기록하며 timeout과
+  평가 오류는 unknown으로 분류한다. 큐 작업을 확인하지 않고 자동 재시도하지 않는다.
+- 새 MeClaw 관찰 SQL을 빈 runtime에서 복원하는 검사 통과. 기존 진화 SQL 및 후보
+  아카이브는 계속 보존한다. auth·raw chat·job prompt·bridge token이 Git ignore됨을 확인했다.
+
+다음 반복은 사용자의 Codex 첫 승인 후 읽기 작업 완료와 Telegram `/start` 응답을
+확인하고, M2의 실제 프로젝트 holdout을 확장한다. 원격 승인 자동 응답·A2A 표준
+어댑터·Argus 자동 변경·전체 대화의 Git 백업은 이번 범위에 포함하지 않았다.

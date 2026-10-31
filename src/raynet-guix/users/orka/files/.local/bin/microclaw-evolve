@@ -53,7 +53,7 @@ The shared store is ~/work/workflow-evolution; credentials and raw chat logs sta
 
 After a useful observed outcome, submit one short JSON object on stdin to
 `workflow-evolution record`. Include schema_version=1, agent (codex, claude, agy,
-or microclaw), kind (tool, verification, task), outcome (success, failure,
+microclaw, or meclaw), kind (tool, verification, task), outcome (success, failure,
 unknown), project (optional path/name), and summary (observed result and cause).
 Use your actual agent name. Record the verification command and observed result
 when relevant. Omit credentials, tool arguments containing secrets, and transcripts.
@@ -90,6 +90,16 @@ def redact(text):
     return text[:3000]
 
 def llm(system, prompt, config):
+    if config.get('backend') == 'meclaw':
+        result = subprocess.run([str(Path.home() / '.local/bin/meclaw-workflow'), 'infer'],
+                                input=json.dumps({'system': system, 'prompt': prompt, 'channel': 'evolution'}),
+                                capture_output=True, text=True, timeout=240)
+        if result.returncode:
+            raise ValueError('MeClaw evaluation failed; inspect the local MeClaw service')
+        value = json.loads(result.stdout)
+        if not isinstance(value.get('text'), str):
+            raise ValueError('MeClaw returned no evaluation text')
+        return value['text'].strip()
     # MicroClaw owns ChatGPT authentication. No copied OAuth tokens or tools.
     # Each evaluation gets fresh runtime/history and a real system-level SOUL.
     with tempfile.TemporaryDirectory(prefix='microclaw-eval-') as temp:
@@ -353,7 +363,7 @@ class Workflow:
     def record_experience(self, event):
         if not isinstance(event, dict) or event.get('schema_version') != 1:
             raise ValueError('Experience schema_version must be 1')
-        if event.get('agent') not in ('codex', 'claude', 'agy', 'microclaw'):
+        if event.get('agent') not in ('codex', 'claude', 'agy', 'microclaw', 'meclaw'):
             raise ValueError('Unknown source agent')
         if event.get('kind') not in ('tool', 'verification', 'task') or event.get('outcome') not in ('success', 'failure', 'unknown'):
             raise ValueError('Invalid experience kind/outcome')
@@ -369,7 +379,7 @@ class Workflow:
     def search(self, query='', limit=3, agent=None):
         if not isinstance(query, str) or len(query) > 500 or not 1 <= limit <= 20:
             raise ValueError('Query must be <=500 chars; limit must be 1..20')
-        if agent is not None and agent not in ('codex', 'claude', 'agy', 'microclaw'):
+        if agent is not None and agent not in ('codex', 'claude', 'agy', 'microclaw', 'meclaw'):
             raise ValueError('Unknown source agent')
         escaped = query.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
         with self.db() as db:
@@ -511,7 +521,7 @@ def main():
     parser.add_argument('--repository', type=Path, default=Path.home() / 'work/workflow-evolution')
     parser.add_argument('--query', default='')
     parser.add_argument('--limit', type=int, default=3)
-    parser.add_argument('--agent', choices=['codex', 'claude', 'agy', 'microclaw'])
+    parser.add_argument('--agent', choices=['codex', 'claude', 'agy', 'microclaw', 'meclaw'])
     parser.add_argument('command', choices=['wire', 'share-skills', 'record', 'search', 'snapshot', 'init', 'hook', 'status', 'propose', 'evaluate', 'promote', 'reject', 'rollback', 'tick', 'secure-web'])
     parser.add_argument('candidate', nargs='?')
     args = parser.parse_args()

@@ -14,6 +14,7 @@
   #:use-module (raynet-guix home-services mcron)      ; For home-mcron-config-service-type
   #:use-module (raynet-guix home-services ollama)     ; For home-ollama-service-type
   #:use-module (raynet-guix home-services microclaw)  ; For home-microclaw-service-type
+  #:use-module (raynet-guix home-services meclaw)
   #:use-module (srfi srfi-1)
   #:use-module (guix utils)
   #:use-module (raynet-guix packages base-utils)
@@ -43,7 +44,12 @@
     (service home-ollama-service-type)
     (service home-microclaw-service-type
              (home-microclaw-configuration
-              (repository "~/work/workflow-evolution")))
+              (repository "~/work/workflow-evolution")
+              (gateway-enabled? #f)))
+    (service home-meclaw-service-type
+             (home-meclaw-configuration
+              (repository "~/work/workflow-evolution")
+              (telegram? #t)))
     ; (service home-dotfiles-service-type
     ;          (home-dotfiles-configuration
     ;           (source-directory (string-append (getcwd) "/src/raynet-guix/users/orka/files"))

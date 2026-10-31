@@ -13,7 +13,8 @@
   home-microclaw-configuration make-home-microclaw-configuration
   home-microclaw-configuration?
   (repository home-microclaw-configuration-repository
-              (default "~/work/workflow-evolution")))
+              (default "~/work/workflow-evolution"))
+  (gateway-enabled? home-microclaw-configuration-gateway-enabled? (default #t)))
 
 (define evolve-script
   (local-file "../users/orka/files/.local/bin/microclaw-evolve"))
@@ -54,7 +55,9 @@
 
 ;; The release binary needs Guix's ELF loader wrapper from files/.local/bin.
 (define (home-microclaw-shepherd-service config)
-  (list
+  (if (not (home-microclaw-configuration-gateway-enabled? config))
+      '()
+      (list
    (shepherd-service
     (provision '(microclaw))
     (documentation "Run the MicroClaw agent gateway.")
@@ -85,7 +88,7 @@
                       (string-append "SSL_CERT_DIR=" "/run/current-system/profile/etc/ssl/certs")
                       (string-append "CURL_CA_BUNDLE=" ca-bundle)
                       (string-append "GIT_SSL_CAINFO=" ca-bundle)))))
-    (stop #~(make-kill-destructor)))))
+    (stop #~(make-kill-destructor))))))
 
 (define home-microclaw-service-type
   (service-type (name 'home-microclaw)

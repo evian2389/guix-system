@@ -33,6 +33,21 @@ class EvolutionTests(unittest.TestCase):
         self.w.init()
         self.assertEqual(self.w.active.read_text(), 'custom')
 
+    def test_meclaw_can_submit_shared_evidence(self):
+        self.w.record_experience({'schema_version':1,'agent':'meclaw','kind':'verification',
+                                  'outcome':'success','summary':'Native MeClaw inference completed'})
+        result=self.w.search('Native MeClaw',agent='meclaw')
+        self.assertEqual(result['evidence'][0]['payload']['agent'],'meclaw')
+
+    def test_meclaw_backend_uses_tools_free_evaluation_endpoint(self):
+        completed=subprocess.CompletedProcess([],0,'{"text":"evaluated"}','')
+        with patch.object(e.subprocess,'run',return_value=completed) as call:
+            result=e.llm('evaluation system','fixture prompt',{'model':'gpt-6.1-terra','backend':'meclaw'})
+        self.assertEqual(result,'evaluated')
+        self.assertIn('meclaw-workflow',call.call_args.args[0][0])
+        self.assertEqual(call.call_args.args[0][1],'infer')
+        self.assertEqual(json.loads(call.call_args.kwargs['input'])['system'],'evaluation system')
+
     def test_hook_redacts_and_keeps_error_label(self):
         self.candidate()
         row = self.w.db().execute('select payload,failed from traces').fetchone()

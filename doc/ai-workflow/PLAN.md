@@ -1,5 +1,9 @@
 # MicroClaw 자기개선 워크플로
 
+2026-10-31 후속: 기본 coordinator를 작은 MeClaw colony로 전환했다.
+아래 문서는 최초 MicroClaw M1의 설계 기록이다. 기존 진화 저장소·후보 선택 규칙은
+유지하며 현재 배포·Codex/Herdr·Telegram·복원 범위는 [MECLAW.md](MECLAW.md)를 따른다.
+
 작성: 2026-10-31. 구현 기준: MicroClaw v0.11.1
 (`11d355b5ab7a85fb18195e89087939dd76175fa9`).
 
