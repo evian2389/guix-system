@@ -117,3 +117,27 @@ MeClaw 및 mcron 실행, 배포된 meclaw-workflow/microclaw-evolve와 소스 SH
 다음 반복은 사용자의 Codex 첫 승인 후 읽기 작업 완료와 Telegram `/start` 응답을
 확인하고, M2의 실제 프로젝트 holdout을 확장한다. 원격 승인 자동 응답·A2A 표준
 어댑터·Argus 자동 변경·전체 대화의 Git 백업은 이번 범위에 포함하지 않았다.
+
+## 2026-10-31 Pi frontend omission corrected
+
+The planned Pi frontend was omitted during MeClaw adoption, leaving Codex MCP as
+the only interactive option. Added `pi-meclaw` as the direct frontend and updated
+the primary usage guide. Pi makes no model call of its own: the existing MeClaw
+service owns inference, tools and shared workflow state.
+
+Verification: 73 tests pass (including retained MicroClaw Pi behavior). Actual
+Pi print mode returned PI_MECLAW_READY; interactive Pi in Herdr settled after
+PI_MECLAW_TUI_READY, stored a code, and recalled it after restarting the MeClaw
+service. Usage counters reached the TUI. Closed Herdr workers now report
+unavailable, and enrollment no longer reuses their stale heartbeat.
+
+Guix Home activation prepares the isolated Pi profile automatically. Default Pi
+and MicroClaw profiles/auth remain unchanged. Native token streaming, detailed
+MeClaw tool events and Codex approval forwarding remain outside this wrapper.
+See [PI-MECLAW.md](PI-MECLAW.md) for the direct CLI command and session semantics.
+
+`make reconfigure-home NON_GUIX_UPDATES=0` completed successfully. Final Home:
+`/gnu/store/09g78ddhlzcay9s81hv51p8bcimrzcl1-home`. Activation's three adapter
+scripts match the working sources. The live Pi pane is `meclaw-ui` (`w11:p5`);
+these handles belong only to the current Herdr server. Telegram keeps polling
+independently of this frontend.

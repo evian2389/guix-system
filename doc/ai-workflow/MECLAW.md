@@ -1,7 +1,8 @@
 # MeClaw 로컬 통합
 
 기본 coordinator를 MeClaw로 전환했다. ChatGPT 인증과 Terra 6.1을 사용하고, Herdr의
-Codex는 MCP 도구 및 단일 작업 큐로 연결한다. Telegram은 기존 봇·허용 사용자 설정을
+기본 대화 화면은 `pi-meclaw`다. [Pi 터미널 사용법](PI-MECLAW.md)을 따른다.
+Codex MCP는 선택적 접근 경로이며 Codex 작업자는 단일 작업 큐로 연결한다. Telegram은 기존 봇·허용 사용자 설정을
 읽는 고정 adapter가 직접 연결하며 Pi를 거치지 않는다. upstream Telegram connector와
 전체 meclaw-os/Argus를 올린 구성은 아니다. 이 첫 단계에서는 기존 MetaSkill 중심의
 진화 작업자와 `workflow-evolution` Git 보존 방식을 유지한다.
@@ -11,7 +12,7 @@ Codex는 MCP 도구 및 단일 작업 큐로 연결한다. Telegram은 기존 �
 ## Scope and milestones
 
 M1 adopts a small MeClaw colony while preserving the existing evolution repository.
-It connects ChatGPT authentication, a native Codex terminal via MCP, Telegram and
+It connects ChatGPT authentication, a direct Pi TUI, optional Codex MCP, Telegram and
 one enrolled Herdr Codex worker. M2 adds real project holdouts and task acceptance
 checks; M3 evaluates Argus in observe-only mode before granting mutation targets.
 The full meclaw-os, memory-hive, builder and autonomous topology changes are not
@@ -23,6 +24,8 @@ Fast loop; meta-skill evolution remains a later milestone.
 ```mermaid
 flowchart TD
   T[Telegram: allowed private user] --> G[Authenticated local workflow bridge]
+  P[Herdr Pi TUI: pi-meclaw] --> A[Temporary local adapter]
+  A --> G
   C[Herdr Codex TUI] --> MCP[MeClaw MCP tools]
   MCP --> G
   G --> B[MeClaw brain: native ChatGPT / Terra 6.1]
@@ -78,6 +81,9 @@ is added without changing its global model or other existing settings; conflicti
 entries fail rather than being overwritten. Restart a Codex session to load it.
 
 ## Herdr and Codex
+
+For an interactive terminal, run `pi-meclaw` in your project directory. This talks
+directly to MeClaw; no Codex frontend is required. [Pi usage](PI-MECLAW.md).
 
 Native MeClaw uses `auth: oauth_subscription` and an explicit reference to the
 existing `~/.codex/auth.json`. It does not copy the token into the repository.

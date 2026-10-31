@@ -1,6 +1,8 @@
 # M1 운영 방법
 
 현재 기본 coordinator는 MeClaw이며 [MECLAW.md](MECLAW.md)를 따른다.
+터미널에서 대화하려면 프로젝트 폴더에서 `pi-meclaw`를 실행한다.
+[Pi CLI 사용법](PI-MECLAW.md)에 세션·Herdr·제한 사항을 설명했다.
 MicroClaw rollback 경로의 실험용 Pi 연결은 [PI-MICROCLAW.md](PI-MICROCLAW.md)를 따른다.
 
 ## 실행과 상태

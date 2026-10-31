@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+"""Interactive Pi terminal frontend for the existing MeClaw service."""
+import argparse
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+import signal
+import subprocess
+import sys
+import tempfile
+import threading
+import urllib.request
+
+PORT=10965
+PROVIDER={'api':'openai-completions','baseUrl':f'http://127.0.0.1:{PORT}/v1',
+          'apiKey':'MECLAW_PI_TOKEN','authHeader':True,
+          'models':[{'id':'meclaw','name':'MeClaw · Terra 6.1','reasoning':False,
+                     'input':['text'],'contextWindow':65536,'maxTokens':4096}],
+          'compat':{'supportsStore':False,'supportsDeveloperRole':False,'supportsReasoningEffort':False}}
+
+def load_bridge(path=None):
+    path=Path(path) if path else Path.home()/'.local/bin/pi-microclaw'
+    loader=importlib.machinery.SourceFileLoader('pi_terminal_bridge',str(path))
+    spec=importlib.util.spec_from_loader(loader.name,loader)
+    module=importlib.util.module_from_spec(spec);loader.exec_module(module)
+    return module
+
+def channel(project,session):
+    return 'pi:'+hashlib.sha256(str(Path(project).resolve()).encode()).hexdigest()[:16]+':'+session
+
+def parse_result(text):
+    lines=[line for line in text.splitlines() if line.startswith('{')]
+    result=json.loads(lines[-1]) if lines else {}
+    if not isinstance(result.get('text'),str) or not result['text'].strip():
+        raise ValueError('MeClaw returned no successful text')
+    raw=result.get('usage',{})
+    usage={'prompt_tokens':int(raw.get('input_tokens',0)),'completion_tokens':int(raw.get('output_tokens',0))}
+    usage['total_tokens']=sum(usage.values())
+    return {'text':result['text'],'usage':usage,'approval':None}
+
+def main():
+    os.umask(0o077)
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command',choices=['setup','run'],nargs='?',default='run')
+    parser.add_argument('--session',default='default')
+    parser.add_argument('--timeout',type=int,default=230)
+    parser.add_argument('--prompt',help='Single smoke request through Pi without the TUI')
+    parser.add_argument('--bridge-helper',type=Path,help=argparse.SUPPRESS)
+    args=parser.parse_args()
+    bridge=load_bridge(args.bridge_helper)
+    profile=bridge.setup_profile(Path.home(),backend='meclaw',provider=PROVIDER)
+    if args.command=='setup': print('Registered meclaw-local Pi frontend');return
+    if not re.fullmatch(r'[a-zA-Z0-9_.-]{1,80}',args.session) or not 1<=args.timeout<=3600:
+        parser.error('Session must be 1..80 letters/digits/._-; timeout must be 1..3600')
+    with urllib.request.urlopen('http://127.0.0.1:10964/health',timeout=5) as response:
+        if not json.load(response).get('ok'): raise ValueError('Start the MeClaw service first')
+    project=Path.cwd().resolve();label=channel(project,args.session)
+    token=secrets.token_urlsafe(32)
+    def terminate(*_): raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM,terminate)
+    with tempfile.TemporaryDirectory(prefix='pi-meclaw-') as temp:
+        runtime=Path(temp)/'agent'
+        provider=json.loads(json.dumps(PROVIDER));provider['apiKey']=token
+        bridge.atomic(runtime/'models.json',json.dumps({'providers':{'meclaw-local':provider}}))
+        bridge.atomic(runtime/'settings.json',(profile/'settings.json').read_text())
+        if (profile/'extensions').exists(): (runtime/'extensions').symlink_to(profile/'extensions',target_is_directory=True)
+        def run(prompt,cancel,emit):
+            text='Current project directory (context only): '+json.dumps(str(project))+'\n\n'+prompt
+            if len(text)>50000: raise ValueError('MeClaw prompt limit is 50000 characters including project context')
+            emit({'event':'thinking'})
+            return bridge.invoke([str(Path.home()/'.local/bin/meclaw-workflow'),'ask'],cancel,args.timeout,
+                input_text=json.dumps({'prompt':text,'channel':label}),parse_result=parse_result,label='MeClaw')
+        reporter=(lambda state:bridge.report_herdr(state,'custom:pi-meclaw')) if args.prompt is None else (lambda _:None)
+        try: server=bridge.Server(('127.0.0.1',PORT),bridge.App(token,run,reporter,model='meclaw',label='MeClaw'))
+        except OSError as exc: raise ValueError('Port 10965 unavailable; one pi-meclaw launcher per PC') from exc
+        thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+        child=None
+        try:
+            env=os.environ.copy();env.update(PI_CODING_AGENT_DIR=str(runtime),PI_CONFIG_PATH=str(runtime/'settings.json'),
+                                             PI_SESSIONS_DIR=str(profile/'sessions'))
+            command=bridge.pi_command()+['--provider','meclaw-local','--model','meclaw','--no-tools','--no-skills','--no-prompt-templates']
+            if args.prompt is not None: command+=['--print',args.prompt]
+            print('MeClaw session: '+label+' | project: '+str(project),flush=True)
+            child=subprocess.Popen(command,env=env);reporter('idle')
+            try: code=child.wait()
+            except KeyboardInterrupt: code=130
+        finally:
+            if child is not None and child.poll() is None:
+                child.terminate()
+                try: child.wait(timeout=3)
+                except subprocess.TimeoutExpired: child.kill();child.wait()
+            server.app.stopping.set();server.shutdown();server.server_close();reporter('release')
+        raise SystemExit(code)
+
+if __name__=='__main__':
+    try: main()
+    except (ValueError,OSError,subprocess.SubprocessError) as exc:
+        print(str(exc),file=sys.stderr);raise SystemExit(1)

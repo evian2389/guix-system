@@ -268,7 +268,8 @@ class App:
         if name=='herdr_status':
             path=self.store.root/'runtime/dispatcher.json'
             if not path.exists(): return {'available':False,'reason':'Run meclaw-workflow dispatch inside Herdr'}
-            status=json.loads(path.read_text());status['available']=time.time()-status.get('heartbeat',0)<20
+            status=json.loads(path.read_text())
+            status['available']=time.time()-status.get('heartbeat',0)<20 and status.get('worker_state')!='unknown'
             return status
         if name=='delegate_codex':
             if not self.execute('herdr_status',{},key,channel).get('available'): raise ValueError('No enrolled Herdr dispatcher')
@@ -482,8 +483,20 @@ def enroll(root,worker_pane=None):
     path=store.root/'runtime/dispatcher.json'
     if path.exists():
         current=json.loads(path.read_text())
-        if time.time()-current.get('heartbeat',0)<20:
+        if time.time()-current.get('heartbeat',0)<20 and current.get('worker_state')!='unknown':
             print(json.dumps(current));return
+        # Retire only this integration's stale dispatcher before replacing it.
+        pidfile=store.root/'runtime/dispatcher.pid'
+        if pidfile.exists():
+            try:
+                pid=int(pidfile.read_text())
+                argv=Path('/proc')/str(pid)/'cmdline'
+                command=argv.read_bytes().split(b'\0')
+                if b'dispatch' in command and any(part.endswith(b'meclaw-workflow') for part in command):
+                    os.kill(pid,signal.SIGTERM)
+                    deadline=time.monotonic()+5
+                    while argv.exists() and time.monotonic()<deadline: time.sleep(.1)
+            except (OSError,ValueError): pass
     if worker_pane is None:
         panes=herdr('agent','list')['result']['agents']
         found=next((p for p in panes if p.get('name')=='meclaw-codex'),None)

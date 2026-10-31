@@ -17,10 +17,20 @@
 (define integration-script
   (local-file "../users/orka/files/.local/bin/meclaw-workflow"))
 
+(define pi-script
+  (local-file "../users/orka/files/.local/bin/pi-meclaw"))
+
+(define pi-bridge-helper
+  (local-file "../users/orka/files/.local/bin/pi-microclaw"))
+
 (define (activation config)
-  #~(unless (zero? (system* #$(file-append python "/bin/python3") #$integration-script
-                           "setup" "--repository" #$(home-meclaw-configuration-repository config)))
-      (error "MeClaw state wiring failed; clone workflow-evolution first")))
+  #~(begin
+      (unless (zero? (system* #$(file-append python "/bin/python3") #$integration-script
+                             "setup" "--repository" #$(home-meclaw-configuration-repository config)))
+        (error "MeClaw state wiring failed; clone workflow-evolution first"))
+      (unless (zero? (system* #$(file-append python "/bin/python3") #$pi-script "setup"
+                             "--bridge-helper" #$pi-bridge-helper))
+        (error "MeClaw Pi frontend initialization failed"))))
 
 (define (services config)
   (list

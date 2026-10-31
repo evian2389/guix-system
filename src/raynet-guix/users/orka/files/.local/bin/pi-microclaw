@@ -84,20 +84,21 @@ def atomic(path, text):
     finally:
         if os.path.exists(name): os.unlink(name)
 
-def setup(path):
+def setup(path,provider=None,provider_name='microclaw-local'):
+    provider=PROVIDER if provider is None else provider
     config=json.loads(path.read_text()) if path.exists() else {}
     providers=config.setdefault('providers',{})
-    if 'microclaw-local' in providers and providers['microclaw-local'] != PROVIDER:
-        raise ValueError('Existing microclaw-local provider differs; refusing to overwrite')
-    providers['microclaw-local']=PROVIDER
+    if provider_name in providers and providers[provider_name] != provider:
+        raise ValueError('Existing '+provider_name+' provider differs; refusing to overwrite')
+    providers[provider_name]=provider
     atomic(path,json.dumps(config,indent=2)+'\n')
 
-def setup_profile(home):
-    profile=home/'.local/state/pi-microclaw/agent'
-    setup(profile/'models.json')
+def setup_profile(home,backend='microclaw',provider=None):
+    profile=home/('.local/state/pi-'+backend+'/agent')
+    setup(profile/'models.json',provider,backend+'-local')
     settings=profile/'settings.json'
     if not settings.exists():
-        atomic(settings,json.dumps({'default_provider':'microclaw-local','default_model':'microclaw'}))
+        atomic(settings,json.dumps({'default_provider':backend+'-local','default_model':backend}))
     integration=home/'.pi/agent/extensions/herdr-agent-state.ts'
     target=profile/'extensions/herdr-agent-state.ts'
     if integration.exists() and not os.path.lexists(target):
@@ -105,11 +106,11 @@ def setup_profile(home):
         target.symlink_to(integration)
     return profile
 
-def extract_prompt(body):
-    if not isinstance(body,dict) or body.get('model')!='microclaw':
-        raise ValueError('Use model microclaw')
+def extract_prompt(body,model='microclaw'):
+    if not isinstance(body,dict) or body.get('model')!=model:
+        raise ValueError('Use model '+model)
     if body.get('tools'):
-        raise ValueError('Pi tools must be disabled; launch with pi-microclaw')
+        raise ValueError('Pi tools must be disabled; launch with pi-'+model)
     messages=body.get('messages')
     if not isinstance(messages,list) or not messages or not isinstance(messages[-1],dict) or messages[-1].get('role')!='user':
         raise ValueError('Expected a final user message')
@@ -150,7 +151,7 @@ def stop(process):
             os.killpg(process.pid,signal.SIGKILL)
             process.wait()
 
-def invoke(argv,cancel,timeout,events=None,emit=None,data=None):
+def invoke(argv,cancel,timeout,events=None,emit=None,data=None,input_text=None,parse_result=None,label='MicroClaw'):
     emit=emit or (lambda event: None)
     reader=open(events) if events is not None else None
     def progress():
@@ -162,23 +163,25 @@ def invoke(argv,cancel,timeout,events=None,emit=None,data=None):
                 reader.seek(position);break
             try: emit(json.loads(line))
             except json.JSONDecodeError: continue
-    with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as error:
-        process=subprocess.Popen(argv,stdout=output,stderr=error,start_new_session=True)
+    with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as error, tempfile.TemporaryFile() as incoming:
+        if input_text is not None: incoming.write(input_text.encode());incoming.seek(0)
+        process=subprocess.Popen(argv,stdout=output,stderr=error,stdin=incoming if input_text is not None else subprocess.DEVNULL,start_new_session=True)
         try:
             deadline=time.monotonic()+timeout
             while process.poll() is None:
                 progress()
-                if cancel(): raise InterruptedError('Frontend disconnected; MicroClaw run cancelled')
-                if time.monotonic()>deadline: raise TimeoutError('MicroClaw task timed out')
+                if cancel(): raise InterruptedError('Frontend disconnected; '+label+' client stopped')
+                if time.monotonic()>deadline: raise TimeoutError(label+' request timed out')
                 if os.fstat(output.fileno()).st_size>8*1024*1024:
-                    raise ValueError('MicroClaw output exceeded 8 MiB')
+                    raise ValueError(label+' output exceeded 8 MiB')
                 time.sleep(0.1)
             progress()
             if process.returncode:
-                raise ValueError('MicroClaw run failed; inspect gateway configuration and auth')
+                raise ValueError(label+' client failed; inspect its service and authentication')
             output.seek(0)
             text=output.read(8*1024*1024).decode('utf-8',errors='replace')
             text=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',text)
+            if parse_result is not None: return parse_result(text)
             envelopes=[line for line in text.splitlines() if line.startswith('{')]
             result=json.loads(envelopes[-1]) if envelopes else {}
             if not result.get('ok') or not isinstance(result.get('response'),str):
@@ -194,7 +197,7 @@ def invoke(argv,cancel,timeout,events=None,emit=None,data=None):
             if reader is not None: reader.close()
 
 class App:
-    def __init__(self,token,run,report=None):
+    def __init__(self,token,run,report=None,model='microclaw',label='MicroClaw'):
         self.token=token
         self.run=run
         self.lock=threading.Lock()
@@ -202,13 +205,16 @@ class App:
         self.stopping=threading.Event()
         self.report=report or (lambda state: None)
         self.approval=None
+        self.model=model
+        self.label=label
 
-def progress_text(event):
-    if event.get('event')=='tool_start': return '[MicroClaw] 시작: '+event['tool']+'\n'
+def progress_text(event,label='MicroClaw'):
+    prefix='['+label+'] '
+    if event.get('event')=='tool_start': return prefix+'시작: '+event['tool']+'\n'
     if event.get('event')=='tool_result':
         status='승인 필요' if event.get('approval_required') else ('오류' if event.get('is_error') else '완료')
-        return '[MicroClaw] '+status+': '+event['tool']+'\n'
-    if event.get('event')=='thinking': return '[MicroClaw] 응답 준비 중…\n'
+        return prefix+status+': '+event['tool']+'\n'
+    if event.get('event')=='thinking': return prefix+'응답 준비 중…\n'
     return ''
 
 class Server(ThreadingHTTPServer):
@@ -231,7 +237,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path=='/health': self.send_json(200,{'ok':True});return
         if not self.authorized(): self.send_json(401,{'error':{'message':'Unauthorized'}});return
-        if self.path=='/v1/models': self.send_json(200,{'object':'list','data':[{'id':'microclaw','object':'model','owned_by':'local'}]});return
+        if self.path=='/v1/models': self.send_json(200,{'object':'list','data':[{'id':self.server.app.model,'object':'model','owned_by':'local'}]});return
         self.send_json(404,{'error':{'message':'Not found'}})
     def disconnected(self):
         if self.server.app.stopping.is_set(): return True
@@ -248,20 +254,20 @@ class Handler(BaseHTTPRequestHandler):
             if not 0<length<=1024*1024: raise ValueError('Request must be <=1 MiB')
             self.connection.settimeout(15)
             body=json.loads(self.rfile.read(length))
-            prompt=extract_prompt(body)
+            prompt=extract_prompt(body,app.model)
             acquired=app.lock.acquire(blocking=False)
-            if not acquired: self.send_json(409,{'error':{'message':'MicroClaw bridge is busy'}});return
+            if not acquired: self.send_json(409,{'error':{'message':app.label+' bridge is busy'}});return
             app.report('working')
             # Retries of the same frontend turn reuse a successful result.
             key=hashlib.sha256(json.dumps(body['messages'],sort_keys=True).encode()).hexdigest()
             response_id='chatcmpl-'+key[:20]
             def chunk(content='',finish=None,usage=None):
-                value={'id':response_id,'object':'chat.completion.chunk','created':int(time.time()),'model':'microclaw',
+                value={'id':response_id,'object':'chat.completion.chunk','created':int(time.time()),'model':app.model,
                        'choices':[{'index':0,'delta':{'content':content} if finish is None else {},'finish_reason':finish}]}
                 if usage is not None: value['usage']=usage
                 self.wfile.write(('data: '+json.dumps(value)+'\n\n').encode());self.wfile.flush()
             def emit(event):
-                text=progress_text(event)
+                text=progress_text(event,app.label)
                 if streaming and text: chunk(text)
             if body.get('stream'):
                 self.send_response(200)
@@ -282,11 +288,11 @@ class Handler(BaseHTTPRequestHandler):
                 chunk(finish='stop',usage=result['usage'])
                 self.wfile.write(b'data: [DONE]\n\n');self.wfile.flush()
             else:
-                self.send_json(200,{'id':response_id,'object':'chat.completion','created':int(time.time()),'model':'microclaw',
+                self.send_json(200,{'id':response_id,'object':'chat.completion','created':int(time.time()),'model':app.model,
                     'choices':[{'index':0,'message':{'role':'assistant','content':text},'finish_reason':'stop'}],'usage':result['usage']})
         except (BrokenPipeError,ConnectionResetError,InterruptedError): pass
         except (TimeoutError,ValueError,KeyError,TypeError,OSError) as exc:
-            message='MicroClaw timed out' if isinstance(exc,TimeoutError) else str(exc)
+            message=app.label+' timed out' if isinstance(exc,TimeoutError) else str(exc)
             if streaming:
                 try:
                     self.wfile.write(('data: '+json.dumps({'error':{'message':message}})+'\n\n').encode())
@@ -298,13 +304,13 @@ class Handler(BaseHTTPRequestHandler):
                 try: app.report('blocked' if app.approval else 'idle')
                 finally: app.lock.release()
 
-def report_herdr(state):
+def report_herdr(state,source='custom:pi-microclaw'):
     pane=os.environ.get('HERDR_PANE_ID')
     if os.environ.get('HERDR_ENV')!='1' or not pane or not shutil.which('herdr'): return
     if state=='release':
-        command=['herdr','pane','release-agent',pane,'--source','custom:pi-microclaw','--agent','pi']
+        command=['herdr','pane','release-agent',pane,'--source',source,'--agent','pi']
     else:
-        command=['herdr','pane','report-agent',pane,'--source','custom:pi-microclaw','--agent','pi',
+        command=['herdr','pane','report-agent',pane,'--source',source,'--agent','pi',
                  '--state',state,'--seq',str(time.time_ns()//1000)]
     try: subprocess.run(command,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=3)
     except (OSError,subprocess.TimeoutExpired): pass

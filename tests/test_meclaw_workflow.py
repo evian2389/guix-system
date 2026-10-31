@@ -1,6 +1,7 @@
 import importlib.machinery
 import importlib.util
 import json
+import time
 from pathlib import Path
 import tempfile
 import threading
@@ -196,5 +197,21 @@ class MeclawTests(unittest.TestCase):
         self.assertEqual(evidence.call_args.args[:2],('inference','failure'))
         self.assertNotIn('private user prompt',evidence.call_args.args[2])
         self.assertFalse(app.lock.locked())
+
+    def test_closed_worker_is_not_reported_as_available(self):
+        path=self.root/'runtime/dispatcher.json'
+        path.write_text(json.dumps({'heartbeat':time.time(),'worker_pane':'closed','worker_state':'unknown'}))
+        self.assertFalse(m.App(self.store,home=self.home).execute('herdr_status',{},'key','terminal')['available'])
+
+    def test_enrollment_does_not_reuse_fresh_heartbeat_for_closed_worker(self):
+        path=self.root/'runtime/dispatcher.json'
+        path.write_text(json.dumps({'heartbeat':time.time(),'worker_pane':'closed','worker_state':'unknown'}))
+        with patch.dict(m.os.environ,{'HERDR_ENV':'1'}):
+            with patch.object(m,'herdr',return_value={'result':{'agent':{'agent':'codex'}}}):
+                with patch.object(m.subprocess,'Popen') as start:
+                    start.return_value.pid=123
+                    m.enroll(self.root,'replacement')
+        start.assert_called_once()
+        self.assertIn('replacement',start.call_args.args[0])
 
 if __name__=='__main__': unittest.main()
