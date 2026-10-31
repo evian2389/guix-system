@@ -19,9 +19,41 @@ import urllib.request
 PORT=10965
 PROVIDER={'api':'openai-completions','baseUrl':f'http://127.0.0.1:{PORT}/v1',
           'apiKey':'MECLAW_PI_TOKEN','authHeader':True,
-          'models':[{'id':'meclaw','name':'MeClaw · Terra 6.1','reasoning':False,
+          'models':[{'id':'meclaw','name':'MeClaw coordinator','reasoning':False,
                      'input':['text'],'contextWindow':65536,'maxTokens':4096}],
           'compat':{'supportsStore':False,'supportsDeveloperRole':False,'supportsReasoningEffort':False}}
+
+MODEL_EXTENSION='''export default function(pi) {
+  pi.registerCommand("meclaw-model", {
+    description: "Show coordinator models, refresh catalog, or select an exact model ID",
+    handler: async (args, ctx) => {
+      pi.sendUserMessage("@meclaw-model " + (args || "") + "\\nrequest:" + Date.now());
+    }
+  });
+}
+'''
+
+def backend_control(command,value):
+    args=[str(Path.home()/'.local/bin/meclaw-workflow'),command]
+    if command=='models' and value: args.append('--refresh')
+    if command=='model': args+=['--model',value]
+    result=subprocess.run(args,capture_output=True,text=True,timeout=40)
+    if result.returncode: raise ValueError(result.stderr.strip() or 'MeClaw model command failed')
+    return json.loads(result.stdout)
+
+def model_command(prompt):
+    line=prompt.splitlines()[0].strip()
+    if line!='@meclaw-model' and not line.startswith('@meclaw-model '): return None
+    arg=line[len('@meclaw-model'):].strip()
+    if not arg or arg in ('list','refresh'):
+        value=backend_control('models',arg=='refresh')
+        text='Current coordinator: `'+value['current']+'`\n\n'+('STALE: '+value['warning']+'\n\n' if value.get('stale') else '')
+        text+='\n'.join('- `'+m['id']+'`' for m in value['models'])
+        text+='\n\nUse `/meclaw-model MODEL_ID`. Changes affect Pi, Telegram and MCP; evaluator and Codex worker stay separate.'
+    else:
+        value=backend_control('model',arg)
+        text='MeClaw coordinator: '+value['model']+'\n'+value['scope']
+    return {'text':text,'usage':{'prompt_tokens':0,'completion_tokens':0,'total_tokens':0},'approval':None}
 
 def load_bridge(path=None):
     path=Path(path) if path else Path.home()/'.local/bin/pi-microclaw'
@@ -53,7 +85,15 @@ def main():
     parser.add_argument('--bridge-helper',type=Path,help=argparse.SUPPRESS)
     args=parser.parse_args()
     bridge=load_bridge(args.bridge_helper)
+    # Migrate only our former managed provider label, preserving unrelated profiles.
+    models=Path.home()/'.local/state/pi-meclaw/agent/models.json'
+    if models.exists():
+        config=json.loads(models.read_text());old=config.get('providers',{}).get('meclaw-local',{})
+        legacy=json.loads(json.dumps(PROVIDER));legacy['models'][0]['name']='MeClaw · Terra 6.1'
+        if old==legacy:
+            config['providers']['meclaw-local']=PROVIDER;bridge.atomic(models,json.dumps(config,indent=2)+'\n')
     profile=bridge.setup_profile(Path.home(),backend='meclaw',provider=PROVIDER)
+    bridge.atomic(profile/'extensions/meclaw-model.js',MODEL_EXTENSION)
     if args.command=='setup': print('Registered meclaw-local Pi frontend');return
     if not re.fullmatch(r'[a-zA-Z0-9_.-]{1,80}',args.session) or not 1<=args.timeout<=3600:
         parser.error('Session must be 1..80 letters/digits/._-; timeout must be 1..3600')
@@ -70,6 +110,8 @@ def main():
         bridge.atomic(runtime/'settings.json',(profile/'settings.json').read_text())
         if (profile/'extensions').exists(): (runtime/'extensions').symlink_to(profile/'extensions',target_is_directory=True)
         def run(prompt,cancel,emit):
+            control=model_command(prompt)
+            if control is not None: return control
             text='Current project directory (context only): '+json.dumps(str(project))+'\n\n'+prompt
             if len(text)>50000: raise ValueError('MeClaw prompt limit is 50000 characters including project context')
             emit({'event':'thinking'})

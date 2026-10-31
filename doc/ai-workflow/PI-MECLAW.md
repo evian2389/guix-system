@@ -43,8 +43,44 @@ continue its context after restarting Pi. Pi's `/new` resets its own display
 session; choose a different `--session` to start a new MeClaw conversation.
 The current project path is supplied as context on each request. It does not
 expand the backend's allowed project roots or tool permissions.
-The Pi model name is a transport identifier; actual model selection stays in
-MeClaw. Pi's model picker does not change the backend model.
+The Pi model name `meclaw` identifies the transport. Use these Pi commands to
+change the actual coordinator model:
+
+```text
+/meclaw-model
+/meclaw-model refresh
+/meclaw-model gpt-6.1-sol
+/meclaw-model gpt-6.1-terra
+```
+
+The first command shows the current model and account catalog. `refresh` fetches
+the latest catalog. Supply an exact listed ID to select it. Restart Pi once after
+deploying this extension; the built-in `/model` picker still selects the transport.
+The plain input `@meclaw-model refresh` also works without the extension.
+
+The bridge reads the existing Codex subscription identity and fetches the
+[official account catalog](https://learn.chatgpt.com/docs/model-catalogs) using
+the same client version as MeClaw. Lists refresh on demand after one hour; every
+selection forces a fresh fetch. No model names are hardcoded into the menu. Cache
+entries are private and scoped to account and client version. An offline refresh
+shows a marked stale list and disallows switching. New offerings may require a
+newer native client version or authentication support; listing is not a guarantee
+that every model supports MeClaw's tools. Failed inference never silently switches
+to another model.
+
+Changes are global to the coordinator shared by Pi, Telegram and MCP. They are
+rejected while a request is active. A params-only native update is confirmed from
+MeClaw's persisted overlay without restarting the service. The selected ID and
+reasoning setting are saved in `meclaw/selected-model.json` for Git preservation
+and fresh installation. The evaluator and enrolled Codex worker remain separately
+configured. The catalog's supported low/default reasoning setting is used.
+
+Equivalent shell commands:
+
+```sh
+meclaw-workflow models --refresh
+meclaw-workflow model --model gpt-6.1-terra
+```
 
 Inside Herdr you may name the running Pi agent and submit prompts normally:
 

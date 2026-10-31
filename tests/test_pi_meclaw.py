@@ -2,6 +2,7 @@ import importlib.machinery
 import importlib.util
 import json
 from pathlib import Path
+from unittest.mock import patch
 import sys
 import tempfile
 import threading
@@ -20,6 +21,17 @@ b=module('pi_meclaw_shared',BIN/'pi-microclaw')
 p=module('pi_meclaw_launcher',BIN/'pi-meclaw')
 
 class PiMeclawTests(unittest.TestCase):
+    def test_model_command_uses_catalog_and_does_not_infer(self):
+        catalog={'current':'old','stale':False,'models':[{'id':'new-model'}]}
+        with patch.object(p,'backend_control',return_value=catalog) as call:
+            result=p.model_command('@meclaw-model refresh\nrequest:123')
+            call.assert_called_once_with('models',True)
+            self.assertIn('new-model',result['text'])
+        with patch.object(p,'backend_control',return_value={'model':'new-model','scope':'shared'}) as call:
+            self.assertIn('new-model',p.model_command('@meclaw-model new-model')['text'])
+            call.assert_called_once_with('model','new-model')
+        self.assertIsNone(p.model_command('ordinary conversation'))
+
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.home=Path(self.temp.name)

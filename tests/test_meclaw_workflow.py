@@ -17,6 +17,45 @@ m=importlib.util.module_from_spec(spec)
 loader.exec_module(m)
 
 class MeclawTests(unittest.TestCase):
+    def test_native_model_update_is_params_only_with_valid_ubf_system_slot(self):
+        m.configure(self.repo,self.home);app=m.App(self.store,self.home)
+        with patch.object(m,'request',return_value={'message_id':'test'}) as send,patch.object(app,'current_model',return_value='new-model'):
+            app.apply_model('new-model','low')
+            body=send.call_args.args[1]['body']
+            self.assertIn('system',body)
+            self.assertNotIn('messages',body)
+            self.assertEqual(body['params']['model'],'new-model')
+
+    def test_catalog_filters_hidden_models_and_keeps_last_good_cache_on_error(self):
+        m.configure(self.repo,self.home)
+        auth=self.home/'.codex/auth.json';auth.write_text(json.dumps({'tokens':{'access_token':'fixture','account_id':'one'}}))
+        app=m.App(self.store,self.home)
+        with patch.object(m,'fetch_catalog',return_value={'models':[{'slug':'new-model','visibility':'list'}, {'slug':'hidden','visibility':'hide'}]}):
+            self.assertEqual([x['id'] for x in app.models(True)['models']],['new-model'])
+        with patch.object(m,'fetch_catalog',side_effect=OSError('offline')):
+            self.assertTrue(app.models(True)['stale'])
+            with self.assertRaises(ValueError): app.set_model('new-model')
+        auth.write_text(json.dumps({'tokens':{'access_token':'fixture','account_id':'two'}}))
+        with patch.object(m,'fetch_catalog',side_effect=OSError('offline')):
+            with self.assertRaises(ValueError): app.models()
+
+    def test_model_switch_requires_idle_and_verified_native_apply(self):
+        m.configure(self.repo,self.home);app=m.App(self.store,self.home)
+        catalog={'models':[{'id':'new-model','reasoning_effort':'low'}],'stale':False}
+        with patch.object(app,'models',return_value=catalog),patch.object(app,'apply_model') as apply:
+            app.lock.acquire()
+            try:
+                with self.assertRaises(ValueError): app.set_model('new-model')
+            finally: app.lock.release()
+            with self.assertRaises(ValueError): app.set_model('unknown')
+            apply.assert_not_called()
+            result=app.set_model('new-model')
+            self.assertEqual(result['model'],'new-model')
+            apply.assert_called_once_with('new-model','low')
+            self.assertEqual(json.loads((self.root/'selected-model.json').read_text())['model'],'new-model')
+            evaluator=json.loads((self.root/'colony/main/evaluator/config.json').read_text())
+            self.assertEqual(evaluator['params']['model'],'gpt-6.1-terra')
+
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.home=Path(self.temp.name)/'home';self.home.mkdir()

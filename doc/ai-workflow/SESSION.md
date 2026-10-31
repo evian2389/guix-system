@@ -141,3 +141,26 @@ See [PI-MECLAW.md](PI-MECLAW.md) for the direct CLI command and session semantic
 scripts match the working sources. The live Pi pane is `meclaw-ui` (`w11:p5`);
 these handles belong only to the current Herdr server. Telegram keeps polling
 independently of this frontend.
+
+
+## Pi coordinator model control (2026-10-31)
+
+- Added `/meclaw-model`, `/meclaw-model refresh` and `/meclaw-model MODEL_ID`
+  through a managed Pi extension. These are deterministic bridge commands; they
+  do not ask an LLM to edit configuration.
+- Discover the authenticated ChatGPT subscription catalog, scoped to account and
+  native client version. Cache privately for one hour; force refresh for selection,
+  label stale offline results and reject changes without a fresh catalog.
+- Guard changes with the coordinator inference lock and send a native params-only
+  update with an empty `system` slot (required by the native UBF body schema).
+  Confirm the persisted native overlay, preserve the selected model in Git, and
+  retain evaluator/worker independence. No service restart per model selection.
+- TDD reproduced missing catalog/control behavior and the native 422 UBF shape
+  rejection. Relevant suite: 77 tests passed via
+  `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*claw*.py'`.
+- Live subscription catalog returned eight visible models. An isolated Pi TUI
+  on port 10966 executed the slash command, selected gpt-6.1-sol, received
+  MODEL_SWITCH_READY from native inference, and restored gpt-6.1-terra. Existing
+  user Pi sessions were left running and need relaunch to load the new extension.
+- Guix Home applied using `make reconfigure-home NON_GUIX_UPDATES=0`; service
+  replacement restarted for the new host API, not for individual model changes.

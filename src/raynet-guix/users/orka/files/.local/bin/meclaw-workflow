@@ -47,6 +47,16 @@ def request(url,body=None,token=None,timeout=15):
     req=urllib.request.Request(url,data=None if body is None else json.dumps(body).encode(),headers=headers)
     with urllib.request.urlopen(req,timeout=timeout) as response: return json.load(response)
 
+def fetch_catalog(tokens,version):
+    # Subscription catalog, not the API-key /v1/models endpoint. No token copy or refresh.
+    headers={'Authorization':'Bearer '+tokens['access_token'],'originator':'codex_cli_rs','Version':version}
+    if tokens.get('account_id'): headers['ChatGPT-Account-ID']=tokens['account_id']
+    req=urllib.request.Request('https://chatgpt.com/backend-api/codex/models?client_version='+version,headers=headers)
+    with urllib.request.urlopen(req,timeout=15) as response:
+        data=response.read(1024*1024+1)
+        if len(data)>1024*1024: raise ValueError('Catalog exceeds 1 MiB')
+        return json.loads(data)
+
 def tool_schema(name,description,properties,required):
     return {'type':'function','function':{'name':name,'description':description,
             'parameters':{'type':'object','properties':properties,'required':required,'additionalProperties':False}}}
@@ -175,6 +185,10 @@ def configure(repository,home):
            'params':{'provider':'openai','auth':'oauth_subscription','auth_ref':str(home/'.codex/auth.json'),
                      'oauth_client_version':'0.166.0','model':'gpt-6.1-terra','reasoning_effort':'low',
                      'system_order':['instructions'],'external_timeout_ms':180000}}
+    selected=root/'selected-model.json'
+    if selected.exists():
+        choice=json.loads(selected.read_text())
+        configs['brain/config.json']['params'].update(model=choice['model'],reasoning_effort=choice['reasoning_effort'])
     configs['router/config.json']={'cell':{'type':'code'},'contract':contract,
         'params':{'runner':'python3','script_inline':ROUTER.replace('TOKEN_PATH',repr(str(token))),
                   'sandbox':{'trust':'trusted'},'external_timeout_ms':35000}}
@@ -228,6 +242,77 @@ class App:
     def __init__(self,store,home=None,native=NATIVE):
         self.store=store;self.home=Path(home or Path.home());self.native=native
         self.lock=threading.Lock();self.active={};self.stopping=threading.Event()
+        self.catalog_lock=threading.Lock()
+    def brain_params(self):
+        return json.loads((self.store.root/'colony/main/brain/config.json').read_text())['params']
+    def current_model(self):
+        path=self.store.root/'colony/main/brain/cell.db'
+        if path.exists():
+            try:
+                with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=1)) as db:
+                    row=db.execute("select value from params where key='model'").fetchone()
+                    if row: return json.loads(row[0])
+            except sqlite3.Error: pass
+        return self.brain_params()['model']
+    def models(self,refresh=False):
+        with self.catalog_lock:
+            params=self.brain_params()
+            if params.get('provider')!='openai' or params.get('auth')!='oauth_subscription':
+                raise ValueError('Discovery currently supports the configured OpenAI subscription provider only')
+            try:
+                tokens=json.loads(Path(params['auth_ref']).read_text())['tokens']
+                # Scope caches to identity and version, never to the rotating access token.
+                version=params['oauth_client_version']
+                scope=hashlib.sha256((tokens.get('account_id','')+'|'+version).encode()).hexdigest()
+                if not tokens.get('account_id'): raise ValueError('Missing account identity')
+            except (OSError,KeyError,ValueError,TypeError):
+                raise ValueError('Cannot read subscription identity; sign in with Codex again') from None
+            path=self.store.root/'runtime/model-catalog.json';cached={}
+            if path.exists():
+                try: cached=json.loads(path.read_text())
+                except ValueError: pass
+            if cached.get('scope')!=scope: cached={}
+            stale=False;warning=None
+            if refresh or time.time()-cached.get('fetched_at',0)>3600:
+                try:
+                    raw=fetch_catalog(tokens,version)
+                    models=[]
+                    for item in raw['models']:
+                        slug=item.get('slug','')
+                        if item.get('visibility','list')!='list' or not re.fullmatch(r'[a-zA-Z0-9_.:-]{1,160}',slug): continue
+                        levels=[x['effort'] for x in item.get('supported_reasoning_levels',[]) if 'effort' in x]
+                        effort='low' if 'low' in levels else item.get('default_reasoning_level')
+                        models.append({'id':slug,'name':item.get('display_name',slug),'reasoning_effort':effort})
+                    if not models: raise ValueError('Empty catalog')
+                    cached={'scope':scope,'fetched_at':time.time(),'models':models,'client_version':version}
+                    atomic(path,json.dumps(cached))
+                except (OSError,ValueError,KeyError,TypeError):
+                    if not cached: raise ValueError('Model catalog unavailable; check network and Codex sign-in') from None
+                    stale=True;warning='Refresh failed; showing the last catalog. Model changes require a successful refresh.'
+            return {**cached,'current':self.current_model(),'stale':stale,'warning':warning}
+    def apply_model(self,model,effort):
+        request(self.native+'/messages',{'target':'/brain','body':{'system':{},'params':{'model':model,'reasoning_effort':effort}}})
+        deadline=time.monotonic()+10
+        while time.monotonic()<deadline:
+            if self.current_model()==model: return
+            time.sleep(.1)
+        raise ValueError('Native model update not confirmed; inspect status before retrying')
+    def set_model(self,model):
+        if not self.lock.acquire(blocking=False): raise ValueError('MeClaw busy; finish the active request before changing model')
+        try:
+            catalog=self.models(True)
+            matches=[m for m in catalog['models'] if m['id']==model]
+            if catalog['stale'] or not matches: raise ValueError('Choose an exact model ID from a freshly fetched catalog')
+            effort=matches[0]['reasoning_effort']
+            self.apply_model(model,effort)
+            choice={'model':model,'reasoning_effort':effort}
+            atomic(self.store.root/'selected-model.json',json.dumps(choice,indent=2)+'\n')
+            path=self.store.root/'colony/main/brain/config.json'
+            config=json.loads(path.read_text());config['params'].update(choice)
+            atomic(path,json.dumps(config,indent=2)+'\n')
+            self.store.event('model_change','success','Coordinator model changed to '+model+'; evaluator and worker unchanged.')
+            return {**choice,'scope':'shared coordinator (Pi, Telegram, MCP); evaluator and Codex worker unchanged'}
+        finally: self.lock.release()
     def prepare(self,prompt,channel,system=None,evaluate=False):
         if evaluate:
             return {'system':{'instructions':{'text':system or 'Answer the evaluation prompt.'}},
@@ -347,7 +432,7 @@ class App:
             if not state.get('text'): raise ValueError('MeClaw returned no text')
             if not evaluate: self.store.save_history(channel,state['body']['messages'])
             self.store.event('inference','success','Native MeClaw '+('evaluation' if evaluate else 'conversation')+
-                             ' completed with gpt-6.1-terra; '+json.dumps(state.get('usage',{})))
+                             ' completed with '+(self.brain_params()['model'] if not evaluate else 'configured evaluator')+'; '+json.dumps(state.get('usage',{})))
             self.store.snapshot()
             return {'text':state['text'],'run_id':response['message_id'],'usage':state.get('usage',{})}
         except (ValueError,OSError,TimeoutError,InterruptedError) as exc:
@@ -381,6 +466,8 @@ class Handler(BaseHTTPRequestHandler):
             if not 0<length<=1024*1024: raise ValueError('Body limit 1 MiB')
             self.connection.settimeout(15);body=json.loads(self.rfile.read(length));app=self.server.app
             if self.path=='/internal/result': value=app.result(body['run'],body['body'],body.get('hop',{}))
+            elif self.path=='/models': value=app.models(body.get('refresh',False))
+            elif self.path=='/model': value=app.set_model(body['model'])
             elif self.path in ('/chat','/infer'):
                 value=app.run(body['prompt'],body.get('channel','terminal'),body.get('system'),self.path=='/infer')
             elif self.path=='/tool':
@@ -599,7 +686,9 @@ def serve(root,binary,telegram=False):
 def main():
     os.umask(0o077)
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',choices=['setup','serve','ask','infer','mcp','enroll','dispatch','snapshot','status'])
+    parser.add_argument('command',choices=['setup','serve','ask','infer','mcp','enroll','dispatch','snapshot','status','models','model'])
+    parser.add_argument('--model')
+    parser.add_argument('--refresh',action='store_true')
     parser.add_argument('--root',type=Path,default=DEFAULT_ROOT)
     parser.add_argument('--repository',type=Path,default=Path.home()/'work/workflow-evolution')
     parser.add_argument('--binary',default=shutil.which('meclaw') or 'meclaw')
@@ -617,6 +706,10 @@ def main():
         dispatch(args.root,args.worker_pane)
     elif args.command=='snapshot': print(Store(args.root).snapshot())
     elif args.command=='status': print(json.dumps(request('http://127.0.0.1:'+str(PORT)+'/health')))
+    elif args.command=='models': print(json.dumps(client(args.root,'/models',{'refresh':args.refresh})))
+    elif args.command=='model':
+        if not args.model: parser.error('--model is required')
+        print(json.dumps(client(args.root,'/model',{'model':args.model})))
     else:
         payload={'prompt':args.prompt,'channel':args.channel} if args.prompt else json.load(sys.stdin)
         print(json.dumps(client(args.root,'/infer' if args.command=='infer' else '/chat',payload),ensure_ascii=False))
