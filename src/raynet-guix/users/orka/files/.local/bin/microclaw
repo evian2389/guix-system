@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+home="${HOME:?HOME must be set}"
+binary="$home/.local/libexec/microclaw"
+glibc_store="$(guix build glibc 2>/dev/null | awk '/-glibc-[0-9][^/]*$/ && $0 !~ /-(debug|static)$/ { print; exit }')"
+loader="$glibc_store/lib/ld-linux-x86-64.so.2"
+openssl_bin="$(command -v openssl || true)"
+gcc_bin="$(command -v gcc || true)"
+
+if [[ ! -x "$binary" ]]; then
+    echo "MicroClaw release binary is missing: $binary" >&2
+    exit 127
+fi
+if [[ ! -x "$loader" ]]; then
+    echo "Guix ELF loader is missing: $loader" >&2
+    exit 127
+fi
+if [[ -z "$openssl_bin" ]]; then
+    echo "OpenSSL 3 is required to run MicroClaw on Guix System." >&2
+    exit 127
+fi
+if [[ -z "$gcc_bin" ]]; then
+    echo "GCC runtime libraries are required to run MicroClaw on Guix System." >&2
+    exit 127
+fi
+
+openssl_lib="$(dirname "$(readlink -f "$openssl_bin")")/../lib"
+gcc_lib="$(dirname "$(readlink -f "$(gcc -print-file-name=libgcc_s.so.1)")")"
+exec "$loader" --library-path "$openssl_lib:$gcc_lib" "$binary" "$@"

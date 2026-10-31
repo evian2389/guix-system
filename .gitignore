@@ -19,6 +19,7 @@ fonts/truetype/.uuid
 src/raynet-guix/users/orka/files/.local/bin/agy
 
 # Logs and scratch test files
+__pycache__/
 *.log
 test_*.scm
 override.txt

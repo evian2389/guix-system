@@ -33,6 +33,8 @@ GUIX_TM = $(GUIX_TM_BASE) -C channels/channels-lock.scm --
 # Default system and user for initial setup (can be overridden)
 DEFAULT_SYSTEM ?= ser8
 DEFAULT_USER ?= orka
+# Set to 0 for a Home-only deployment without unrelated Nix/Cargo/npm upgrades.
+NON_GUIX_UPDATES ?= 1
 
 # --- General Configuration Variables (from provided config, generalized) ---
 PULL_EXTRA_OPTIONS=
@@ -75,8 +77,10 @@ reconfigure-home:
 	@echo "Reconfiguring Guix Home for $(DEFAULT_USER)..."
 	$(GUIX_TM) home reconfigure $(CONFIG_DIR)/users/$(DEFAULT_USER)/home.scm
 	$(MAKE) install-user-packages
-	chmod +x $(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh
-	$(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh
+	@if [ "$(NON_GUIX_UPDATES)" = 1 ]; then \
+		chmod +x $(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh; \
+		$(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh; \
+	fi
 	stow --adopt -d $(CONFIG_DIR)/users/$(DEFAULT_USER) -t $(HOME) files
 
 install-user-packages:
