@@ -265,10 +265,10 @@ class Workflow:
         self.archive.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.migrate_shared_skills()
         seeds = {self.active: SEED, self.state / 'meta-skill.md': META,
-                 self.state / 'config.json': json.dumps({'model': 'gpt-6.1-sol', 'auto_propose': True}),
+                 self.state / 'config.json': json.dumps({'model': 'gpt-6.1-terra', 'auto_propose': True}),
                  self.state / 'suite.json': json.dumps(SUITE, indent=2),
                  self.root / 'gateway.json': json.dumps({
-                     'llm_provider': 'openai-codex', 'model': 'gpt-6.1-sol',
+                     'llm_provider': 'openai-codex', 'model': 'gpt-6.1-terra',
                      'data_dir': str(self.root / 'microclaw'),
                      'working_dir': str(self.root / 'work'), 'working_dir_isolation': 'chat',
                      'max_tool_iterations': 12, 'max_tokens': 4096,

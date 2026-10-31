@@ -21,8 +21,9 @@ microclaw --config ~/.local/share/microclaw-workflow/gateway.json run \
 ```
 
 ChatGPT 연결은 MicroClaw의 `openai-codex` provider가 기존 `codex login` 인증을
-사용한다. 별도 API 키를 복사하지 않는다. 현재 모델은 로컬 Codex 설정과 같은
-`gpt-6.1-sol`. 인증 오류 시 `codex login status`부터 확인하고 필요한 경우 직접
+사용한다. 별도 API 키를 복사하지 않는다. 현재 gateway와 진화 작업자의 기본 모델은
+`gpt-6.1-terra`다. Codex CLI 자체의 모델 설정은 별도로 유지한다.
+인증 오류 시 `codex login status`부터 확인하고 필요한 경우 직접
 `codex login`을 수행한다. 자동 재로그인이나 계정 전환을 하지 않는다.
 
 ## 개선 사이클
