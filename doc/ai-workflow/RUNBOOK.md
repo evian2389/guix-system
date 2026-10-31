@@ -61,6 +61,8 @@ baseline/candidate 각 1회(기본 4회), 최대 20회 모델을 호출한다. �
 
 현재 데이터 경로는 `~/work/workflow-evolution` Git checkout으로 연결된다.
 Guix 선언 경로·자동 연결·복원은 [STORAGE.md](STORAGE.md)를 따른다.
+공용 스킬 원본은 저장소 최상위 `skills/`이며, 다른 CLI에서의 경험 제출·조회는
+[SHARING.md](SHARING.md)를 따른다.
 
 산출물: `~/.local/share/microclaw-workflow/evolution/archive/<id>/` 아래 후보,
 기준 스킬, 당시 meta-skill, 실패 발췌, 평가 결과를 보관한다. SQLite와 아카이브는

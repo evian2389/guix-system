@@ -203,5 +203,78 @@ class RepositoryWiringTests(unittest.TestCase):
             self.assertEqual(db.execute('select id,status from proposals').fetchone(), (cid, 'pending'))
             self.assertEqual(db.execute('select count(*) from traces').fetchone(), (1,))
 
+class SharedWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.base = Path(self.tmp.name)
+        self.w = e.Workflow(self.base / 'state')
+        self.w.init()
+
+    def test_champion_is_canonical_and_runtime_links_to_it(self):
+        self.assertEqual(self.w.active, self.w.root / 'skills/local-workflow/SKILL.md')
+        runtime = self.w.root / 'microclaw/skills/local-workflow'
+        self.assertTrue(runtime.is_symlink())
+        self.assertEqual(runtime.resolve(), self.w.active.parent.resolve())
+        self.w.active.write_text('promoted procedure')
+        self.assertEqual((runtime / 'SKILL.md').read_text(), 'promoted procedure')
+
+    def test_legacy_evolved_skill_is_preserved(self):
+        legacy = e.Workflow(self.base / 'legacy')
+        old = legacy.root / 'microclaw/skills/local-workflow/SKILL.md'
+        e.atomic(old, 'previously evolved skill')
+        legacy.init()
+        self.assertEqual(legacy.active.read_text(), 'previously evolved skill')
+        self.assertTrue(old.parent.is_symlink())
+
+    def test_share_is_idempotent_and_preserves_existing_skills(self):
+        home = self.base / 'home'
+        unrelated = home / '.claude/skills/custom/SKILL.md'
+        e.atomic(unrelated, 'existing skill')
+        self.w.share_skills(home)
+        self.w.share_skills(home)
+        for directory in ('.agents/skills', '.claude/skills', '.gemini/antigravity-cli/skills'):
+            self.assertEqual((home / directory / 'local-workflow').resolve(), self.w.active.parent.resolve())
+        self.assertEqual(unrelated.read_text(), 'existing skill')
+
+    def test_conflict_is_detected_before_creating_consumer_links(self):
+        home = self.base / 'home'
+        conflict = home / '.claude/skills/local-workflow/SKILL.md'
+        e.atomic(conflict, 'unrelated local-workflow')
+        with self.assertRaises(ValueError):
+            self.w.share_skills(home)
+        self.assertFalse((home / '.agents/skills/local-workflow').exists())
+        self.assertEqual(conflict.read_text(), 'unrelated local-workflow')
+
+    def test_all_agents_submit_searchable_redacted_experience(self):
+        for agent in ('codex', 'claude', 'agy'):
+            self.w.record_experience({'schema_version': 1, 'agent': agent, 'kind': 'verification',
+                                     'outcome': 'failure', 'project': 'example',
+                                     'summary': 'Guix dependency failure token=secret123456'})
+            found = self.w.search('Guix', 3, agent)
+            self.assertEqual(len(found['evidence']), 1)
+            self.assertEqual(found['evidence'][0]['payload']['agent'], agent)
+            self.assertNotIn('secret123456', json.dumps(found))
+
+    def test_success_experiences_keep_reusable_summary(self):
+        self.w.record_experience({'schema_version': 1, 'agent': 'codex', 'kind': 'verification',
+                                 'outcome': 'success', 'summary': 'Guix shell resolved the missing gcc'})
+        found = self.w.search('gcc')
+        self.assertEqual(len(found['evidence']), 1)
+        self.assertFalse(found['evidence'][0]['failed'])
+        with self.assertRaises(ValueError):
+            self.w.propose()
+
+    def test_bad_schema_or_source_does_not_write(self):
+        with self.assertRaises(ValueError):
+            self.w.record_experience({'schema_version': 1, 'agent': 'invented', 'summary': 'bad'})
+        self.assertEqual(self.w.status()['traces'], 0)
+
+    def test_search_treats_sql_and_wildcards_as_literal_text(self):
+        self.w.record_experience({'schema_version': 1, 'agent': 'agy', 'kind': 'tool',
+                                 'outcome': 'unknown', 'summary': 'literal 100% problem'})
+        self.assertEqual(len(self.w.search('100%')['evidence']), 1)
+        self.assertEqual(self.w.search("%' OR 1=1 --")['evidence'], [])
+
 if __name__ == '__main__':
     unittest.main()

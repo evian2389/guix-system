@@ -1,0 +1,3 @@
+#!/bin/sh
+# Shared experience interface; the evolution worker remains a single backend.
+exec "$HOME/.local/bin/microclaw-evolve" "$@"
