@@ -168,21 +168,12 @@ class ShimTests(unittest.TestCase):
             {'id':2,'method':'session/prompt','params':{'sessionId':sid,'prompt':[{'type':'text','text':'ping'}]}}])
         self.assertNotIn('중단되지 않았','\n'.join(str(n) for n in notes))
 
-    def test_list_offers_a_placeholder_when_there_is_nothing_else_to_resume(self):
+    def test_list_has_no_placeholder_when_nothing_else_can_be_resumed(self):
         sid=self.new()
-        def listed(params):
-            responses,_=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
-                {'id':2,'method':'session/new','params':{'cwd':str(self.cwd),'mcpServers':[]}},
-                {'id':3,'method':'session/list','params':params}])
-            return [row['sessionId'] for row in responses[3]['result']['sessions']]
-        self.assertEqual(listed({'cwd':str(self.cwd)}),['mc-none',sid])
-        elsewhere=self.cwd.parent/'elsewhere';elsewhere.mkdir();self.new(elsewhere)  # other projects do not count
-        self.assertIn('mc-none',listed({}))  # no cwd, as Martty sends it
-        other=self.new(MECLAW_ACP_SESSION='side')
-        self.assertNotIn('mc-none',listed({}))
-        self.assertIn(other,listed({}))
-        responses,_=self.talk([{'id':9,'method':'session/resume','params':{'sessionId':'mc-none','cwd':str(self.cwd),'mcpServers':[]}}])
-        self.assertIn('mm --session',responses[9]['error']['message'])
+        responses,_=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
+            {'id':2,'method':'session/new','params':{'cwd':str(self.cwd),'mcpServers':[]}},
+            {'id':3,'method':'session/list','params':{'cwd':str(self.cwd)}}])
+        self.assertEqual([row['sessionId'] for row in responses[3]['result']['sessions']],[sid])
 
     def test_restore_refuses_a_session_from_another_project(self):
         sid=self.new()

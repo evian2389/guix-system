@@ -66,9 +66,6 @@ def report_herdr(state):
         pass
 
 
-NO_SESSION_ID = 'mc-none'
-
-
 def session_id_for(channel):
     return 'mc-' + hashlib.sha256(channel.encode()).hexdigest()[:12]
 
@@ -127,9 +124,6 @@ def open_session(session_id, cwd, channel):
 
 def restore(rid, params, replay):
     entry = load_registry().get(params.get('sessionId'))
-    if params.get('sessionId') == NO_SESSION_ID:
-        return reply(rid, error={'code': -32002, 'message': 'No other session to resume in this project. '
-                                 'Start another with `mm --session NAME`; running `mm` here again continues the current one.'})
     if not entry:
         return reply(rid, error={'code': -32002, 'message': 'Unknown session; start a new one'})
     session_id = params['sessionId']
@@ -161,13 +155,6 @@ def list_sessions(rid, params):
                      'title': entry.get('title') or 'MeClaw · ' + Path(entry.get('cwd', '')).name,
                      'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(entry.get('updated', 0)))})
     rows.sort(key=lambda row: row['updatedAt'], reverse=True)
-    # Clients hide the session they are in and draw nothing for an empty list; they also ignore messages sent
-    # outside a turn. So when nothing else can be resumed, offer one visible placeholder row that says why.
-    here = {live['cwd'] for live in SESSIONS.values()}
-    if SESSIONS and not [row for row in rows if row['sessionId'] not in SESSIONS and row['cwd'] in here]:
-        rows.insert(0, {'sessionId': NO_SESSION_ID, 'cwd': sorted(here)[0],
-                        'title': '이어갈 다른 세션 없음 · 새 대화는 mm --session 이름',
-                        'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())})
     reply(rid, {'sessions': rows[:50]})
 
 
