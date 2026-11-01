@@ -148,7 +148,7 @@ class MeclawTests(unittest.TestCase):
         self.store.cancel(a['id'],'ch');time.sleep(0.05)
         self.assertEqual(sent,[('w:p1','esc')])
         time.sleep(0.5);stop.set();thread.join()
-        self.assertEqual(sent,[('w:p1','esc'),('w:p1','ctrl-c')])
+        self.assertEqual(sent,[('w:p1','esc'),('w:p1','ctrl+c')])
 
     def test_stop_background_types_stop_and_presses_enter_twice(self):
         sent=[]
@@ -176,7 +176,7 @@ class MeclawTests(unittest.TestCase):
         app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'agy','agent_status':'working'}])
         with patch.object(m,'herdr',fake),patch.object(m.time,'sleep'):
             app.execute('interrupt_agent',{'pane':'w1:p2','force':True},'k','ch')
-        self.assertIn(('pane','send-keys','w1:p2','ctrl-c'),calls)
+        self.assertIn(('pane','send-keys','w1:p2','ctrl+c'),calls)
 
     def test_interrupt_applies_to_any_herdr_agent_in_any_state(self):
         for agent,status in (('codex','working'),('claude','blocked'),('agy','idle'),('meclaw','working')):
@@ -200,6 +200,11 @@ class MeclawTests(unittest.TestCase):
         with closing(self.store.db()) as db:
             kinds={r[0] for r in db.execute('select kind from events')}
         self.assertTrue({'agent_send','agent_keys','agent_close'}<=kinds)
+
+    def test_agent_keys_translates_hyphenated_modifiers_to_herdr_spelling(self):
+        app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'claude','agent_status':'idle'}])
+        with patch.object(m,'herdr',fake): app.execute('agent_keys',{'pane':'w1:p2','keys':['ctrl-c','alt-x','enter']},'k','ch')
+        self.assertIn(('pane','send-keys','w1:p2','ctrl+c','alt+x','enter'),calls)
 
     def test_agent_send_without_submit_only_types(self):
         app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'claude','agent_status':'idle'}])

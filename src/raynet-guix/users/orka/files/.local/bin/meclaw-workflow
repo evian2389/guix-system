@@ -460,7 +460,8 @@ class App:
         if name=='agent_keys':
             keys=args['keys']
             if not isinstance(keys,list) or not 1<=len(keys)<=8 or not all(isinstance(k,str) and re.fullmatch(r'[A-Za-z0-9_+-]{1,16}',k) for k in keys):
-                raise ValueError('keys must be 1..8 key names such as 1, y, enter, esc, down, ctrl-c')
+                raise ValueError('keys must be 1..8 key names such as 1, y, enter, esc, down, ctrl+c')
+            keys=[re.sub(r'^(ctrl|alt|shift)-',r'\1+',k) for k in keys]  # Herdr only accepts ctrl+c, not ctrl-c
             herdr('pane','send-keys',pane,*keys)
             self.store.event('agent_keys','unknown','Pressed '+' '.join(keys)+' in '+who+' (was '+str(agent.get('agent_status'))+')')
             return {'pane':pane,'pressed':keys,'status_before':agent.get('agent_status'),'note':'Keys delivered; read the pane to confirm the effect.'}
@@ -553,7 +554,7 @@ class App:
             if agent is None: raise ValueError('No agent in that pane; list panes with herdr_agents')
             kind=agent.get('agent');before=agent.get('agent_status')
             self.guard_remote(name,agent,str(kind)+' '+pane,channel)
-            key='ctrl-c' if args.get('force') else 'esc'
+            key='ctrl+c' if args.get('force') else 'esc'
             herdr('pane','send-keys',pane,key)
             self.store.event('interrupt_agent','unknown','Sent '+key+' to '+kind+' pane '+pane+' (was '+str(before)+')')
             time.sleep(3)
@@ -964,7 +965,7 @@ def watch_cancel(store,jid,pane,stop,send,interval=1.0,escalate=10.0):
             if store.cancel_requested(jid):
                 first=time.monotonic();send(pane,'esc');store.event('codex_job','unknown','Cancel requested for job '+jid+'; interrupt sent to the worker')
         elif not second and time.monotonic()-first>=escalate:
-            second=True;send(pane,'ctrl-c')
+            second=True;send(pane,'ctrl+c')
 
 def stop_background(pane,send,send_text,pause=.5):
     """Esc ends Codex's turn but leaves an already started command running as a background terminal;

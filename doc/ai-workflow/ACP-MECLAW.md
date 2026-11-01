@@ -100,7 +100,7 @@ working/idle로 표시된다.
 - **Herdr를 통한 에이전트 제어 (Claude Code, AGY 등 모든 Herdr 에이전트 pane)**: 사용자가 허용했다.
   `agent_read`(출력 읽기, 마스킹), `agent_send`(텍스트 입력 후 Enter), `agent_keys`(키 입력 — **승인 응답은
   여기서 한다**: 먼저 `agent_read`로 프롬프트를 읽고 무엇을 승인/거부했는지 말한다), `interrupt_agent`
-  (`esc`, `force`면 `ctrl-c`), `agent_close`(pane 닫기). 에이전트 종류·상태 제한은 없고 pane ID와 키 이름 형식,
+  (`esc`, `force`면 `ctrl+c`; Herdr는 `ctrl-c` 표기를 거부해서 `agent_keys`가 자동 변환), `agent_close`(pane 닫기). 에이전트 종류·상태 제한은 없고 pane ID와 키 이름 형식,
   텍스트 길이만 검증한다. 모든 입력·키·닫기는 `events`에 남는다(입력 텍스트는 앞 80자). 전달은 수행의 증거가 아니므로
   결과는 pane을 다시 읽어 확인한다. MCP `/tool`에는 노출하지 않는다. **Telegram 제한**: `telegram:` 채널에서는
   `agent_send`/`agent_keys`/`interrupt_agent`/`agent_close`가 Herdr가 보고한 `cwd`·`foreground_cwd`가 모두
@@ -118,7 +118,7 @@ working/idle로 표시된다.
   SQLite 조건부 UPDATE 하나로 갈리므로 둘 중 정확히 하나만 성공한다(경합 테스트). **실행 중(`working`)
   작업은 "취소 요청"만 기록**하고, pane을 제어하는 별도 프로세스인 dispatcher가 worker pane에 Esc를
   보낸다. Esc는 턴만 멈추고 이미 시작한 명령은 background terminal로 남으므로 worker가 idle이 된 직후
-  Codex의 `/stop`도 보낸다(10초 안에 안 멈추면 Ctrl-C 한 번). 명령 종료까지 몇 초 걸릴 수 있다. worker가 멈추면 job이 `cancelled`로 바뀌고, 멈췄는지
+  Codex의 `/stop`도 보낸다(10초 안에 안 멈추면 `ctrl+c` 한 번). 명령 종료까지 몇 초 걸릴 수 있다. worker가 멈추면 job이 `cancelled`로 바뀌고, 멈췄는지
   확인하지 못하면 상태는 그대로(`working`/`unknown`)다. 중단 전에 바뀐 파일은 되돌리지 않으므로 결과의
   안내대로 `git status`로 확인한다. `blocked`/`unknown`은 사람이 Herdr에서 처리한다. 다른 채널의 작업은
   취소할 수 없다. 모델/bridge는 pane을 직접 조작하지 않는다.
