@@ -99,9 +99,13 @@ working/idle로 표시된다.
   여기서 한다**: 먼저 `agent_read`로 프롬프트를 읽고 무엇을 승인/거부했는지 말한다), `interrupt_agent`
   (`esc`, `force`면 `ctrl-c`), `agent_close`(pane 닫기). 에이전트 종류·상태 제한은 없고 pane ID와 키 이름 형식,
   텍스트 길이만 검증한다. 모든 입력·키·닫기는 `events`에 남는다(입력 텍스트는 앞 80자). 전달은 수행의 증거가 아니므로
-  결과는 pane을 다시 읽어 확인한다. MCP `/tool`에는 노출하지 않는다. **주의**: Telegram 대화를 포함해 모든 채널에서
-  쓸 수 있으므로, 외부 내용이 모델을 속여 승인·입력을 보내게 할 위험이 있다. 채널 제한이 필요하면 도구 노출을
-  `telegram:` 채널에서 빼면 된다. MeClaw Codex job은 `cancel_job`이 `/stop`까지 보내므로 그쪽을 쓴다.
+  결과는 pane을 다시 읽어 확인한다. MCP `/tool`에는 노출하지 않는다. **Telegram 제한**: `telegram:` 채널에서는
+  `agent_send`/`agent_keys`/`interrupt_agent`/`agent_close`가 Herdr가 보고한 `cwd`·`foreground_cwd`가 모두
+  `~/work` 아래인 pane에만 적용된다(모델이 하는 말이 아니라 Herdr 값으로 판단, `..`·심볼릭 링크는 해석 후 검사,
+  거부는 `agent_control_denied` 이벤트로 기록). `agent_read`는 제한이 없다. 터미널(ACP)에서는 제한이 없다.
+  한계: 폴더 제한은 승인 **내용**(예: `~/work` 안의 에이전트가 밖의 경로를 요청)까지 막지 못한다 — 승인 전
+  `agent_read`로 읽은 프롬프트 원문을 답변에 인용하게 하는 것이 사후 확인 수단이고, 외부 내용이 모델을 속일
+  위험은 남는다. MeClaw Codex job은 `cancel_job`이 `/stop`까지 보내므로 그쪽을 쓴다.
 - **작업 취소 (`cancel_job <id>`)**: 대기 중(`queued`) 작업은 즉시 `cancelled`가 된다. 취소와 worker의 가져오기는
   SQLite 조건부 UPDATE 하나로 갈리므로 둘 중 정확히 하나만 성공한다(경합 테스트). **실행 중(`working`)
   작업은 "취소 요청"만 기록**하고, pane을 제어하는 별도 프로세스인 dispatcher가 worker pane에 Esc를

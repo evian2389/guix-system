@@ -222,6 +222,33 @@ class MeclawTests(unittest.TestCase):
             out=app.execute('agent_read',{'pane':'w1:p2'},'k','ch')
         self.assertNotIn('abcdef123456',out['output']);self.assertEqual(out['agent'],'claude')
 
+    def test_telegram_controls_only_panes_below_work(self):
+        work=str(self.home/'work')
+        inside={'pane_id':'w1:p2','agent':'claude','agent_status':'blocked','cwd':work+'/proj','foreground_cwd':work+'/proj'}
+        outside=dict(inside,cwd=str(self.home/'guix-system'),foreground_cwd=str(self.home/'guix-system'))
+        mixed=dict(inside,foreground_cwd='/etc')
+        escape=dict(inside,cwd=work+'/../secret')
+        for tool,args in (('agent_keys',{'keys':['1']}),('agent_send',{'text':'go'}),('agent_close',{}),('interrupt_agent',{})):
+            args=dict(args,pane='w1:p2')
+            app,fake,calls=self.interrupt_app(lambda:[inside])
+            with patch.object(m,'herdr',fake),patch.object(m.time,'sleep'): app.execute(tool,args,'k','telegram:42')
+            self.assertTrue([c for c in calls if c[0]=='pane'],tool)
+            for bad in (outside,mixed,escape,dict(inside,cwd=None,foreground_cwd=None)):
+                app,fake,calls=self.interrupt_app(lambda:[bad])
+                with patch.object(m,'herdr',fake),self.assertRaises(ValueError,msg=tool): app.execute(tool,args,'k','telegram:42')
+                self.assertFalse([c for c in calls if c[0]=='pane'])
+            # the terminal channel is unrestricted
+            app,fake,calls=self.interrupt_app(lambda:[outside])
+            with patch.object(m,'herdr',fake),patch.object(m.time,'sleep'): app.execute(tool,args,'k','acp:x:main')
+            self.assertTrue([c for c in calls if c[0]=='pane'])
+
+    def test_telegram_may_still_read_any_agent_pane(self):
+        outside={'pane_id':'w1:p2','agent':'claude','agent_status':'idle','cwd':'/etc','foreground_cwd':'/etc'}
+        app,fake,calls=self.interrupt_app(lambda:[outside])
+        done=type('R',(),{'returncode':0,'stdout':'hi','stderr':''})()
+        with patch.object(m,'herdr',fake),patch.object(m.subprocess,'run',return_value=done):
+            self.assertEqual(app.execute('agent_read',{'pane':'w1:p2'},'k','telegram:42')['output'],'hi')
+
     def test_agent_control_tools_are_not_exposed_through_mcp(self):
         tail=open(SCRIPT).read().split("Tool not exposed to MCP")[0].split("if body.get('name') not in")[-1]
         for name in ('agent_read','agent_send','agent_keys','agent_close','interrupt_agent'): self.assertNotIn("'"+name+"'",tail)

@@ -415,13 +415,22 @@ class App:
         except (ValueError,KeyError,subprocess.SubprocessError,OSError) as exc:
             return 'Worker pane '+str(pane)+' is not found in Herdr ('+redact(str(exc))[:120]+'); it was likely closed.',remedy
         return 'Worker pane '+str(pane)+' exists but its state is '+str(status.get('worker_state'))+'.','Inspect it with herdr_read.'
-    def agent_control(self,name,args):
+    def guard_remote(self,name,agent,who,channel):
+        if channel.startswith('telegram:') and name!='agent_read':
+            # Remote channel: act only on panes working below ~/work, judged by Herdr's own cwd, not by anything the model says.
+            work=(self.home/'work').resolve()
+            cwds=[agent.get(k) for k in ('cwd','foreground_cwd') if agent.get(k)]
+            if not cwds or not all(Path(c).expanduser().resolve()==work or work in Path(c).expanduser().resolve().parents for c in cwds):
+                self.store.event('agent_control_denied','unknown','Telegram '+name+' refused for '+who+' outside ~/work')
+                raise ValueError('From Telegram, agents can only be controlled in panes whose directory is below ~/work')
+    def agent_control(self,name,args,channel=''):
         # Herdr-mediated control of any agent pane. Every action is recorded; input is validated, not restricted by agent kind.
         pane=args['pane']
         if not isinstance(pane,str) or not re.fullmatch(r'[A-Za-z0-9:_.-]{1,40}',pane): raise ValueError('Invalid pane id')
         agent=next((a for a in herdr('agent','list')['result']['agents'] if a.get('pane_id')==pane),None)
         if agent is None: raise ValueError('No agent in that pane; list panes with herdr_agents')
         who=str(agent.get('agent'))+' '+pane
+        self.guard_remote(name,agent,who,channel)
         if name=='agent_read':
             lines=min(max(int(args.get('lines',40)),1),120)
             result=subprocess.run(['herdr','agent','read',pane,'--source','recent-unwrapped','--lines',str(lines)],capture_output=True,text=True,timeout=15)
@@ -522,13 +531,14 @@ class App:
                 raise ValueError('Project must be below ~/work or ~/guix-system')
             job=self.store.queue(key,channel,args['task'],project)
             return {k:job[k] for k in ('id','status','project')}
-        if name in ('agent_read','agent_send','agent_keys','agent_close'): return self.agent_control(name,args)
+        if name in ('agent_read','agent_send','agent_keys','agent_close'): return self.agent_control(name,args,channel)
         if name=='interrupt_agent':
             pane=args['pane']
             if not isinstance(pane,str) or not re.fullmatch(r'[A-Za-z0-9:_.-]{1,40}',pane): raise ValueError('Invalid pane id')
             agent=next((a for a in herdr('agent','list')['result']['agents'] if a.get('pane_id')==pane),None)
             if agent is None: raise ValueError('No agent in that pane; list panes with herdr_agents')
             kind=agent.get('agent');before=agent.get('agent_status')
+            self.guard_remote(name,agent,str(kind)+' '+pane,channel)
             key='ctrl-c' if args.get('force') else 'esc'
             herdr('pane','send-keys',pane,key)
             self.store.event('interrupt_agent','unknown','Sent '+key+' to '+kind+' pane '+pane+' (was '+str(before)+')')
