@@ -113,8 +113,9 @@ working/idle로 표시된다.
   Claude Code는 `down` → `enter`(Shell details) → `x`, AGY는 텍스트 `/tasks` + `enter` 후 `k`, Codex는 `/stop`
   (`cancel_job`이 자동으로 보냄). 각각 `sleep` 프로세스가 사라지는 것으로 확인했다.
   `blocked` 상태의 전체 화면 에이전트는 `agent_read`가 `visible` 소스로 대신 읽는다(AGY 신뢰 프롬프트에서 발견).
-  한 요청당 도구 호출은 기본 30번(`MECLAW_TOOL_STEP_LIMIT`)까지 허용한다. 한도는 폭주 방지용 안전망이며(요청은 210초,
-  동시 1건으로도 제한된다), 도달하면 오류로 버리지 않고 지금까지의 결과를 저장한 뒤 "계속"으로 이어가게 안내한다.
+  한 요청당 도구 호출 한도는 기본 1000번(`MECLAW_TOOL_STEP_LIMIT`), 실행 시간은 12시간(`MECLAW_RUN_TIMEOUT`, 초)이다 —
+  사실상 제한 없음. 한도에 도달하면 오류로 버리지 않고 지금까지의 결과를 저장한 뒤 "계속"으로 이어가게 안내한다.
+  주의: 동시 추론은 1건이라 긴 요청이 도는 동안 Telegram과 다른 화면은 `busy`가 된다.
 - **작업 취소 (`cancel_job <id>`)**: 대기 중(`queued`) 작업은 즉시 `cancelled`가 된다. 취소와 worker의 가져오기는
   SQLite 조건부 UPDATE 하나로 갈리므로 둘 중 정확히 하나만 성공한다(경합 테스트). **실행 중(`working`)
   작업은 "취소 요청"만 기록**하고, pane을 제어하는 별도 프로세스인 dispatcher가 worker pane에 Esc를

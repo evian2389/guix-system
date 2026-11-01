@@ -636,7 +636,7 @@ class App:
         try:
             response=request(self.native+'/messages',{'target':'/evaluator' if evaluate else '/brain',
                  'headers':{'channel':channel,'run_id':rid},'body':state['body']})
-            deadline=time.monotonic()+210
+            deadline=time.monotonic()+RUN_TIMEOUT
             while not state['done'].wait(.2):
                 if self.stopping.is_set(): raise InterruptedError('Server stopping')
                 if time.monotonic()>deadline: raise TimeoutError('MeClaw run timed out; unfinished work is not automatically replayed')
@@ -719,7 +719,8 @@ class Handler(BaseHTTPRequestHandler):
             try: self.reply(400,{'error':redact(str(exc))})
             except OSError: pass
 
-def client(root,endpoint,body,timeout=230):
+def client(root,endpoint,body,timeout=None):
+    timeout=timeout or RUN_TIMEOUT+60
     token=(Path(root)/'runtime/bridge-token').read_text().strip()
     try: return request('http://127.0.0.1:'+str(PORT)+endpoint,body,token,timeout)
     except urllib.error.HTTPError as exc:
@@ -727,7 +728,8 @@ def client(root,endpoint,body,timeout=230):
         except ValueError: message='MeClaw request failed'
         raise ValueError(message) from None
 
-def client_stream(root,endpoint,body,timeout=230):
+def client_stream(root,endpoint,body,timeout=None):
+    timeout=timeout or RUN_TIMEOUT+60
     token=(Path(root)/'runtime/bridge-token').read_text().strip()
     req=urllib.request.Request('http://127.0.0.1:'+str(PORT)+endpoint,data=json.dumps(body).encode(),
         headers={'Content-Type':'application/json','Authorization':'Bearer '+token})
@@ -841,7 +843,8 @@ def herdr(*args,timeout=30):
     if result.returncode: raise ValueError('Herdr: '+redact(result.stderr))
     return json.loads(result.stdout) if result.stdout.strip() else {}
 
-TOOL_STEP_LIMIT=int(os.environ.get('MECLAW_TOOL_STEP_LIMIT','30'))  # tool calls per request; reading code and pane control need many
+TOOL_STEP_LIMIT=int(os.environ.get('MECLAW_TOOL_STEP_LIMIT','1000'))  # tool calls per request; effectively unlimited
+RUN_TIMEOUT=int(os.environ.get('MECLAW_RUN_TIMEOUT','43200'))  # seconds one request may run (12 h)
 WORKER_NAME='meclaw-codex'
 WORKER_WORKSPACE='meclaw-worker'
 SPAWN_LIMIT=10  # worker launches per hour; a crash loop must not keep starting Codex
