@@ -38,9 +38,17 @@ def atomic(path,text):
     finally:
         if os.path.exists(name): os.unlink(name)
 
-def redact(text):
+def scrub(text):
     text=re.sub(r'(?i)((?:token|password|secret|api[_-]?key)\s*[=:]\s*)[^\s,;"}]+',r'\1[REDACTED]',str(text))
-    return re.sub(r'(?i)Bearer\s+\S+','Bearer [REDACTED]',text)[:3000]
+    return re.sub(r'(?i)Bearer\s+\S+','Bearer [REDACTED]',text)
+
+def redact(text): return scrub(text)[:3000]
+
+# read_file policy: names and directories that never leave the machine through the model.
+SECRET_NAME=re.compile(r'(?i)^\.env($|\.)|^auth\.json$|\.(pem|key|p12|pfx|kdbx|gpg|asc)$|^id_(rsa|dsa|ecdsa|ed25519)|'
+                       r'^\.(netrc|npmrc|pypirc|git-credentials)$|(^|[-_.])(tokens?|secrets?|credentials?|passwords?|passwd)($|[-_.])')
+SECRET_DIRS={'.git','.ssh','.gnupg','.aws','.password-store','.docker','.kube'}
+READ_ROOTS=('work','guix-system')
 
 def request(url,body=None,token=None,timeout=15):
     headers={'Content-Type':'application/json'}
@@ -68,6 +76,9 @@ TOOLS=[
     tool_schema('herdr_agents','Read-only list of Herdr agent panes (id, agent, status, name, cwd).',{},[]),
     tool_schema('herdr_read','Read-only: recent terminal output of the enrolled worker or dispatcher pane only.',
                 {'pane':{'type':'string','enum':['worker','dispatcher']},'lines':{'type':'integer','minimum':1,'maximum':120}},['pane']),
+    tool_schema('read_file','Read-only: read a text file or list a directory below ~/work or ~/guix-system. Secrets, credentials and private MeClaw state are refused. Not available from Telegram.',
+                {'path':{'type':'string','description':'Absolute path.'},'offset':{'type':'integer','minimum':1,'description':'First line, default 1.'},
+                 'lines':{'type':'integer','minimum':1,'maximum':400,'description':'Line count, default 200.'}},['path']),
     tool_schema('delegate_codex','Queue one task in the enrolled Herdr Codex worker. Returns a job ID; queued is not completed.',
                 {'task':{'type':'string'},'project':{'type':'string','description':'Absolute project directory below ~/work or ~/guix-system.'}},['task','project']),
     tool_schema('job_status','Read a queued Codex job; never automatically repeat uncertain work.',{'id':{'type':'string'}},['id']),
@@ -330,7 +341,8 @@ class App:
             'Queued, blocked and unknown jobs are not completed. Do not repeat unknown work. '
             'Only the single separate evolution worker proposes skill changes; promotion is explicit. '
             'No automatic changes to identity, credentials, budgets or evaluation policy. '
-            'Delegate coding work through delegate_codex with an absolute project directory.\n\n'+'\n\n'.join(skills)+
+            'Delegate coding work through delegate_codex with an absolute project directory. '
+            'Use read_file to read local documents and code (read-only) before deciding to delegate.\n\n'+'\n\n'.join(skills)+
             '\n\nDeployment binding: delegate_codex only queues work for the one enrolled Codex worker. '
             'The gateway does not control Herdr or set HERDR_ENV; the dispatcher inside Herdr owns all pane controls. '
             'Use only the provided tools and do not start additional Claude/AGY workers from generic delegation guidance.')
@@ -359,6 +371,43 @@ class App:
         except (ValueError,KeyError,subprocess.SubprocessError,OSError) as exc:
             return 'Worker pane '+str(pane)+' is not found in Herdr ('+redact(str(exc))[:120]+'); it was likely closed.',remedy
         return 'Worker pane '+str(pane)+' exists but its state is '+str(status.get('worker_state'))+'.','Inspect it with herdr_read.'
+    def read_file(self,args,channel):
+        if channel.startswith('telegram:'): raise ValueError('read_file is not available from Telegram')
+        raw=args.get('path')
+        if not isinstance(raw,str) or not raw or '\0' in raw: raise ValueError('Invalid path')
+        requested=Path(raw).expanduser()
+        if not requested.is_absolute(): raise ValueError('Use an absolute path below ~/work or ~/guix-system')
+        path=requested.resolve()  # follows symlinks, so a link cannot escape the roots
+        roots=[(self.home/name).resolve() for name in READ_ROOTS]
+        root=next((r for r in roots if path==r or r in path.parents),None)
+        if root is None: raise ValueError('Path must be below ~/work or ~/guix-system')
+        private=[(self.store.root/'runtime').resolve(),(self.store.root/'colony').resolve()]
+        def hidden(candidate):
+            if any(candidate==p or p in candidate.parents for p in private): return True
+            parts=candidate.relative_to(root).parts if candidate==root or root in candidate.parents else ()
+            return any(part in SECRET_DIRS or SECRET_NAME.search(part) for part in parts)
+        if hidden(path): raise ValueError('Refused: secret, credential or private runtime path')
+        if path.is_dir():
+            names=[]
+            for child in sorted(path.iterdir()):
+                if not hidden(child.resolve()): names.append(child.name+('/' if child.is_dir() else ''))
+            return {'path':str(path),'type':'directory','entries':names[:200],'truncated':len(names)>200}
+        if not path.is_file(): raise ValueError('Not a regular file or directory')
+        size=path.stat().st_size
+        if size>2*1024*1024: raise ValueError('File larger than 2 MiB; read a smaller file')
+        with path.open('rb') as handle:
+            if b'\0' in handle.read(8192): raise ValueError('Binary file refused')
+        try: offset=max(int(args.get('offset',1)),1);limit=min(max(int(args.get('lines',200)),1),400)
+        except (TypeError,ValueError): raise ValueError('offset and lines must be integers') from None
+        out=[];more=False;chars=0
+        with path.open('r',encoding='utf-8',errors='replace') as handle:
+            for number,line in enumerate(handle,1):
+                if number<offset: continue
+                line=line.rstrip('\n')[:2000]
+                if len(out)>=limit or chars+len(line)>32000: more=True;break
+                out.append(str(number)+'\t'+line);chars+=len(line)+1
+        return {'path':str(path),'type':'file','size':size,'offset':offset,'lines':len(out),
+                'truncated':more,'text':scrub('\n'.join(out))}
     def execute(self,name,args,key,channel):
         if name=='workflow_search':
             result=subprocess.run([str(self.home/'.local/bin/workflow-evolution'),'search','--query',args['query'],'--limit','3'],
@@ -386,8 +435,12 @@ class App:
                                   capture_output=True,text=True,timeout=15)
             if result.returncode: raise ValueError('Herdr: '+redact(result.stderr))
             return {'pane':pane,'output':redact(result.stdout[-8000:])}
+        if name=='read_file': return self.read_file(args,channel)
         if name=='delegate_codex':
-            if not self.execute('herdr_status',{},key,channel).get('available'): raise ValueError('No enrolled Herdr dispatcher')
+            status=self.execute('herdr_status',{},key,channel)
+            if not status.get('available'):
+                raise ValueError('Codex worker unavailable: '+str(status.get('reason','no enrolled dispatcher'))+' '+
+                                 str(status.get('remedy','The user must run `meclaw-workflow enroll` inside Herdr.')))
             project=Path(args['project']).expanduser().resolve()
             roots=[(self.home/'work').resolve(),(self.home/'guix-system').resolve()]
             if not project.is_dir() or not any(project==r or r in project.parents for r in roots):

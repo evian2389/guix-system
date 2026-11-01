@@ -253,4 +253,59 @@ class MeclawTests(unittest.TestCase):
         start.assert_called_once()
         self.assertIn('replacement',start.call_args.args[0])
 
+
+class ReadFileTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.home=Path(self.temp.name)/'home';(self.home/'guix-system').mkdir(parents=True)
+        self.repo=self.home/'work/workflow-evolution';(self.repo/'.git').mkdir(parents=True)
+        self.store=m.Store(self.repo/'meclaw');self.app=m.App(self.store,self.home)
+        self.doc=self.home/'work/notes.md';self.doc.write_text('one\ntwo\nthree\n')
+
+    def read(self,path,channel='acp:x',**args):
+        return self.app.execute('read_file',{'path':str(path),**args},'k',channel)
+
+    def test_reads_numbered_window_inside_allowed_roots(self):
+        value=self.read(self.doc,offset=2,lines=1)
+        self.assertEqual(value['text'],'2\ttwo');self.assertTrue(value['truncated'])
+        self.assertEqual(self.read(self.home/'guix-system/../work/notes.md')['lines'],3)
+
+    def test_refuses_outside_roots_relative_and_symlink_escape(self):
+        outside=Path(self.temp.name)/'outside.txt';outside.write_text('x')
+        for bad in (outside,self.home/'.ssh/config','notes.md'):
+            with self.assertRaises(ValueError): self.read(bad)
+        link=self.home/'work/link.txt';link.symlink_to(outside)
+        with self.assertRaises(ValueError): self.read(link)
+
+    def test_refuses_secrets_git_dir_and_private_runtime(self):
+        work=self.home/'work'
+        secrets=[work/'.env',work/'.env.local',work/'app/auth.json',work/'id_ed25519',work/'k/server.pem',
+                 work/'bridge-token',work/'my_secrets.yaml',work/'proj/.git/config',work/'secrets/a.txt']
+        for path in secrets:
+            path.parent.mkdir(parents=True,exist_ok=True);path.write_text('KEY=1')
+            with self.assertRaises(ValueError,msg=str(path)): self.read(path)
+        with self.assertRaises(ValueError): self.read(self.store.root/'runtime/host.db')
+        (work/'tokenizer.py').write_text('x')  # 'token' inside a word is not a secret name
+        self.assertEqual(self.read(work/'tokenizer.py')['lines'],1)
+
+    def test_telegram_channel_cannot_read(self):
+        with self.assertRaises(ValueError): self.read(self.doc,channel='telegram:42')
+
+    def test_binary_refused_and_secret_values_masked(self):
+        blob=self.home/'work/a.bin';blob.write_bytes(b'ab\0cd')
+        with self.assertRaises(ValueError): self.read(blob)
+        conf=self.home/'work/conf.txt';conf.write_text('api_key = abc123\nBearer topsecretvalue\nok\n')
+        text=self.read(conf)['text']
+        self.assertNotIn('abc123',text);self.assertNotIn('topsecretvalue',text);self.assertIn('ok',text)
+
+    def test_directory_listing_hides_secrets(self):
+        (self.home/'work/.env').write_text('A=1')
+        entries=self.read(self.home/'work')['entries']
+        self.assertIn('notes.md',entries);self.assertNotIn('.env',entries)
+
+    def test_delegate_error_explains_why_and_how_to_recover(self):
+        with self.assertRaises(ValueError) as caught:
+            self.app.execute('delegate_codex',{'task':'t','project':str(self.home/'work')},'k','acp:x')
+        self.assertIn('enroll',str(caught.exception))
+
 if __name__=='__main__': unittest.main()

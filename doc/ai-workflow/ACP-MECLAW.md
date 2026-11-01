@@ -48,10 +48,21 @@ working/idle로 표시된다.
 
 - `delegate_codex`, `enroll`, `dispatch`는 의도적으로 Codex 전용이다(`agent == codex` 검사).
   Claude/AGY로 일반화하지 않는다.
+- 파일 읽기: `read_file`(읽기 전용)이 `~/work`, `~/guix-system` 아래의 텍스트 파일과 디렉터리 목록만
+  읽는다. 심볼릭 링크는 해석 후 범위를 검사하고, 한 번에 최대 400줄·2 MiB·바이너리 거부,
+  `token=`/`Bearer` 값은 마스킹한다. 거부 대상: `.env*`, `auth.json`, `*.pem|key|p12|pfx|kdbx|gpg|asc`,
+  `id_*`, `.netrc`/`.npmrc`/`.pypirc`/`.git-credentials`, 이름에 token·secret·credential·password가
+  구분자로 들어간 파일·폴더, `.git`·`.ssh`·`.gnupg`·`.aws` 등 폴더, MeClaw 내부 `runtime/`·`colony/`.
+  **Telegram 채널에서는 사용할 수 없다.** Codex MCP 경로(`/tool`)에도 노출하지 않는다.
 - MeClaw의 Herdr 도구는 읽기 전용이다. `herdr_agents`는 pane 목록·상태만, `herdr_read`는
   enrolled worker/dispatcher pane 출력만 읽으므로 Claude/AGY pane 내용은 읽지 못한다.
 
 ## 문제 해결
+
+- **Herdr 서버를 다시 시작하면 dispatcher와 worker가 함께 종료된다**(pane 번호도 바뀐다). 자동으로
+  되살리지 않는다: 무인으로 pane과 Codex를 만들지 않기 위해서다. 세션을 시작할 때 worker가 꺼져
+  있으면 ACP 화면에 경고가 나오고, `delegate_codex`도 이유와 복구 방법(`meclaw-workflow enroll`)을
+  돌려준다. 기존 Codex pane을 재사용하려면 `meclaw-workflow enroll --worker-pane <pane>`.
 
 - `herdr_status`가 `available: false`: dispatcher 하트비트가 20초 넘게 끊겼거나 worker pane이
   사라진 상태다. Herdr 안에서 `meclaw-workflow enroll`을 다시 실행한다. 서비스 재시작

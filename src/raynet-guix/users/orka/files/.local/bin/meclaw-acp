@@ -119,6 +119,21 @@ def select_model(model):
     CATALOG['current'] = model
 
 
+def worker_notice():
+    """Explain up front when delegation cannot work (dispatcher/worker offline)."""
+    path = Path(os.environ.get('MECLAW_WORKFLOW_ROOT',
+                               Path.home() / '.local/share/meclaw-workflow')) / 'runtime/dispatcher.json'
+    try:
+        status = json.loads(path.read_text())
+        if time.time() - status.get('heartbeat', 0) < 20 and status.get('worker_state') != 'unknown':
+            return None
+    except (OSError, ValueError):
+        pass
+    return ('Codex worker is offline, so delegating work will fail. '
+            'Run `meclaw-workflow enroll` inside Herdr (a Herdr restart ends the dispatcher). '
+            'Chat and read-only tools still work.')
+
+
 def tool_event(session_id, event):
     if event['event'] == 'tool_call':
         args = event.get('arguments') or {}
@@ -223,6 +238,9 @@ def handle(message):
                                 'channel': channel_for(cwd, name or session_id)}
         load_catalog()
         reply(rid, {'sessionId': session_id, **model_state()})
+        notice = worker_notice()
+        if notice:
+            update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': '⚠ ' + notice + '\n\n'})
     elif method == 'session/prompt':
         threading.Thread(target=run_prompt, args=(rid, params), daemon=True).start()
     elif method == 'session/set_config_option':
