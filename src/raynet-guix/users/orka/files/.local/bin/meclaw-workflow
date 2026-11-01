@@ -1032,6 +1032,14 @@ def settle_key_senders():
     return (lambda pane,key: herdr('pane','send-keys',pane,key),lambda pane,text: herdr('pane','send-text',pane,text))
 
 
+def job_brief(job):
+    scope={'default':'Work only in '+job['project']+'.',
+           'project':'Your project directory is '+job['project']+'; it is writable for this job. Work inside it and do not touch other paths.',
+           'all':'This job runs without a sandbox or approval prompts at the user\'s explicit request. '+job['project']+
+                 ' is only your starting directory: read and write any path the task names, and nothing beyond what the task needs.'}[job.get('permission','default')]
+    return (scope+' Task ID '+job['id']+'.\n'+job['task']+
+            '\nDo not delegate further. Verify the result and report observed checks. Do not answer approval prompts yourself.')
+
 def dispatch(root,worker_pane,supervised=False):
     if not supervised and os.environ.get('HERDR_ENV')!='1': raise ValueError('Start this dispatcher inside Herdr')
     store=Store(root)
@@ -1069,8 +1077,7 @@ def dispatch(root,worker_pane,supervised=False):
                     if agent.get('agent_status') not in ('idle','done'):
                         if job_workspace is None: raise ValueError('Enrolled worker is not idle')
                         time.sleep(5);agent=herdr('agent','get',job_pane)['result']['agent']
-                    brief=('Work only in '+job['project']+'. Task ID '+job['id']+'.\n'+job['task']+
-                           '\nDo not delegate further. Verify the result and report observed checks. Do not answer approval prompts yourself.')
+                    brief=job_brief(job)
                     # Keep enrollment live during the blocking prompt/wait.
                     waiting=threading.Event()
                     def heartbeat():

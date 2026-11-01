@@ -336,6 +336,16 @@ class MeclawTests(unittest.TestCase):
         for level in ('default','project','all'):  # the single bypass switch stays unused at every level
             self.assertNotIn('--dangerously-bypass-approvals-and-sandbox',m.worker_args(self.home,level,project))
 
+    def test_brief_matches_the_permission_level(self):
+        base={'id':'j1','project':'/home/orka/guix-system','task':'do it'}
+        default=m.job_brief(dict(base,permission='default'))
+        self.assertTrue(default.startswith('Work only in /home/orka/guix-system'))
+        scoped=m.job_brief(dict(base,permission='project'))
+        self.assertIn('writable',scoped);self.assertNotIn('Work only in',scoped)
+        full=m.job_brief(dict(base,permission='all'))
+        self.assertIn('only your starting directory',full);self.assertNotIn('Work only in',full)
+        for brief in (default,scoped,full): self.assertIn('Do not answer approval prompts yourself',brief)
+
     def test_elevated_worker_is_a_dedicated_workspace_in_the_job_project(self):
         job=self.store.queue('el1','ch','t',str(self.home/'guix-system'),'all');self.store.claim();job=self.store.job(job['id'])
         calls=[]
