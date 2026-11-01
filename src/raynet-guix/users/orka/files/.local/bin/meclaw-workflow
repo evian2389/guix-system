@@ -81,6 +81,7 @@ TOOLS=[
                  'lines':{'type':'integer','minimum':1,'maximum':400,'description':'Line count, default 200.'}},['path']),
     tool_schema('delegate_codex','Queue one task in the enrolled Herdr Codex worker. Returns a job ID; queued is not completed.',
                 {'task':{'type':'string'},'project':{'type':'string','description':'Absolute project directory below ~/work or ~/guix-system.'}},['task','project']),
+    tool_schema('cancel_job','Cancel a queued Codex job that the worker has not taken yet. Started jobs cannot be stopped from here; say so and point to Herdr.',{'id':{'type':'string'}},['id']),
     tool_schema('job_status','Read a queued Codex job; never automatically repeat uncertain work.',{'id':{'type':'string'}},['id']),
 ]
 
@@ -138,6 +139,33 @@ class Store:
         if status not in ('completed','failed','blocked','unknown'): raise ValueError('Invalid job state')
         with closing(self.db()) as db,db:
             db.execute('update jobs set status=?,result=?,pane=? where id=?',(status,str(result)[:16000],pane,jid))
+    def cancel(self,jid,channel):
+        # One conditional UPDATE: it wins only while the job is still queued, so it cannot
+        # race claim(). Started work is never stopped here; that needs a human in Herdr.
+        with closing(self.db()) as db,db:
+            row=db.execute('select channel,status from jobs where id=?',(jid,)).fetchone()
+            if not row: raise ValueError('Unknown job')
+            if row['channel']!=channel: raise ValueError('Job belongs to another channel')
+            done=db.execute("update jobs set status='cancelled',result='Cancelled before the worker took it.' where id=? and status='queued'",(jid,)).rowcount
+        if not done:
+            state=self.job(jid)['status']
+            raise ValueError('Job is '+state+' and cannot be stopped from MeClaw; the worker may already be acting. Inspect or interrupt it in Herdr.'
+                             if state in ('working','blocked','unknown') else 'Job is already '+state)
+        return self.job(jid)
+    def active_jobs(self,channel):
+        with closing(self.db()) as db:
+            rows=db.execute("select id,status,project from jobs where channel=? and status in ('queued','working','blocked') order by created",(channel,)).fetchall()
+        return [dict(r) for r in rows]
+    def unreported(self,channel):
+        # At-most-once per job state; consumed by the ACP shim at the next prompt or session open.
+        with closing(self.db()) as db:
+            rows=db.execute("select id,status,project,result from jobs where channel=? and status in ('completed','failed','blocked','unknown','cancelled') order by created",(channel,)).fetchall()
+        fresh=[]
+        for row in rows:
+            marker='acp_reported:'+row['id']+':'+row['status']
+            if self.meta(marker) is not None: continue
+            self.meta(marker,time.time());fresh.append(dict(row))
+        return fresh
     def recover(self):
         with closing(self.db()) as db,db:
             db.execute("update jobs set status='unknown',result='Dispatcher interrupted; inspect the recorded pane and worktree. Never automatically replay.' where status in ('working','blocked')")
@@ -447,6 +475,9 @@ class App:
                 raise ValueError('Project must be below ~/work or ~/guix-system')
             job=self.store.queue(key,channel,args['task'],project)
             return {k:job[k] for k in ('id','status','project')}
+        if name=='cancel_job':
+            job=self.store.cancel(args['id'],channel)
+            return {k:job[k] for k in ('id','status','project')}
         if name=='job_status':
             job=self.store.job(args['id'])
             if job['channel']!=channel: raise ValueError('Job belongs to another channel')
@@ -572,6 +603,13 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(channel,str) or not re.fullmatch(r'[a-zA-Z0-9:_.-]{1,160}',channel): raise ValueError('Invalid channel')
                 if channel.startswith('telegram:'): raise ValueError('History of this channel is not available')
                 value={'messages':app.store.history(channel)}
+            elif self.path=='/jobs':
+                channel=body.get('channel')
+                if not isinstance(channel,str) or not re.fullmatch(r'[a-zA-Z0-9:_.-]{1,160}',channel) or not channel.startswith('acp:'): raise ValueError('Invalid channel')
+                value={'active':app.store.active_jobs(channel)}
+                if body.get('consume'):
+                    value['finished']=[{'id':j['id'],'status':j['status'],'project':j['project'],'result':redact(j['result'][-800:])}
+                                       for j in app.store.unreported(channel)]
             elif self.path=='/chat' and body.get('stream'):
                 self.stream_chat(app,body);return
             elif self.path in ('/chat','/infer'):
@@ -903,7 +941,7 @@ def serve(root,binary,telegram=False):
 def main():
     os.umask(0o077)
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',choices=['setup','serve','ask','infer','mcp','enroll','dispatch','supervise','snapshot','status','models','model','history'])
+    parser.add_argument('command',choices=['setup','serve','ask','infer','mcp','enroll','dispatch','supervise','snapshot','status','models','model','history','jobs'])
     parser.add_argument('--model')
     parser.add_argument('--refresh',action='store_true')
     parser.add_argument('--root',type=Path,default=DEFAULT_ROOT)
@@ -914,6 +952,7 @@ def main():
     parser.add_argument('--supervised',action='store_true',help='dispatch: started by the supervisor outside Herdr')
     parser.add_argument('--channel',default='terminal')
     parser.add_argument('--prompt')
+    parser.add_argument('--consume',action='store_true',help='jobs: also return and mark finished jobs as reported')
     parser.add_argument('--stream',action='store_true',help='ask: print NDJSON progress events then the result')
     args=parser.parse_args()
     if args.command=='setup': print(configure(args.repository,Path.home()))
@@ -928,6 +967,7 @@ def main():
     elif args.command=='status': print(json.dumps(request('http://127.0.0.1:'+str(PORT)+'/health')))
     elif args.command=='models': print(json.dumps(client(args.root,'/models',{'refresh':args.refresh})))
     elif args.command=='history': print(json.dumps(client(args.root,'/history',{'channel':args.channel}),ensure_ascii=False))
+    elif args.command=='jobs': print(json.dumps(client(args.root,'/jobs',{'channel':args.channel,'consume':args.consume}),ensure_ascii=False))
     elif args.command=='model':
         if not args.model: parser.error('--model is required')
         print(json.dumps(client(args.root,'/model',{'model':args.model})))

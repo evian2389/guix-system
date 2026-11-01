@@ -97,6 +97,68 @@ class MeclawTests(unittest.TestCase):
         self.assertEqual(self.store.job(a['id'])['status'],'unknown')
         self.assertIsNone(self.store.claim())
 
+    def test_queued_job_cancels_atomically_and_is_never_claimed(self):
+        a=self.store.queue('k1','ch','task','/p')
+        self.assertEqual(self.store.cancel(a['id'],'ch')['status'],'cancelled')
+        self.assertIsNone(self.store.claim())
+        self.assertEqual(self.store.job(a['id'])['status'],'cancelled')
+
+    def test_cancel_refuses_started_foreign_or_unknown_jobs(self):
+        a=self.store.queue('k2','ch','task','/p');self.store.claim()
+        with self.assertRaises(ValueError) as ctx: self.store.cancel(a['id'],'ch')
+        self.assertIn('cannot be stopped',str(ctx.exception))
+        self.assertEqual(self.store.job(a['id'])['status'],'working')
+        b=self.store.queue('k3','ch','task','/p')
+        with self.assertRaises(ValueError): self.store.cancel(b['id'],'other')
+        self.assertEqual(self.store.job(b['id'])['status'],'queued')
+        with self.assertRaises(ValueError): self.store.cancel('nope','ch')
+
+    def test_cancel_and_claim_race_has_exactly_one_winner(self):
+        for n in range(30):
+            job=self.store.queue('race%d'%n,'ch','task','/p')
+            outcome={}
+            gate=threading.Barrier(2)
+            def cancel():
+                gate.wait()
+                try: outcome['cancel']=self.store.cancel(job['id'],'ch')['status']
+                except ValueError: outcome['cancel']='refused'
+            def claim():
+                gate.wait();outcome['claim']=self.store.claim()
+            threads=[threading.Thread(target=cancel),threading.Thread(target=claim)]
+            [t.start() for t in threads];[t.join() for t in threads]
+            claimed=outcome['claim'] is not None
+            self.assertEqual(claimed,outcome['cancel']=='refused',outcome)
+            self.assertEqual(self.store.job(job['id'])['status'],'working' if claimed else 'cancelled')
+            if claimed: self.store.finish(job['id'],'completed')
+
+    def test_cancelled_jobs_free_queue_capacity(self):
+        ids=[self.store.queue('c%d'%n,'ch','t','/p')['id'] for n in range(4)]
+        with self.assertRaises(ValueError): self.store.queue('c9','ch','t','/p')
+        self.store.cancel(ids[3],'ch')
+        self.store.queue('c9','ch','t','/p')
+
+    def test_cancel_job_tool_reports_honest_state(self):
+        app=m.App(self.store,self.home)
+        job=self.store.queue('t1','ch','task','/p')
+        self.assertEqual(app.execute('cancel_job',{'id':job['id']},'k','ch')['status'],'cancelled')
+        job=self.store.queue('t2','ch','task','/p');self.store.claim()
+        with self.assertRaises(ValueError): app.execute('cancel_job',{'id':job['id']},'k','ch')
+
+    def test_unreported_jobs_are_returned_once_per_state(self):
+        a=self.store.queue('u1','acp:x:main','task','/p');self.store.queue('u2','acp:y:main','task','/p')
+        self.assertEqual(self.store.unreported('acp:x:main'),[])
+        self.store.claim();self.store.finish(a['id'],'completed','done')
+        rows=self.store.unreported('acp:x:main')
+        self.assertEqual([r['id'] for r in rows],[a['id']])
+        self.assertEqual(self.store.unreported('acp:x:main'),[])
+        self.assertEqual(self.store.unreported('acp:y:main'),[])
+
+    def test_active_jobs_lists_only_unsettled_jobs_of_the_channel(self):
+        a=self.store.queue('v1','ch','task','/p');self.store.queue('v2','other','task','/p')
+        self.assertEqual([j['id'] for j in self.store.active_jobs('ch')],[a['id']])
+        self.store.claim();self.store.finish(a['id'],'completed')
+        self.assertEqual(self.store.active_jobs('ch'),[])
+
     def test_telegram_credentials_require_an_allowlist(self):
         path=self.home/'gateway.json'
         path.write_text(json.dumps({'channels':{'telegram':{'accounts':{'main':{'bot_token':'fixture-secret'}}}}}))

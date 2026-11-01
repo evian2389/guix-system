@@ -127,7 +127,10 @@ def restore(rid, params, replay):
     if not entry:
         return reply(rid, error={'code': -32002, 'message': 'Unknown session; start a new one'})
     session_id = params['sessionId']
-    open_session(session_id, params.get('cwd') or entry['cwd'], entry['channel'])
+    if params.get('cwd') and str(Path(params['cwd']).resolve()) != entry.get('cwd'):
+        return reply(rid, error={'code': -32002, 'message': 'This session belongs to another project (%s); '
+                                 'start a new session here instead' % entry.get('cwd')})
+    open_session(session_id, entry['cwd'], entry['channel'])
     load_catalog()
     if replay:
         turns = stored_turns(entry['channel'])
@@ -139,6 +142,7 @@ def restore(rid, params, replay):
     notice = worker_notice()
     if notice:
         update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': '⚠ ' + notice + '\n\n'})
+    announce_finished(session_id, SESSIONS[session_id])
 
 
 def list_sessions(rid, params):
@@ -225,6 +229,36 @@ def worker_notice():
             'Chat and read-only tools still work.')
 
 
+def job_notices(channel, consume):
+    try:
+        return workflow_json(['jobs', '--channel', channel] + (['--consume'] if consume else []), timeout=15)
+    except (ValueError, OSError, subprocess.SubprocessError):
+        return {}
+
+
+LABELS = {'completed': '작업 종료', 'failed': '작업 실패', 'blocked': '승인 대기', 'unknown': '상태 불명', 'cancelled': '취소됨'}
+
+
+def announce_finished(session_id, session):
+    """Report delegated jobs that settled while nobody was asking. Delivered at session open and
+    before the next answer; there is no unprompted push (client support is unverified)."""
+    for job in job_notices(session['channel'], True).get('finished', []):
+        text = '📌 %s [%s] %s\n%s\n' % (LABELS.get(job.get('status'), job.get('status')), job.get('id'), job.get('project', ''),
+                                         (job.get('result') or '(출력 없음)')[-800:])
+        if job.get('status') in ('completed', 'failed'):
+            text += '결과는 직접 검증하세요.\n'
+        update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': text + '\n'})
+
+
+def cancel_notice(session):
+    active = job_notices(session['channel'], False).get('active', [])
+    if not active:
+        return None
+    lines = ['%s [%s] %s' % (job.get('status'), job.get('id'), job.get('project', '')) for job in active]
+    return ('⚠ 이 대화의 응답만 멈췄고, 이미 위임한 작업은 중단되지 않았습니다.\n' + '\n'.join(lines) +
+            '\n대기 중(queued) 작업은 "cancel_job <id>"로 취소할 수 있습니다. 실행 중이면 Herdr의 worker pane에서 직접 중단하세요.\n')
+
+
 def tool_event(session_id, event):
     if event['event'] == 'tool_call':
         args = event.get('arguments') or {}
@@ -290,8 +324,12 @@ def run_prompt(rid, params):
     remember(session_id, session, prompt_text(params.get('prompt', [])))
     report_herdr('working')
     try:
+        announce_finished(session_id, session)
         answer = ask_meclaw(session_id, session, prompt_text(params.get('prompt', [])))
         if answer is None:
+            notice = cancel_notice(session)
+            if notice:
+                update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': notice})
             return reply(rid, {'stopReason': 'cancelled'})
         update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': answer})
         reply(rid, {'stopReason': 'end_turn'})
@@ -334,6 +372,7 @@ def handle(message):
         notice = worker_notice()
         if notice:
             update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': '⚠ ' + notice + '\n\n'})
+        threading.Thread(target=announce_finished, args=(session_id, SESSIONS[session_id]), daemon=True).start()
     elif method == 'session/prompt':
         threading.Thread(target=run_prompt, args=(rid, params), daemon=True).start()
     elif method == 'session/list':
