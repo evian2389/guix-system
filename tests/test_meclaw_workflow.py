@@ -155,6 +155,46 @@ class MeclawTests(unittest.TestCase):
         m.stop_background('w:p1',lambda p,k:sent.append(k),lambda p,t:sent.append('text:'+t),0)
         self.assertEqual(sent,['text:/stop','enter','enter'])
 
+    def interrupt_app(self,agents):
+        calls=[]
+        def fake(*a,**k):
+            calls.append(a)
+            if a[:2]==('agent','list'): return {'result':{'agents':agents()}}
+            return {}
+        return m.App(self.store,self.home),fake,calls
+
+    def test_interrupt_sends_only_esc_to_a_working_claude_pane(self):
+        state=['working']
+        app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'claude','agent_status':state[0]}])
+        with patch.object(m,'herdr',fake),patch.object(m.time,'sleep',lambda s:state.__setitem__(0,'idle')):
+            result=app.execute('interrupt_agent',{'pane':'w1:p2'},'k','ch')
+        self.assertEqual(result['sent'],'esc');self.assertEqual(result['status_now'],'idle')
+        self.assertEqual([c for c in calls if c[0]=='pane'],[('pane','send-keys','w1:p2','esc')])
+        self.assertIn('not proof',result['note'])
+
+    def test_interrupt_force_uses_ctrl_c(self):
+        app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'agy','agent_status':'working'}])
+        with patch.object(m,'herdr',fake),patch.object(m.time,'sleep'):
+            app.execute('interrupt_agent',{'pane':'w1:p2','force':True},'k','ch')
+        self.assertIn(('pane','send-keys','w1:p2','ctrl-c'),calls)
+
+    def test_interrupt_refuses_codex_blocked_unknown_and_other_agents_and_never_types(self):
+        for agent,status,why in (('codex','working','cancel_job'),('claude','blocked','approval'),('meclaw','working','Only Claude')):
+            app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':agent,'agent_status':status}])
+            with patch.object(m,'herdr',fake),self.assertRaises(ValueError) as ctx: app.execute('interrupt_agent',{'pane':'w1:p2'},'k','ch')
+            self.assertIn(why,str(ctx.exception));self.assertFalse([c for c in calls if c[0]=='pane'])
+        app,fake,calls=self.interrupt_app(lambda:[])
+        with patch.object(m,'herdr',fake),self.assertRaises(ValueError): app.execute('interrupt_agent',{'pane':'w9:p9'},'k','ch')
+        with self.assertRaises(ValueError): app.execute('interrupt_agent',{'pane':'p; rm -rf /'},'k','ch')
+
+    def test_interrupt_does_nothing_to_an_idle_agent(self):
+        app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'claude','agent_status':'idle'}])
+        with patch.object(m,'herdr',fake): result=app.execute('interrupt_agent',{'pane':'w1:p2'},'k','ch')
+        self.assertIsNone(result['sent']);self.assertFalse([c for c in calls if c[0]=='pane'])
+
+    def test_interrupt_tool_is_not_exposed_through_mcp(self):
+        self.assertNotIn("'interrupt_agent'",open(SCRIPT).read().split("Tool not exposed to MCP")[0].split("if body.get('name') not in")[-1])
+
     def test_cancelled_jobs_free_queue_capacity(self):
         ids=[self.store.queue('c%d'%n,'ch','t','/p')['id'] for n in range(4)]
         with self.assertRaises(ValueError): self.store.queue('c9','ch','t','/p')
