@@ -45,6 +45,25 @@
                       (string-append "SSL_CERT_FILE=" ca)
                       (string-append "SSL_CERT_DIR=" "/run/current-system/profile/etc/ssl/certs")
                       (string-append "CURL_CA_BUNDLE=" ca)))))
+    (stop #~(make-kill-destructor)))
+   (shepherd-service
+    (provision '(meclaw-worker))
+    (documentation "Keep one Codex worker and its dispatcher alive inside Herdr (at most 3 launches per hour).")
+    (requirement '())
+    (start #~(let* ((home (getenv "HOME"))
+                   (ca "/run/current-system/profile/etc/ssl/certs/ca-certificates.crt"))
+               (make-forkexec-constructor
+                (list #$(file-append python "/bin/python3") #$integration-script "supervise")
+                #:directory home
+                #:log-file (string-append home "/.local/state/meclaw-worker.log")
+                #:environment-variables
+                (list (string-append "HOME=" home)
+                      (string-append "PATH=" #$(file-append python "/bin") ":" home "/.local/bin:"
+                                     home "/.cargo/bin:" home "/.npm-global/bin:" home "/.nix-profile/bin:"
+                                     home "/.guix-home/profile/bin:/run/current-system/profile/bin")
+                      (string-append "SSL_CERT_FILE=" ca)
+                      (string-append "SSL_CERT_DIR=" "/run/current-system/profile/etc/ssl/certs")
+                      (string-append "CURL_CA_BUNDLE=" ca)))))
     (stop #~(make-kill-destructor)))))
 
 (define home-meclaw-service-type

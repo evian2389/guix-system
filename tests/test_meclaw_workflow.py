@@ -1,3 +1,4 @@
+from contextlib import closing
 import importlib.machinery
 import importlib.util
 import json
@@ -307,5 +308,83 @@ class ReadFileTests(unittest.TestCase):
         with self.assertRaises(ValueError) as caught:
             self.app.execute('delegate_codex',{'task':'t','project':str(self.home/'work')},'k','acp:x')
         self.assertIn('enroll',str(caught.exception))
+
+
+class WorkerSupervisionTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.home=Path(self.temp.name)/'home';self.home.mkdir()
+        self.store=m.Store(self.home/'work/workflow-evolution/meclaw')
+
+    def herdr(self,agents=(),workspaces=(),panes=()):
+        calls=[]
+        def fake(*args,**kw):
+            calls.append(args)
+            if args[:2]==('agent','list'): return {'result':{'agents':list(agents)}}
+            if args[:2]==('workspace','list'): return {'result':{'workspaces':list(workspaces)}}
+            if args[:2]==('pane','list'): return {'result':{'panes':list(panes)}}
+            if args[:2]==('workspace','create'): return {'result':{'root_pane':{'pane_id':'w1:p1'}}}
+            return {}
+        return fake,calls
+
+    def test_worker_policy_is_sandboxed_to_work_without_prompts_inside(self):
+        args=m.worker_args(self.home);work=str(self.home/'work')
+        self.assertEqual(args[args.index('--sandbox')+1],'workspace-write')
+        self.assertEqual(args[args.index('--ask-for-approval')+1],'on-request')
+        self.assertEqual(args[args.index('--add-dir')+1],work);self.assertEqual(args[args.index('--cd')+1],work)
+        self.assertNotIn('--dangerously-bypass-approvals-and-sandbox',args)
+
+    def test_existing_worker_is_reused_and_dispatcher_started_once(self):
+        fake,calls=self.herdr(agents=[{'name':'meclaw-codex','agent':'codex','pane_id':'w1:p9'}])
+        state={}
+        with patch.object(m,'herdr',fake),patch.object(m.subprocess,'Popen') as start:
+            start.return_value.poll.return_value=None
+            m.supervise_step(self.store,state,self.home);m.supervise_step(self.store,state,self.home)
+        self.assertEqual(start.call_count,1);self.assertIn('--supervised',start.call_args.args[0])
+        self.assertIn('w1:p9',start.call_args.args[0])
+        self.assertFalse([c for c in calls if c[:2] in (('workspace','create'),('agent','start'))])
+
+    def test_missing_worker_is_launched_in_its_own_workspace(self):
+        fake,calls=self.herdr()
+        with patch.object(m,'herdr',fake),patch.object(m.subprocess,'Popen'),patch.object(m.time,'sleep'):
+            m.supervise_step(self.store,{},self.home)
+        started=[c for c in calls if c[:2]==('agent','start')]
+        self.assertEqual(len(started),1);self.assertIn('--ask-for-approval',started[0])
+        self.assertTrue([c for c in calls if c[:2]==('workspace','create')])
+
+    def test_launch_budget_stops_a_crash_loop(self):
+        fake,calls=self.herdr()
+        with patch.object(m,'herdr',fake),patch.object(m.subprocess,'Popen'),patch.object(m.time,'sleep'):
+            for _ in range(5): m.supervise_step(self.store,{},self.home)
+        self.assertEqual(len([c for c in calls if c[:2]==('agent','start')]),m.SPAWN_LIMIT)
+
+    def test_herdr_down_is_logged_once_not_every_pass(self):
+        def down(*a,**k): raise ValueError('Herdr: server not running')
+        state={}
+        with patch.object(m,'herdr',down):
+            for _ in range(3): m.supervise_step(self.store,state,self.home)
+        with closing(self.store.db()) as db:
+            self.assertEqual(db.execute("select count(*) from events where kind='supervisor'").fetchone()[0],1)
+
+    def telegram_job(self,status,result='done',channel='telegram:42'):
+        job=self.store.queue('k-'+status,channel,'task',self.home/'work');self.store.finish(job['id'],status,result,'p');return job['id']
+
+    def test_notifies_telegram_chat_once_per_state_and_skips_history(self):
+        old=self.telegram_job('completed','old')
+        sent=[];app=m.App(self.store,self.home)
+        m.notify_finished_jobs(app,lambda chat,text:sent.append((chat,text)))   # baseline: nothing sent
+        self.assertEqual(sent,[])
+        self.store.finish(self.store.queue('k2','telegram:42','t2',self.home/'work')['id'],'blocked','needs approval','p')
+        m.notify_finished_jobs(app,lambda chat,text:sent.append((chat,text)))
+        m.notify_finished_jobs(app,lambda chat,text:sent.append((chat,text)))   # no repeat
+        self.assertEqual(len(sent),1);self.assertEqual(sent[0][0],'42');self.assertIn('승인 대기',sent[0][1])
+
+    def test_notification_ignores_other_channels_and_masks_secrets(self):
+        app=m.App(self.store,self.home);sent=[]
+        m.notify_finished_jobs(app,lambda c,t:sent.append(t))
+        self.telegram_job('completed','api_key = leaked123',channel='telegram:7')
+        self.telegram_job('completed','x',channel='acp:abc')
+        m.notify_finished_jobs(app,lambda c,t:sent.append(t))
+        self.assertEqual(len(sent),1);self.assertNotIn('leaked123',sent[0])
 
 if __name__=='__main__': unittest.main()

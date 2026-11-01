@@ -635,6 +635,32 @@ def telegram_loop(app,credentials):
             app.store.event('telegram','unknown','Telegram transport or response failed; no automatic task replay')
             app.stopping.wait(5)
 
+def notify_finished_jobs(app,send):
+    """Tell the originating Telegram chat when a delegated job reaches a settled state.
+    At-most-once: the marker is written before sending, so a failure never repeats a message."""
+    store=app.store
+    with closing(store.db()) as db:
+        rows=db.execute("select id,channel,project,status,result from jobs where channel like 'telegram:%' and status in ('completed','failed','blocked','unknown')").fetchall()
+    first=store.meta('job_notify_baseline') is None
+    for row in rows:
+        marker='job_notified:'+row['id']+':'+row['status']
+        if store.meta(marker) is not None: continue
+        store.meta(marker,time.time())
+        if first: continue  # jobs that settled before notifications existed
+        label={'completed':'작업 종료','failed':'작업 실패','blocked':'승인 대기','unknown':'상태 불명'}[row['status']]
+        hint=' Herdr에서 승인 후 이어집니다.' if row['status']=='blocked' else ' 결과는 직접 검증하세요.'
+        send(row['channel'].split(':',1)[1],label+' ['+row['id']+'] '+row['project']+'\n'+redact(row['result'][-1500:] or '(출력 없음)')+'\n'+hint.strip())
+    if first: store.meta('job_notify_baseline',time.time())
+
+def telegram_notify_loop(app,credentials):
+    token,_=telegram_settings(credentials)
+    def send(chat,text):
+        try: request('https://api.telegram.org/bot'+token+'/sendMessage',{'chat_id':chat,'text':text[:3500]},timeout=30)
+        except Exception: app.store.event('telegram','unknown','Job notification could not be sent; token omitted')
+    while not app.stopping.wait(5):
+        try: notify_finished_jobs(app,send)
+        except (sqlite3.Error,KeyError,ValueError): app.store.event('telegram','unknown','Job notification scan failed')
+
 def mcp(root):
     channel='codex:'+hashlib.sha256(str(Path.cwd().resolve()).encode()).hexdigest()[:16]
     tools=[tool_schema('meclaw_chat','Ask the local MeClaw coordinator; can queue work in the enrolled Herdr worker.',
@@ -677,6 +703,78 @@ def herdr(*args,timeout=30):
     if result.returncode: raise ValueError('Herdr: '+redact(result.stderr))
     return json.loads(result.stdout) if result.stdout.strip() else {}
 
+WORKER_NAME='meclaw-codex'
+WORKER_WORKSPACE='meclaw-worker'
+SPAWN_LIMIT=3  # worker launches per hour; a crash loop must not keep starting Codex
+
+def worker_args(home=None):
+    """Codex flags for the worker: writes and commands inside ~/work run without prompts;
+    anything the sandbox blocks (network, paths outside ~/work) asks, and the job parks as blocked."""
+    work=str(Path(home or Path.home())/'work')
+    return ['--model','gpt-6.1-terra','-c','model_reasoning_effort=low','--cd',work,'--add-dir',work,
+            '--sandbox','workspace-write','--ask-for-approval','on-request']
+
+def find_worker():
+    agents=herdr('agent','list')['result']['agents']
+    return next((a['pane_id'] for a in agents if a.get('name')==WORKER_NAME and a.get('agent')=='codex'),None)
+
+def spawn_budget(store,now=None):
+    now=time.time() if now is None else now
+    try: stamps=[t for t in json.loads(store.meta('worker_spawns') or '[]') if now-t<3600]
+    except ValueError: stamps=[]
+    if len(stamps)>=SPAWN_LIMIT: return False
+    store.meta('worker_spawns',json.dumps(stamps+[now]));return True
+
+def start_worker(store,home=None):
+    """Launch the single Codex worker in its own Herdr workspace (reusing an idle pane there)."""
+    if not spawn_budget(store): raise ValueError('Worker launch limit reached ('+str(SPAWN_LIMIT)+'/hour); inspect Herdr')
+    work=Path(home or Path.home())/'work'
+    workspace=next((w for w in herdr('workspace','list')['result']['workspaces'] if w.get('label')==WORKER_WORKSPACE),None)
+    pane=None
+    if workspace:
+        pane=next((x['pane_id'] for x in herdr('pane','list')['result']['panes']
+                   if x.get('workspace_id')==workspace['workspace_id'] and not x.get('agent')),None)
+    if pane is None:
+        pane=herdr('workspace','create','--label',WORKER_WORKSPACE,'--cwd',str(work),'--no-focus')['result']['root_pane']['pane_id']
+        time.sleep(2)  # let the shell reach its prompt
+    herdr('pane','run',pane,'export MECLAW_WORKER=1')
+    herdr('agent','start',WORKER_NAME,'--kind','codex','--pane',pane,'--',*worker_args(home),timeout=60)
+    store.event('worker_launch','success','Supervisor launched the Codex worker in workspace '+WORKER_WORKSPACE)
+    return pane
+
+def supervise_step(store,state,home=None):
+    """One pass: make sure a worker exists and a dispatcher serves it. Never touches other panes."""
+    try:
+        pane=find_worker() or start_worker(store,home)
+        status={}
+        try: status=json.loads((store.root/'runtime/dispatcher.json').read_text())
+        except (OSError,ValueError): pass
+        fresh=time.time()-status.get('heartbeat',0)<20
+        child=state.get('child')
+        if child is not None and child.poll() is None and status.get('worker_pane') not in (None,pane):
+            child.terminate();child.wait(timeout=10);child=None  # worker was replaced; re-point the dispatcher
+        if (child is None or child.poll() is not None) and not fresh:
+            log=open(store.root/'runtime/dispatcher.log','a')
+            state['child']=subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'dispatch','--root',str(store.root),
+                                             '--worker-pane',pane,'--supervised'],stdin=subprocess.DEVNULL,stdout=log,stderr=log,
+                                            start_new_session=True)
+            log.close()
+        state['error']=None
+    except (ValueError,KeyError,OSError,subprocess.SubprocessError) as exc:
+        message=redact(str(exc))
+        if message!=state.get('error'): store.event('supervisor','unknown',message)  # log changes only
+        state['error']=message
+
+def supervise(root,home=None):
+    store=Store(root);state={};stopping=threading.Event()
+    signal.signal(signal.SIGTERM,lambda *_:stopping.set());signal.signal(signal.SIGINT,lambda *_:stopping.set())
+    try:
+        while not stopping.is_set():
+            supervise_step(store,state,home);stopping.wait(15)
+    finally:
+        child=state.get('child')
+        if child is not None and child.poll() is None: child.terminate()
+
 def enroll(root,worker_pane=None):
     if os.environ.get('HERDR_ENV')!='1': raise ValueError('Start Codex inside Herdr, then run enroll')
     store=Store(root)
@@ -699,14 +797,13 @@ def enroll(root,worker_pane=None):
             except (OSError,ValueError): pass
     if worker_pane is None:
         panes=herdr('agent','list')['result']['agents']
-        found=next((p for p in panes if p.get('name')=='meclaw-codex'),None)
+        found=next((p for p in panes if p.get('name')==WORKER_NAME),None)
         if found: worker_pane=found['pane_id']
         else:
             pane=herdr('pane','split','--current','--direction','down','--cwd',str(Path.cwd()),'--no-focus')['result']['pane']
             worker_pane=pane['pane_id']
             herdr('pane','run',worker_pane,'export MECLAW_WORKER=1')
-            herdr('agent','start','meclaw-codex','--kind','codex','--pane',worker_pane,'--',
-                  '--model','gpt-6.1-terra','-c','model_reasoning_effort=low','--add-dir',str(Path.home()/'guix-system'),timeout=40)
+            herdr('agent','start',WORKER_NAME,'--kind','codex','--pane',worker_pane,'--',*worker_args(),timeout=40)
     agent=herdr('agent','get',worker_pane)['result']['agent']
     if agent.get('agent')!='codex': raise ValueError('Enroll a Codex pane only')
     log=open(store.root/'runtime/dispatcher.log','a')
@@ -715,8 +812,8 @@ def enroll(root,worker_pane=None):
     log.close()
     print(json.dumps({'dispatcher_pid':process.pid,'worker_pane':worker_pane}))
 
-def dispatch(root,worker_pane):
-    if os.environ.get('HERDR_ENV')!='1': raise ValueError('Start this dispatcher inside Herdr')
+def dispatch(root,worker_pane,supervised=False):
+    if not supervised and os.environ.get('HERDR_ENV')!='1': raise ValueError('Start this dispatcher inside Herdr')
     store=Store(root)
     import fcntl
     with (store.root/'runtime/dispatcher.lock').open('w') as lock:
@@ -786,6 +883,7 @@ def serve(root,binary,telegram=False):
             credentials=Path.home()/'.local/share/microclaw-workflow/gateway.json'
             telegram_settings(credentials)
             threading.Thread(target=telegram_loop,args=(app,credentials),daemon=True).start()
+            threading.Thread(target=telegram_notify_loop,args=(app,credentials),daemon=True).start()
         while not app.stopping.wait(.5):
             if child.poll() is not None: raise ValueError('MeClaw process exited; inspect private runtime/native.log')
     finally:
@@ -799,7 +897,7 @@ def serve(root,binary,telegram=False):
 def main():
     os.umask(0o077)
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',choices=['setup','serve','ask','infer','mcp','enroll','dispatch','snapshot','status','models','model'])
+    parser.add_argument('command',choices=['setup','serve','ask','infer','mcp','enroll','dispatch','supervise','snapshot','status','models','model'])
     parser.add_argument('--model')
     parser.add_argument('--refresh',action='store_true')
     parser.add_argument('--root',type=Path,default=DEFAULT_ROOT)
@@ -807,6 +905,7 @@ def main():
     parser.add_argument('--binary',default=shutil.which('meclaw') or 'meclaw')
     parser.add_argument('--telegram',action='store_true')
     parser.add_argument('--worker-pane')
+    parser.add_argument('--supervised',action='store_true',help='dispatch: started by the supervisor outside Herdr')
     parser.add_argument('--channel',default='terminal')
     parser.add_argument('--prompt')
     parser.add_argument('--stream',action='store_true',help='ask: print NDJSON progress events then the result')
@@ -815,9 +914,10 @@ def main():
     elif args.command=='serve': serve(args.root,args.binary,args.telegram)
     elif args.command=='mcp': mcp(args.root)
     elif args.command=='enroll': enroll(args.root,args.worker_pane)
+    elif args.command=='supervise': supervise(args.root)
     elif args.command=='dispatch':
         if not args.worker_pane: parser.error('--worker-pane is required')
-        dispatch(args.root,args.worker_pane)
+        dispatch(args.root,args.worker_pane,args.supervised)
     elif args.command=='snapshot': print(Store(args.root).snapshot())
     elif args.command=='status': print(json.dumps(request('http://127.0.0.1:'+str(PORT)+'/health')))
     elif args.command=='models': print(json.dumps(client(args.root,'/models',{'refresh':args.refresh})))
