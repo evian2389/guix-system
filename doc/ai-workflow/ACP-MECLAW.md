@@ -6,7 +6,7 @@ MeClaw 호스트 bridge를 ACP 에이전트로 노출하는 얇은 stdio shim이
 
 ```mermaid
 flowchart LR
-  H[Herdr pane] --> T[toad-meclaw / martty-meclaw]
+  H[Herdr pane] --> T[toad-meclaw / mm]
   T -- ACP stdio --> S[meclaw-acp]
   S -- ask --stream --> B[meclaw-workflow bridge :10964]
   B --> M[MeClaw brain]
@@ -19,7 +19,7 @@ flowchart LR
 ```sh
 cd ~/work/your-project
 toad-meclaw                 # Toad (Python 3.14, Nix python314 + uv tool)
-martty-meclaw               # Martty (npm -g)
+mm                          # Martty (npm -g); martty-meclaw 의 새 이름
 toad-meclaw --session NAME  # 대화를 분리
 ```
 

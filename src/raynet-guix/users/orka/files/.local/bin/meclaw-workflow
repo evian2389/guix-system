@@ -315,7 +315,7 @@ class App:
             config=json.loads(path.read_text());config['params'].update(choice)
             atomic(path,json.dumps(config,indent=2)+'\n')
             self.store.event('model_change','success','Coordinator model changed to '+model+'; evaluator and worker unchanged.')
-            return {**choice,'scope':'shared coordinator (Pi, Telegram, MCP); evaluator and Codex worker unchanged'}
+            return {**choice,'scope':'shared coordinator (ACP clients, Telegram, MCP); evaluator and Codex worker unchanged'}
         finally: self.lock.release()
     def prepare(self,prompt,channel,system=None,evaluate=False):
         if evaluate:

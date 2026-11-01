@@ -1,7 +1,7 @@
 # MeClaw 로컬 통합
 
 기본 coordinator를 MeClaw로 전환했다. ChatGPT 인증과 Terra 6.1을 사용하고, Herdr의
-기본 대화 화면은 ACP 터미널 클라이언트(`toad-meclaw`, `martty-meclaw`)다. [사용법](ACP-MECLAW.md)을 따른다.
+기본 대화 화면은 ACP 터미널 클라이언트(`toad-meclaw`, `mm` = Martty)다. [사용법](ACP-MECLAW.md)을 따른다.
 Codex MCP는 선택적 접근 경로이며 Codex 작업자는 단일 작업 큐로 연결한다. Telegram은 기존 봇·허용 사용자 설정을
 읽는 고정 adapter가 직접 연결하며 Pi를 거치지 않는다. upstream Telegram connector와
 전체 meclaw-os/Argus를 올린 구성은 아니다. 이 첫 단계에서는 기존 MetaSkill 중심의
@@ -24,7 +24,7 @@ Fast loop; meta-skill evolution remains a later milestone.
 ```mermaid
 flowchart TD
   T[Telegram: allowed private user] --> G[Authenticated local workflow bridge]
-  P[Herdr ACP TUI: toad-meclaw / martty-meclaw] --> A[meclaw-acp shim]
+  P[Herdr ACP TUI: toad-meclaw / mm] --> A[meclaw-acp shim]
   A --> G
   C[Herdr Codex TUI] --> MCP[MeClaw MCP tools]
   MCP --> G
@@ -82,7 +82,7 @@ entries fail rather than being overwritten. Restart a Codex session to load it.
 
 ## Herdr and Codex
 
-For an interactive terminal, run `toad-meclaw` or `martty-meclaw` in your project directory. This talks
+For an interactive terminal, run `toad-meclaw` or `mm` in your project directory. This talks
 directly to MeClaw; no Codex frontend is required. [ACP usage](ACP-MECLAW.md).
 
 Native MeClaw uses `auth: oauth_subscription` and an explicit reference to the
