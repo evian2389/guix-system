@@ -403,6 +403,21 @@ class MeclawTests(unittest.TestCase):
         call.assert_not_called()
         self.assertTrue(app.active['fixture']['done'].is_set())
 
+    def test_tool_limit_keeps_progress_and_asks_the_user_to_continue(self):
+        app=m.App(self.store,home=self.home)
+        app.active['fixture']={'body':{'messages':[{'origin':'user','type':'text','text':'read many'}]},
+             'evaluate':False,'steps':m.TOOL_STEP_LIMIT,'channel':'terminal','done':threading.Event()}
+        call={'origin':'assistant','type':'tool_call','id':'c-over','text':json.dumps({'name':'workflow_search','arguments':{'query':'x'}})}
+        with patch.object(app,'tool') as run_tool:
+            answer=app.result('fixture',{'messages':[call]},{})
+        run_tool.assert_not_called()
+        state=app.active['fixture']
+        self.assertTrue(state['done'].is_set());self.assertIsNone(state.get('error'))
+        self.assertIn('계속',state['text']);self.assertEqual(answer['header']['route'],'answer')
+        kinds=[(x['origin'],x['type']) for x in state['body']['messages']]
+        self.assertEqual(kinds[-3:],[('assistant','tool_call'),('tool','tool_result'),('assistant','text')])  # no dangling call
+        self.assertEqual(state['body']['messages'][-2]['id'],'c-over')
+
     def test_native_tool_loop_keeps_call_ids_and_actual_token_counts(self):
         app=m.App(self.store,home=self.home)
         app.active['fixture']={'body':{'messages':[{'origin':'user','type':'text','text':'search'}]},

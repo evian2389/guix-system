@@ -611,8 +611,17 @@ class App:
                 emit({'event':'tool_result','id':str(turn.get('id')),'error':bool(result.get('is_error')),'text':result['text'][:2000]})
                 state['body']['messages'].append({'origin':'tool','type':'tool_result','id':turn.get('id'),'text':result['text']})
             return {'header':{'route':'loop'},**state['body']}
-        if calls and not state.get('error'): state['error']='Tool iteration budget reached; no further action executed'
         text='\n'.join(t.get('text','') for t in messages if t.get('type')=='text' and t.get('origin')=='assistant')
+        if calls and not state.get('error'):
+            if state['evaluate']: state['error']='Tool iteration budget reached; no further action executed'
+            else:
+                # Keep what was learned: close the unexecuted calls, tell the user, and let them continue from the saved history.
+                for turn in calls:
+                    state['body']['messages'].append({'origin':'tool','type':'tool_result','id':turn.get('id'),'text':'Not executed: the per-request tool limit was reached.'})
+                notice=('⚠ 한 요청에서 쓸 수 있는 도구 호출 한도('+str(TOOL_STEP_LIMIT)+'회)에 도달해 여기서 멈췄습니다. '
+                        '"계속"이라고 보내면 지금까지의 결과를 기억한 채 이어갑니다.')
+                text=(text+'\n\n' if text else '')+notice
+                state['body']['messages'].append({'origin':'assistant','type':'text','text':notice})
         state['text']=text
         state['done'].set()
         return {'header':{'route':'answer'},'messages':[{'origin':'assistant','type':'text','text':state.get('error') or text}]}
@@ -832,7 +841,7 @@ def herdr(*args,timeout=30):
     if result.returncode: raise ValueError('Herdr: '+redact(result.stderr))
     return json.loads(result.stdout) if result.stdout.strip() else {}
 
-TOOL_STEP_LIMIT=12  # tool calls per request; pane control alternates read and key presses
+TOOL_STEP_LIMIT=int(os.environ.get('MECLAW_TOOL_STEP_LIMIT','30'))  # tool calls per request; reading code and pane control need many
 WORKER_NAME='meclaw-codex'
 WORKER_WORKSPACE='meclaw-worker'
 SPAWN_LIMIT=10  # worker launches per hour; a crash loop must not keep starting Codex
