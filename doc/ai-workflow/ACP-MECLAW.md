@@ -59,7 +59,7 @@ working/idle로 표시된다.
 | 대상 | 방식 |
 |---|---|
 | Codex | MeClaw 방식. `meclaw-workflow enroll`로 `meclaw-codex` pane과 dispatcher를 등록하고, 대화에서 `delegate_codex`로 위임, `job_status`/`herdr_read`로 모니터링한다. |
-| Claude Code, AGY | 구독 약관상 다른 에이전트가 프로그램으로 구동하는 것을 전제하지 않는다. MeClaw가 위임하지 않고, 사람이 Herdr pane에서 직접 쓰거나 `herdr-delegation` 스킬로 Herdr를 통해 사용한다. 이미 Herdr로 시작된 Claude/AGY pane은 MeClaw가 `interrupt_agent`로 **중단만** 요청할 수 있다(아래). |
+| Claude Code, AGY | 구독 약관상 다른 에이전트가 프로그램으로 구동하는 것을 전제하지 않는다. MeClaw가 위임하지 않고, 사람이 Herdr pane에서 직접 쓰거나 `herdr-delegation` 스킬로 Herdr를 통해 사용한다. Herdr pane의 중단은 MeClaw가 `interrupt_agent`로 요청할 수 있다(아래). |
 
 - `delegate_codex`, `enroll`, `dispatch`는 의도적으로 Codex 전용이다(`agent == codex` 검사).
   Claude/AGY로 일반화하지 않는다.
@@ -94,11 +94,12 @@ working/idle로 표시된다.
 
 ## 위임 작업의 취소·알림·재지시 (한계 포함)
 
-- **Claude/AGY 중단 (`interrupt_agent <pane>`)**: Herdr로 시작된 Claude Code/AGY pane에 `esc`(`force`면
-  `ctrl-c`)만 보낸다. 텍스트 입력, 승인 응답, pane 닫기는 하지 않는다. Codex pane(`cancel_job` 사용),
-  승인 대기(`blocked`), 그 밖의 에이전트(meclaw 자신 포함)는 거부하고, 이미 idle이면 아무것도 보내지
-  않는다. 3초 뒤 상태를 다시 읽어 `status_now`로 돌려주며 "중단 요청"일 뿐 깨끗한 종료의 증거는 아니다 —
-  시작된 명령이나 부분 변경이 남을 수 있다(Claude/AGY에서 남는지는 미검증). MCP `/tool`에는 노출하지 않는다.
+- **에이전트 pane 중단 (`interrupt_agent <pane>`)**: Herdr가 알고 있는 어떤 에이전트 pane(Claude Code, AGY 등)에도
+  `esc`(`force`면 `ctrl-c`)를 보낸다. 에이전트 종류·상태 제한은 두지 않는다(Herdr를 통한 제어는 허용하기로
+  했다). pane ID 형식만 검증하고, 키 입력 외에 텍스트 입력이나 pane 닫기는 하지 않는다. 3초 뒤 상태를 다시
+  읽어 `status_now`로 돌려주며 "중단 요청"일 뿐 깨끗한 종료의 증거는 아니다 — 시작된 명령이나 부분 변경이
+  남을 수 있다(Claude/AGY에서 남는지는 미검증). 승인 대기 중인 pane에 Esc가 가면 그 승인 프롬프트가
+  취소될 수 있다. MCP `/tool`에는 노출하지 않는다. MeClaw Codex job은 `cancel_job`이 `/stop`까지 보내므로 그쪽을 쓴다.
 - **작업 취소 (`cancel_job <id>`)**: 대기 중(`queued`) 작업은 즉시 `cancelled`가 된다. 취소와 worker의 가져오기는
   SQLite 조건부 UPDATE 하나로 갈리므로 둘 중 정확히 하나만 성공한다(경합 테스트). **실행 중(`working`)
   작업은 "취소 요청"만 기록**하고, pane을 제어하는 별도 프로세스인 dispatcher가 worker pane에 Esc를

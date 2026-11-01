@@ -178,19 +178,15 @@ class MeclawTests(unittest.TestCase):
             app.execute('interrupt_agent',{'pane':'w1:p2','force':True},'k','ch')
         self.assertIn(('pane','send-keys','w1:p2','ctrl-c'),calls)
 
-    def test_interrupt_refuses_codex_blocked_unknown_and_other_agents_and_never_types(self):
-        for agent,status,why in (('codex','working','cancel_job'),('claude','blocked','approval'),('meclaw','working','Only Claude')):
+    def test_interrupt_applies_to_any_herdr_agent_in_any_state(self):
+        for agent,status in (('codex','working'),('claude','blocked'),('agy','idle'),('meclaw','working')):
             app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':agent,'agent_status':status}])
-            with patch.object(m,'herdr',fake),self.assertRaises(ValueError) as ctx: app.execute('interrupt_agent',{'pane':'w1:p2'},'k','ch')
-            self.assertIn(why,str(ctx.exception));self.assertFalse([c for c in calls if c[0]=='pane'])
+            with patch.object(m,'herdr',fake),patch.object(m.time,'sleep'): result=app.execute('interrupt_agent',{'pane':'w1:p2'},'k','ch')
+            self.assertEqual(result['status_before'],status);self.assertIn(('pane','send-keys','w1:p2','esc'),calls)
+            self.assertEqual([c for c in calls if c[0]=='pane'],[('pane','send-keys','w1:p2','esc')])  # keys only: no text, no close
         app,fake,calls=self.interrupt_app(lambda:[])
         with patch.object(m,'herdr',fake),self.assertRaises(ValueError): app.execute('interrupt_agent',{'pane':'w9:p9'},'k','ch')
         with self.assertRaises(ValueError): app.execute('interrupt_agent',{'pane':'p; rm -rf /'},'k','ch')
-
-    def test_interrupt_does_nothing_to_an_idle_agent(self):
-        app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'claude','agent_status':'idle'}])
-        with patch.object(m,'herdr',fake): result=app.execute('interrupt_agent',{'pane':'w1:p2'},'k','ch')
-        self.assertIsNone(result['sent']);self.assertFalse([c for c in calls if c[0]=='pane'])
 
     def test_interrupt_tool_is_not_exposed_through_mcp(self):
         self.assertNotIn("'interrupt_agent'",open(SCRIPT).read().split("Tool not exposed to MCP")[0].split("if body.get('name') not in")[-1])
