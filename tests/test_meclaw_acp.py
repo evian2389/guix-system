@@ -175,6 +175,11 @@ class ShimTests(unittest.TestCase):
             {'id':3,'method':'session/list','params':{'cwd':str(self.cwd)}}])
         self.assertEqual([s['sessionId'] for s in responses[3]['result']['sessions']],[sid])
         self.assertTrue(any('이어갈 세션이 없습니다' in n['params']['update']['content']['text'] for n in notes))
+        elsewhere=self.cwd.parent/'elsewhere';elsewhere.mkdir();self.new(elsewhere)  # other projects do not count
+        responses,notes=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
+            {'id':2,'method':'session/new','params':{'cwd':str(self.cwd),'mcpServers':[]}},
+            {'id':3,'method':'session/list','params':{}}])  # no cwd, as Martty sends it
+        self.assertTrue(any('이어갈 세션이 없습니다' in n['params']['update']['content']['text'] for n in notes))
         other=self.new(MECLAW_ACP_SESSION='side')
         responses,notes=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
             {'id':2,'method':'session/new','params':{'cwd':str(self.cwd),'mcpServers':[]}},
