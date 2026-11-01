@@ -127,12 +127,14 @@ def restore(rid, params, replay):
     if not entry:
         return reply(rid, error={'code': -32002, 'message': 'Unknown session; start a new one'})
     session_id = params['sessionId']
-    if params.get('cwd') and str(Path(params['cwd']).resolve()) != entry.get('cwd'):
-        return reply(rid, error={'code': -32002, 'message': 'This session belongs to another project (%s); '
-                                 'start a new session here instead' % entry.get('cwd')})
+    # A session always keeps its own project, channel and context; picking one from another folder is a deliberate choice.
+    foreign = bool(params.get('cwd')) and str(Path(params['cwd']).resolve()) != entry.get('cwd')
     open_session(session_id, entry['cwd'], entry['channel'])
     load_catalog()
     if replay:
+        if foreign:
+            update(session_id, 'agent_message_chunk', content={'type': 'text', 'text':
+                   'ℹ 다른 프로젝트의 대화를 이어갑니다: %s\n이 대화의 맥락과 기준 폴더는 그 프로젝트입니다.\n\n' % entry['cwd']})
         turns = stored_turns(entry['channel'])
         if turns is None:
             update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': '⚠ Earlier messages could not be loaded; the conversation context is still kept.\n\n'})
@@ -146,15 +148,21 @@ def restore(rid, params, replay):
 
 
 def list_sessions(rid, params):
-    wanted = params.get('cwd')
+    """All conversations, newest first, with the ones of the requesting folder on top. Other projects are
+    labelled by folder so the picker shows where each one lives."""
+    wanted = str(Path(params['cwd']).resolve()) if params.get('cwd') else None
     rows = []
     for session_id, entry in load_registry().items():
-        if wanted and str(Path(wanted).resolve()) != entry.get('cwd'):
-            continue
-        rows.append({'sessionId': session_id, 'cwd': entry.get('cwd'),
-                     'title': entry.get('title') or 'MeClaw · ' + Path(entry.get('cwd', '')).name,
+        cwd = entry.get('cwd', '')
+        title = entry.get('title') or 'MeClaw · ' + Path(cwd).name
+        here = wanted is None or cwd == wanted
+        rows.append({'sessionId': session_id, 'cwd': cwd, 'here': here,
+                     'title': title if here else '[' + (Path(cwd).name or cwd) + '] ' + title,
                      'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(entry.get('updated', 0)))})
     rows.sort(key=lambda row: row['updatedAt'], reverse=True)
+    rows.sort(key=lambda row: not row['here'])  # stable: current folder first, each group newest first
+    for row in rows:
+        del row['here']
     reply(rid, {'sessions': rows[:50]})
 
 
@@ -357,7 +365,7 @@ def handle(message):
     method, rid, params = message.get('method'), message.get('id'), message.get('params') or {}
     if os.environ.get('MECLAW_ACP_LOG'):
         with open(os.environ['MECLAW_ACP_LOG'], 'a') as log:
-            log.write(str(method) + '\n')
+            log.write(str(method) + (' ' + json.dumps(params)[:300] if method in ('session/list', 'session/resume', 'session/load') else '') + '\n')
     if method == 'initialize':
         reply(rid, {'protocolVersion': 1,
                     'agentCapabilities': {'loadSession': True,

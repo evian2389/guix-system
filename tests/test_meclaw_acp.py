@@ -84,7 +84,7 @@ class ShimTests(unittest.TestCase):
         self.assertNotEqual(first,self.new(MECLAW_ACP_SESSION='work'))
         self.assertEqual(self.new(MECLAW_ACP_SESSION='work'),self.new(MECLAW_ACP_SESSION='work'))
 
-    def test_list_filters_by_project_and_uses_first_prompt_as_title(self):
+    def test_list_uses_first_prompt_as_title_and_puts_this_project_first(self):
         sid=self.new()
         other=self.cwd.parent/'other';other.mkdir();self.new(other)
         responses,_=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
@@ -93,10 +93,8 @@ class ShimTests(unittest.TestCase):
         time.sleep(0.5)
         listed,_=self.talk([{'id':9,'method':'session/list','params':{'cwd':str(self.cwd)}}])
         sessions=listed[9]['result']['sessions']
-        self.assertEqual([s['sessionId'] for s in sessions],[sid])
-        self.assertEqual(sessions[0]['title'],'Plan the migration')
-        everything,_=self.talk([{'id':9,'method':'session/list','params':{}}])
-        self.assertEqual(len(everything[9]['result']['sessions']),2)
+        self.assertEqual(sessions[0]['sessionId'],sid);self.assertEqual(sessions[0]['title'],'Plan the migration')
+        self.assertEqual(len(sessions),2)
 
     def test_load_replays_visible_turns_before_responding(self):
         sid=self.new()
@@ -168,19 +166,32 @@ class ShimTests(unittest.TestCase):
             {'id':2,'method':'session/prompt','params':{'sessionId':sid,'prompt':[{'type':'text','text':'ping'}]}}])
         self.assertNotIn('중단되지 않았','\n'.join(str(n) for n in notes))
 
-    def test_list_has_no_placeholder_when_nothing_else_can_be_resumed(self):
-        sid=self.new()
+    def test_list_shows_every_project_with_the_current_folder_first(self):
+        mine=self.new()
+        other=self.cwd.parent/'other';other.mkdir();theirs=self.new(other)
+        mine_b=self.new(MECLAW_ACP_SESSION='second')
         responses,_=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
-            {'id':2,'method':'session/new','params':{'cwd':str(self.cwd),'mcpServers':[]}},
-            {'id':3,'method':'session/list','params':{'cwd':str(self.cwd)}}])
-        self.assertEqual([row['sessionId'] for row in responses[3]['result']['sessions']],[sid])
+            {'id':2,'method':'session/list','params':{'cwd':str(self.cwd)}}])
+        rows=responses[2]['result']['sessions']
+        self.assertEqual({r['sessionId'] for r in rows[:2]},{mine,mine_b})  # this folder first
+        self.assertEqual(rows[2]['sessionId'],theirs)
+        self.assertTrue(rows[2]['title'].startswith('[other] '))
+        self.assertFalse(rows[0]['title'].startswith('['))
+        everything,_=self.talk([{'id':3,'method':'session/list','params':{}}])
+        self.assertEqual(len(everything[3]['result']['sessions']),3)
 
-    def test_restore_refuses_a_session_from_another_project(self):
-        sid=self.new()
-        other=self.cwd.parent/'other';other.mkdir()
-        responses,_=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
-            {'id':2,'method':'session/resume','params':{'sessionId':sid,'cwd':str(other),'mcpServers':[]}}])
-        self.assertIn('error',responses[2]);self.assertIn('project',responses[2]['error']['message'])
+    def test_resuming_another_projects_session_keeps_its_context_and_says_so(self):
+        other=self.cwd.parent/'other';other.mkdir();theirs=self.new(other)
+        self.history.write_text(json.dumps([{'origin':'user','type':'text','text':'old question'},
+                                            {'origin':'assistant','type':'text','text':'old answer'}]))
+        responses,notes=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
+            {'id':2,'method':'session/resume','params':{'sessionId':theirs,'cwd':str(self.cwd),'mcpServers':[]}},
+            {'id':3,'method':'session/prompt','params':{'sessionId':theirs,'prompt':[{'type':'text','text':'ping'}]}}])
+        self.assertIn('result',responses[2])
+        texts=[n['params']['update']['content']['text'] for n in notes if 'content' in n['params']['update']]
+        self.assertIn(str(other.resolve()),texts[0]);self.assertEqual(texts[1:3],['old question','old answer'])
+        registry=json.loads((Path(self.env['MECLAW_ACP_STATE'])/'sessions.json').read_text())
+        self.assertEqual(registry[theirs]['cwd'],str(other.resolve()))  # still bound to its own project
 
 
 if __name__=='__main__': unittest.main()
