@@ -97,7 +97,8 @@ working/idle로 표시된다.
 - **작업 취소 (`cancel_job <id>`)**: 대기 중(`queued`) 작업은 즉시 `cancelled`가 된다. 취소와 worker의 가져오기는
   SQLite 조건부 UPDATE 하나로 갈리므로 둘 중 정확히 하나만 성공한다(경합 테스트). **실행 중(`working`)
   작업은 "취소 요청"만 기록**하고, pane을 제어하는 별도 프로세스인 dispatcher가 worker pane에 Esc를
-  보낸다(10초 안에 멈추지 않으면 Ctrl-C 한 번). worker가 멈추면 job이 `cancelled`로 바뀌고, 멈췄는지
+  보낸다. Esc는 턴만 멈추고 이미 시작한 명령은 background terminal로 남으므로 3초 뒤 Codex의 `/stop`도
+  보낸다(10초 안에 안 멈추면 Ctrl-C 한 번). 명령 종료까지 몇 초 걸릴 수 있다. worker가 멈추면 job이 `cancelled`로 바뀌고, 멈췄는지
   확인하지 못하면 상태는 그대로(`working`/`unknown`)다. 중단 전에 바뀐 파일은 되돌리지 않으므로 결과의
   안내대로 `git status`로 확인한다. `blocked`/`unknown`은 사람이 Herdr에서 처리한다. 다른 채널의 작업은
   취소할 수 없다. 모델/bridge는 pane을 직접 조작하지 않는다.
