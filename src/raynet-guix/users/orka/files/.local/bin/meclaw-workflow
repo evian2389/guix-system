@@ -8,6 +8,7 @@ import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
+import queue
 from pathlib import Path
 import re
 import secrets
@@ -404,8 +405,11 @@ class App:
         except (ValueError,KeyError,TypeError,AttributeError): state['error']='Malformed native tool call; no action executed'
         if calls and not state['evaluate'] and state['steps']+len(calls)<=6 and not state.get('error'):
             state['steps']+=len(calls)
+            emit=state.get('emit') or (lambda event: None)
             for turn,name,args in parsed:
+                emit({'event':'tool_call','id':str(turn.get('id')),'name':name,'arguments':args})
                 result=self.tool(name,args,rid+':'+str(turn.get('id')),state['channel'])
+                emit({'event':'tool_result','id':str(turn.get('id')),'error':bool(result.get('is_error')),'text':result['text'][:2000]})
                 state['body']['messages'].append({'origin':'tool','type':'tool_result','id':turn.get('id'),'text':result['text']})
             return {'header':{'route':'loop'},**state['body']}
         if calls and not state.get('error'): state['error']='Tool iteration budget reached; no further action executed'
@@ -413,13 +417,13 @@ class App:
         state['text']=text
         state['done'].set()
         return {'header':{'route':'answer'},'messages':[{'origin':'assistant','type':'text','text':state.get('error') or text}]}
-    def run(self,prompt,channel,system=None,evaluate=False):
+    def run(self,prompt,channel,system=None,evaluate=False,emit=None):
         if not isinstance(prompt,str) or not prompt.strip() or len(prompt)>50000: raise ValueError('Prompt must be 1..50000 characters')
         if not isinstance(channel,str) or not re.fullmatch(r'[a-zA-Z0-9:_.-]{1,160}',channel): raise ValueError('Invalid channel')
         if not self.lock.acquire(blocking=False): raise ValueError('MeClaw busy; retry after the active run finishes')
         rid=secrets.token_hex(16)
         state={'body':self.prepare(prompt,channel,system,evaluate),'channel':channel,'evaluate':evaluate,
-               'steps':0,'done':threading.Event()}
+               'steps':0,'done':threading.Event(),'emit':emit}
         self.active[rid]=state
         try:
             response=request(self.native+'/messages',{'target':'/evaluator' if evaluate else '/brain',
@@ -458,6 +462,19 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(200,{'ok':True,'backend':'meclaw','version':VERSION,
                 'telegram_last_poll':self.server.app.store.meta('telegram_last_poll')});return
         self.reply(404,{'error':'Not found'})
+    def stream_chat(self,app,body):
+        # Newline-delimited JSON: tool_call/tool_result events, then one result or error line.
+        events=queue.Queue()
+        def work():
+            try: events.put({'event':'result',**app.run(body['prompt'],body.get('channel','terminal'),body.get('system'),False,events.put)})
+            except (ValueError,KeyError,TypeError,OSError,TimeoutError,InterruptedError) as exc:
+                events.put({'event':'error','error':redact(str(exc))})
+        threading.Thread(target=work,daemon=True).start()
+        self.send_response(200);self.send_header('Content-Type','application/x-ndjson');self.end_headers()
+        while True:
+            event=events.get()
+            self.wfile.write((json.dumps(event,ensure_ascii=False)+'\n').encode());self.wfile.flush()
+            if event['event'] in ('result','error'): return
     def do_POST(self):
         try:
             if not hmac.compare_digest(self.headers.get('Authorization','').encode(),('Bearer '+self.server.token).encode()):
@@ -468,6 +485,8 @@ class Handler(BaseHTTPRequestHandler):
             if self.path=='/internal/result': value=app.result(body['run'],body['body'],body.get('hop',{}))
             elif self.path=='/models': value=app.models(body.get('refresh',False))
             elif self.path=='/model': value=app.set_model(body['model'])
+            elif self.path=='/chat' and body.get('stream'):
+                self.stream_chat(app,body);return
             elif self.path in ('/chat','/infer'):
                 value=app.run(body['prompt'],body.get('channel','terminal'),body.get('system'),self.path=='/infer')
             elif self.path=='/tool':
@@ -483,6 +502,18 @@ class Handler(BaseHTTPRequestHandler):
 def client(root,endpoint,body,timeout=230):
     token=(Path(root)/'runtime/bridge-token').read_text().strip()
     try: return request('http://127.0.0.1:'+str(PORT)+endpoint,body,token,timeout)
+    except urllib.error.HTTPError as exc:
+        try: message=json.load(exc).get('error','MeClaw request failed')
+        except ValueError: message='MeClaw request failed'
+        raise ValueError(message) from None
+
+def client_stream(root,endpoint,body,timeout=230):
+    token=(Path(root)/'runtime/bridge-token').read_text().strip()
+    req=urllib.request.Request('http://127.0.0.1:'+str(PORT)+endpoint,data=json.dumps(body).encode(),
+        headers={'Content-Type':'application/json','Authorization':'Bearer '+token})
+    try:
+        with urllib.request.urlopen(req,timeout=timeout) as response:
+            for line in response: yield line.decode().rstrip('\n')
     except urllib.error.HTTPError as exc:
         try: message=json.load(exc).get('error','MeClaw request failed')
         except ValueError: message='MeClaw request failed'
@@ -696,6 +727,7 @@ def main():
     parser.add_argument('--worker-pane')
     parser.add_argument('--channel',default='terminal')
     parser.add_argument('--prompt')
+    parser.add_argument('--stream',action='store_true',help='ask: print NDJSON progress events then the result')
     args=parser.parse_args()
     if args.command=='setup': print(configure(args.repository,Path.home()))
     elif args.command=='serve': serve(args.root,args.binary,args.telegram)
@@ -712,6 +744,9 @@ def main():
         print(json.dumps(client(args.root,'/model',{'model':args.model})))
     else:
         payload={'prompt':args.prompt,'channel':args.channel} if args.prompt else json.load(sys.stdin)
+        if args.stream and args.command=='ask':
+            for line in client_stream(args.root,'/chat',{**payload,'stream':True}): print(line,flush=True)
+            return
         print(json.dumps(client(args.root,'/infer' if args.command=='infer' else '/chat',payload),ensure_ascii=False))
 
 if __name__=='__main__':

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Interactive Martty (ACP TUI) frontend for the existing MeClaw service.
+# Usage: martty-meclaw [--session NAME] [martty options]   (run inside a Herdr pane)
+if [ "$1" = "--session" ] && [ -n "$2" ]; then MECLAW_ACP_SESSION="$2"; export MECLAW_ACP_SESSION; shift 2; fi
+curl -fsS --max-time 5 http://127.0.0.1:10964/health >/dev/null 2>&1 || { echo "Start the MeClaw service first: herd start meclaw" >&2; exit 1; }
+exec "$HOME/.npm-global/bin/martty-cli" --agent "$HOME/.local/bin/meclaw-acp" "$@"

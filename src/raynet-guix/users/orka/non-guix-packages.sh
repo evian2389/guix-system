@@ -38,8 +38,14 @@ if command -v nix &> /dev/null; then
     nix_install_if_missing glab nixpkgs#glab
     nix_install_if_missing warp-terminal nixpkgs#warp-terminal
     nix_install_if_missing steam-run nixpkgs#steam-run
+    # Toad (ACP TUI) needs Python>=3.14; Guix tops out at 3.13 and uv's own builds lack /lib64.
+    nix_install_if_missing python314 nixpkgs#python314
     nix_install_if_missing xclip nixpkgs#xclip
     nix_install_if_missing wl-clipboard nixpkgs#wl-clipboard
+
+    if command -v uv &> /dev/null && [ -x "$HOME/.nix-profile/bin/python3.14" ]; then
+        uv tool install -U --python "$HOME/.nix-profile/bin/python3.14" batrachian-toad || true
+    fi
 
     if command -v npm &> /dev/null; then
         npm config set prefix ~/.npm-global
@@ -50,6 +56,8 @@ if command -v nix &> /dev/null; then
         # loader wrapper; herdr detects it by process name (`codex`).
         npm install -g @openai/codex
         npm install -g ctx7
+        # Martty: ACP terminal client (alternative to Toad) for the MeClaw shim.
+        npm install -g martty
         echo "Setting up Context7 for Antigravity..."
         ~/.npm-global/bin/ctx7 setup --antigravity -y < /dev/null || true
     fi

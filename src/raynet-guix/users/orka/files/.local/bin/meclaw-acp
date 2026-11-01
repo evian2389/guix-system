@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""Minimal ACP (Agent Client Protocol) agent that fronts the MeClaw service.
+
+Speaks newline-delimited JSON-RPC 2.0 on stdio so any ACP client (Toad, Martty,
+acpx, Zed, ...) can talk to MeClaw. Inference, tools and memory stay in MeClaw;
+this shim maps session/prompt onto `meclaw-workflow ask --stream` (tool progress
+becomes ACP tool_call updates), exposes the coordinator model catalog as a
+session config option, and reports pane state to Herdr.
+"""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import threading
+import time
+
+WORKFLOW = str(Path.home() / '.local/bin/meclaw-workflow')
+TIMEOUT = int(os.environ.get('MECLAW_ACP_TIMEOUT', '230'))
+SOURCE = 'custom:meclaw-acp'
+AGENT_LABEL = os.environ.get('MECLAW_ACP_HERDR_AGENT', 'meclaw')
+READ_TOOLS = {'herdr_status', 'herdr_agents', 'herdr_read', 'workflow_search', 'job_status'}
+LOCK = threading.Lock()
+SESSIONS = {}  # sessionId -> {'channel', 'cwd', 'proc', 'cancelled'}
+CATALOG = {'models': [], 'current': None}  # filled lazily from `meclaw-workflow models`
+
+
+def send(message):
+    with LOCK:
+        sys.stdout.write(json.dumps(message, ensure_ascii=False) + '\n')
+        sys.stdout.flush()
+
+
+def reply(rid, result=None, error=None):
+    message = {'jsonrpc': '2.0', 'id': rid}
+    if error is not None:
+        message['error'] = error
+    else:
+        message['result'] = result if result is not None else {}
+    send(message)
+
+
+def update(session_id, update_type, **fields):
+    send({'jsonrpc': '2.0', 'method': 'session/update',
+          'params': {'sessionId': session_id, 'update': dict(fields, sessionUpdate=update_type)}})
+
+
+def report_herdr(state):
+    pane = os.environ.get('HERDR_PANE_ID')
+    if os.environ.get('HERDR_ENV') != '1' or not pane or not shutil.which('herdr'):
+        return
+    if state == 'release':
+        command = ['herdr', 'pane', 'release-agent', pane, '--source', SOURCE, '--agent', AGENT_LABEL]
+    else:
+        command = ['herdr', 'pane', 'report-agent', pane, '--source', SOURCE, '--agent', AGENT_LABEL,
+                   '--state', state, '--seq', str(time.time_ns() // 1000)]
+    try:
+        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def channel_for(cwd, session_id):
+    digest = hashlib.sha256(str(Path(cwd).resolve()).encode()).hexdigest()[:16]
+    return 'acp:' + digest + ':' + session_id
+
+
+def prompt_text(blocks):
+    parts = []
+    for block in blocks:
+        if block.get('type') == 'text':
+            parts.append(block.get('text', ''))
+        elif block.get('type') == 'resource' and 'text' in block.get('resource', {}):
+            parts.append(block['resource']['text'])
+        elif block.get('type') == 'resource_link':
+            parts.append(block.get('uri', ''))
+    return '\n'.join(p for p in parts if p)
+
+
+def workflow_json(args, timeout=60):
+    result = subprocess.run([WORKFLOW] + args, capture_output=True, text=True, timeout=timeout)
+    if result.returncode:
+        raise ValueError(result.stderr.strip() or 'meclaw-workflow ' + args[0] + ' failed')
+    return json.loads(result.stdout)
+
+
+def load_catalog(refresh=False):
+    try:
+        data = workflow_json(['models'] + (['--refresh'] if refresh else []))
+        CATALOG['models'] = [{'id': m['id'], 'name': m.get('name', m['id'])} for m in data.get('models', [])]
+        CATALOG['current'] = data.get('current')
+    except (ValueError, OSError, subprocess.SubprocessError, KeyError):
+        pass  # model switching is optional; keep whatever we had
+
+
+def model_state():
+    """Both the stable configOptions form and the older `models` form."""
+    if not CATALOG['models'] or not CATALOG['current']:
+        return {}
+    ids = [m['id'] for m in CATALOG['models']]
+    current = CATALOG['current']
+    return {
+        'configOptions': [{
+            'id': 'model', 'name': 'Model', 'category': 'model', 'type': 'select',
+            'description': 'Shared MeClaw coordinator model (also used by Telegram and MCP)',
+            'currentValue': current,
+            'options': [{'value': m['id'], 'name': m['name']} for m in CATALOG['models']],
+        }],
+        'models': {'currentModelId': current if current in ids else ids[0],
+                   'availableModels': [{'modelId': m['id'], 'name': m['name']} for m in CATALOG['models']]},
+    }
+
+
+def select_model(model):
+    workflow_json(['model', '--model', model], timeout=90)
+    CATALOG['current'] = model
+
+
+def tool_event(session_id, event):
+    if event['event'] == 'tool_call':
+        args = event.get('arguments') or {}
+        summary = ', '.join(k + '=' + json.dumps(v, ensure_ascii=False)[:60] for k, v in list(args.items())[:3])
+        update(session_id, 'tool_call', toolCallId=event['id'],
+               title=event['name'] + (' (' + summary + ')' if summary else ''),
+               kind='read' if event['name'] in READ_TOOLS else 'other',
+               status='in_progress', rawInput=args)
+    else:
+        update(session_id, 'tool_call_update', toolCallId=event['id'],
+               status='failed' if event.get('error') else 'completed',
+               content=[{'type': 'content', 'content': {'type': 'text', 'text': event.get('text', '')}}])
+
+
+def ask_meclaw(session_id, session, text):
+    payload = 'Current project directory (context only): ' + json.dumps(session['cwd']) + '\n\n' + text
+    if len(payload) > 50000:
+        raise ValueError('MeClaw prompt limit is 50000 characters including project context')
+    proc = subprocess.Popen([WORKFLOW, 'ask', '--stream'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL, start_new_session=True, text=True)
+    session['proc'] = proc
+    timer = threading.Timer(TIMEOUT, lambda: proc.kill())
+    timer.start()
+    final = None
+    try:
+        proc.stdin.write(json.dumps({'prompt': payload, 'channel': session['channel']}))
+        proc.stdin.close()
+        for line in proc.stdout:
+            line = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', line.strip())
+            if not line.startswith('{'):
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if event.get('event') in ('tool_call', 'tool_result'):
+                tool_event(session_id, event)
+            elif event.get('event') in ('result', 'error'):
+                final = event
+            elif 'event' not in event and 'text' in event:
+                final = {'event': 'result', **event}  # older bridge without streaming
+        proc.wait()
+    finally:
+        timer.cancel()
+        session['proc'] = None
+    if session.get('cancelled'):
+        return None
+    if final is None:
+        raise ValueError('MeClaw client failed or timed out; inspect the service (meclaw-workflow status)')
+    if final['event'] == 'error':
+        raise ValueError(final.get('error', 'MeClaw request failed'))
+    if not isinstance(final.get('text'), str) or not final['text'].strip():
+        raise ValueError('MeClaw returned no successful text')
+    return final['text']
+
+
+def run_prompt(rid, params):
+    session_id = params['sessionId']
+    session = SESSIONS.get(session_id)
+    if session is None:
+        return reply(rid, error={'code': -32602, 'message': 'unknown session'})
+    session['cancelled'] = False
+    report_herdr('working')
+    try:
+        answer = ask_meclaw(session_id, session, prompt_text(params.get('prompt', [])))
+        if answer is None:
+            return reply(rid, {'stopReason': 'cancelled'})
+        update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': answer})
+        reply(rid, {'stopReason': 'end_turn'})
+    except Exception as exc:  # surface to the client rather than die
+        update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': 'MeClaw error: ' + str(exc)})
+        reply(rid, {'stopReason': 'end_turn'})
+    finally:
+        report_herdr('idle')
+
+
+def change_model(rid, model, respond):
+    try:
+        select_model(model)
+        respond()
+    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+        reply(rid, error={'code': -32000, 'message': 'Model change failed: ' + str(exc)})
+
+
+def handle(message):
+    method, rid, params = message.get('method'), message.get('id'), message.get('params') or {}
+    if os.environ.get('MECLAW_ACP_LOG'):
+        with open(os.environ['MECLAW_ACP_LOG'], 'a') as log:
+            log.write(str(method) + '\n')
+    if method == 'initialize':
+        reply(rid, {'protocolVersion': 1,
+                    'agentCapabilities': {'loadSession': False,
+                                          'promptCapabilities': {'image': False, 'audio': False,
+                                                                 'embeddedContext': True}},
+                    'agentInfo': {'name': 'meclaw', 'title': 'MeClaw coordinator', 'version': '0.2.0'},
+                    'authMethods': []})
+    elif method == 'session/new':
+        session_id = 'mc-' + hashlib.sha256(os.urandom(16)).hexdigest()[:12]
+        name = os.environ.get('MECLAW_ACP_SESSION')
+        cwd = params.get('cwd') or os.getcwd()
+        SESSIONS[session_id] = {'cwd': str(Path(cwd).resolve()), 'proc': None,
+                                'channel': channel_for(cwd, name or session_id)}
+        load_catalog()
+        reply(rid, {'sessionId': session_id, **model_state()})
+    elif method == 'session/prompt':
+        threading.Thread(target=run_prompt, args=(rid, params), daemon=True).start()
+    elif method == 'session/set_config_option':
+        if params.get('configId') != 'model':
+            reply(rid, error={'code': -32602, 'message': 'unknown config option'})
+        else:
+            threading.Thread(target=change_model, args=(
+                rid, str(params.get('value')), lambda: reply(rid, {'configOptions': model_state().get('configOptions', [])})),
+                daemon=True).start()
+    elif method == 'session/set_model':
+        threading.Thread(target=change_model, args=(rid, str(params.get('modelId')), lambda: reply(rid, {})),
+                         daemon=True).start()
+    elif method == 'session/cancel':
+        session = SESSIONS.get(params.get('sessionId'))
+        if session:
+            session['cancelled'] = True
+            proc = session.get('proc')
+            if proc:
+                try:
+                    os.killpg(proc.pid, 15)
+                except OSError:
+                    pass
+    elif rid is not None:
+        reply(rid, error={'code': -32601, 'message': 'method not found: ' + str(method)})
+
+
+def main():
+    report_herdr('idle')
+    try:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                handle(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    finally:
+        report_herdr('release')
+
+
+if __name__ == '__main__':
+    main()
