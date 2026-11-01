@@ -256,7 +256,8 @@ def announce_finished(session_id, session):
     """Report delegated jobs that settled while nobody was asking. Delivered at session open and
     before the next answer; there is no unprompted push (client support is unverified)."""
     for job in job_notices(session['channel'], True).get('finished', []):
-        text = '📌 %s [%s] %s\n%s\n' % (LABELS.get(job.get('status'), job.get('status')), job.get('id'), job.get('project', ''),
+        perm = '' if job.get('permission', 'default') == 'default' else ' (권한: %s)' % job['permission']
+        text = '📌 %s%s [%s] %s\n%s\n' % (LABELS.get(job.get('status'), job.get('status')), perm, job.get('id'), job.get('project', ''),
                                          (job.get('result') or '(출력 없음)')[-800:])
         if job.get('status') in ('completed', 'failed'):
             text += '결과는 직접 검증하세요.\n'

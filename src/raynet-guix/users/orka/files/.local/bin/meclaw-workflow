@@ -79,8 +79,9 @@ TOOLS=[
     tool_schema('read_file','Read-only: read a text file or list a directory below ~/work or ~/guix-system. Secrets, credentials and private MeClaw state are refused. Not available from Telegram.',
                 {'path':{'type':'string','description':'Absolute path.'},'offset':{'type':'integer','minimum':1,'description':'First line, default 1.'},
                  'lines':{'type':'integer','minimum':1,'maximum':400,'description':'Line count, default 200.'}},['path']),
-    tool_schema('delegate_codex','Queue one task in the enrolled Herdr Codex worker. Returns a job ID; queued is not completed.',
-                {'task':{'type':'string'},'project':{'type':'string','description':'Absolute project directory below ~/work or ~/guix-system.'}},['task','project']),
+    tool_schema('delegate_codex','Queue one task in the enrolled Herdr Codex worker. Returns a job ID; queued is not completed. permission: default (writes only below ~/work, asks for anything else), project (also writes the project directory, no prompts, sandbox kept) or all (no sandbox, no prompts). project/all start a dedicated one-shot worker and are accepted only when the user\'s own message in this request contains the phrase 프로젝트 권한 허용 / allow-project (project) or 권한 전체 허용 / allow-all (all); never pick them on your own.',
+                {'task':{'type':'string'},'project':{'type':'string','description':'Absolute project directory below ~/work or ~/guix-system.'},
+                 'permission':{'type':'string','enum':['default','project','all']}},['task','project']),
     tool_schema('interrupt_agent','Interrupt any Herdr agent pane (Claude Code, AGY, ...) by sending Esc (force: Ctrl-C). Report the result as requested, not as a clean stop: started commands and partial edits may remain. For MeClaw Codex jobs prefer cancel_job, which also stops started commands.',
                 {'pane':{'type':'string','description':'Pane id from herdr_agents.'},'force':{'type':'boolean','description':'Ctrl-C instead of Esc, only after Esc did not stop it.'}},['pane']),
     tool_schema('agent_read','Read recent terminal output of any Herdr agent pane (Claude Code, AGY, ...). Use it to see what the agent is doing or which approval it asks before answering with agent_keys.',
@@ -107,6 +108,8 @@ class Store:
             create table if not exists events(id integer primary key,created text,kind text,outcome text,summary text);
             create table if not exists meta(key text primary key,value text);
             ''')
+            try: db.execute("alter table jobs add column permission text not null default 'default'")
+            except sqlite3.OperationalError: pass  # already migrated
     def db(self):
         db=sqlite3.connect(self.path,timeout=10);db.row_factory=sqlite3.Row
         return db
@@ -121,7 +124,7 @@ class Store:
             start=next((i for i in range(len(messages)-1,-1,-1) if messages[i].get('origin')=='user'),0)
         with closing(self.db()) as db,db:
             db.execute('insert or replace into history values(?,?)',(channel,json.dumps(messages[start:])))
-    def queue(self,key,channel,task,project):
+    def queue(self,key,channel,task,project,permission='default'):
         if not isinstance(task,str) or not task.strip() or len(task)>20000: raise ValueError('Task must be 1..20000 characters')
         with closing(self.db()) as db,db:
             row=db.execute('select * from jobs where dedup=?',(key,)).fetchone()
@@ -129,8 +132,8 @@ class Store:
             if db.execute("select count(*) from jobs where status in ('queued','working','blocked')").fetchone()[0]>=4:
                 raise ValueError('Queue capacity is four; finish existing work first')
             jid=secrets.token_hex(8)
-            db.execute('insert into jobs values(?,?,?,?,?,?,?,?,?)',
-                       (jid,key,channel,task,str(project),'queued','',datetime.now(timezone.utc).isoformat(),''))
+            db.execute('insert into jobs(id,dedup,channel,task,project,status,result,created,pane,permission) values(?,?,?,?,?,?,?,?,?,?)',
+                       (jid,key,channel,task,str(project),'queued','',datetime.now(timezone.utc).isoformat(),'',permission))
         return self.job(jid)
     def claim(self):
         with closing(self.db()) as db,db:
@@ -175,7 +178,7 @@ class Store:
     def unreported(self,channel):
         # At-most-once per job state; consumed by the ACP shim at the next prompt or session open.
         with closing(self.db()) as db:
-            rows=db.execute("select id,status,project,result from jobs where channel=? and status in ('completed','failed','blocked','unknown','cancelled') order by created",(channel,)).fetchall()
+            rows=db.execute("select id,status,project,result,permission from jobs where channel=? and status in ('completed','failed','blocked','unknown','cancelled') order by created",(channel,)).fetchall()
         fresh=[]
         for row in rows:
             marker='acp_reported:'+row['id']+':'+row['status']
@@ -386,6 +389,8 @@ class App:
             'Only the single separate evolution worker proposes skill changes; promotion is explicit. '
             'No automatic changes to identity, credentials, budgets or evaluation policy. '
             'Delegate coding work through delegate_codex with an absolute project directory. '
+            'delegate_codex permission: default unless the user wrote 프로젝트 권한 허용 / allow-project (project directory writable, no prompts) '
+            'or 권한 전체 허용 / allow-all (no sandbox, no prompts) in this message; the server rejects anything else, so never choose a higher level yourself. '
             'Use read_file to read local documents and code (read-only) before deciding to delegate.\n\n'+'\n\n'.join(skills)+
             '\n\nDeployment binding: delegate_codex only queues work for the one enrolled Codex worker. '
             'The gateway does not control Herdr or set HERDR_ENV; the dispatcher inside Herdr owns all pane controls. '
@@ -432,6 +437,21 @@ class App:
             if not cwds or not all(Path(c).expanduser().resolve()==work or work in Path(c).expanduser().resolve().parents for c in cwds):
                 self.store.event('agent_control_denied','unknown','Telegram '+name+' refused for '+who+' outside ~/work')
                 raise ValueError('From Telegram, agents can only be controlled in panes whose directory is below ~/work')
+    user_prompt=''  # the user's message of the request in progress; set by run() so tools can demand explicit phrases
+    def check_permission(self,permission,project,channel):
+        if permission not in PERMISSION_PHRASES: raise ValueError('permission must be default, project or all')
+        if permission=='default': return permission
+        said=self.user_prompt.lower()
+        allowed={level for level,phrases in PERMISSION_PHRASES.items() if any(p in said for p in phrases)}
+        if permission=='project' and 'all' in allowed: allowed.add('project')
+        if permission not in allowed:
+            raise ValueError('Permission "'+permission+'" needs the user to say '+' or '.join('"'+p+'"' for p in PERMISSION_PHRASES[permission])+
+                             ' in this very message. Do not choose it yourself; ask the user.')
+        if channel.startswith('telegram:'):
+            work=(self.home/'work').resolve()
+            if permission=='all': raise ValueError('Permission "all" is not available from Telegram')
+            if not (project==work or work in project.parents): raise ValueError('From Telegram, permission "project" only applies below ~/work')
+        return permission
     def agent_control(self,name,args,channel=''):
         # Herdr-mediated control of any agent pane. Every action is recorded; input is validated, not restricted by agent kind.
         pane=args['pane']
@@ -544,8 +564,9 @@ class App:
             roots=[(self.home/'work').resolve(),(self.home/'guix-system').resolve()]
             if not project.is_dir() or not any(project==r or r in project.parents for r in roots):
                 raise ValueError('Project must be below ~/work or ~/guix-system')
-            job=self.store.queue(key,channel,args['task'],project)
-            return {k:job[k] for k in ('id','status','project')}
+            permission=self.check_permission(args.get('permission','default'),project,channel)
+            job=self.store.queue(key,channel,args['task'],project,permission)
+            return {k:job[k] for k in ('id','status','project','permission')}
         if name in ('agent_read','agent_send','agent_keys','agent_close'): return self.agent_control(name,args,channel)
         if name=='interrupt_agent':
             pane=args['pane']
@@ -567,7 +588,7 @@ class App:
         if name=='job_status':
             job=self.store.job(args['id'])
             if job['channel']!=channel: raise ValueError('Job belongs to another channel')
-            return {k:job[k] for k in ('id','status','project','result','pane')}
+            return {k:job[k] for k in ('id','status','project','result','pane','permission')}
         raise ValueError('Unknown tool')
     def tool(self,name,args,key,channel):
         try:
@@ -630,6 +651,7 @@ class App:
         if not isinstance(channel,str) or not re.fullmatch(r'[a-zA-Z0-9:_.-]{1,160}',channel): raise ValueError('Invalid channel')
         if not self.lock.acquire(blocking=False): raise ValueError('MeClaw busy; retry after the active run finishes')
         rid=secrets.token_hex(16)
+        self.user_prompt='' if evaluate else prompt
         state={'body':self.prepare(prompt,channel,system,evaluate),'channel':channel,'evaluate':evaluate,
                'steps':0,'done':threading.Event(),'emit':emit}
         self.active[rid]=state
@@ -653,7 +675,7 @@ class App:
                           '; this does not establish overall task failure. Inspect queued jobs before retrying.')
             raise
         finally:
-            self.active.pop(rid,None);self.lock.release()
+            self.active.pop(rid,None);self.user_prompt='';self.lock.release()
 
 class Server(ThreadingHTTPServer):
     daemon_threads=True
@@ -703,7 +725,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(channel,str) or not re.fullmatch(r'[a-zA-Z0-9:_.-]{1,160}',channel) or not channel.startswith('acp:'): raise ValueError('Invalid channel')
                 value={'active':app.store.active_jobs(channel)}
                 if body.get('consume'):
-                    value['finished']=[{'id':j['id'],'status':j['status'],'project':j['project'],'result':redact(j['result'][-800:])}
+                    value['finished']=[{'id':j['id'],'status':j['status'],'project':j['project'],'permission':j['permission'],'result':redact(j['result'][-800:])}
                                        for j in app.store.unreported(channel)]
             elif self.path=='/chat' and body.get('stream'):
                 self.stream_chat(app,body);return
@@ -780,7 +802,7 @@ def notify_finished_jobs(app,send):
     At-most-once: the marker is written before sending, so a failure never repeats a message."""
     store=app.store
     with closing(store.db()) as db:
-        rows=db.execute("select id,channel,project,status,result from jobs where channel like 'telegram:%' and status in ('completed','failed','blocked','unknown')").fetchall()
+        rows=db.execute("select id,channel,project,status,result,permission from jobs where channel like 'telegram:%' and status in ('completed','failed','blocked','unknown')").fetchall()
     first=store.meta('job_notify_baseline') is None
     for row in rows:
         marker='job_notified:'+row['id']+':'+row['status']
@@ -789,6 +811,7 @@ def notify_finished_jobs(app,send):
         if first: continue  # jobs that settled before notifications existed
         label={'completed':'작업 종료','failed':'작업 실패','blocked':'승인 대기','unknown':'상태 불명'}[row['status']]
         hint=' Herdr에서 승인 후 이어집니다.' if row['status']=='blocked' else ' 결과는 직접 검증하세요.'
+        if row['permission']!='default': label+=' (권한: '+row['permission']+')'
         send(row['channel'].split(':',1)[1],label+' ['+row['id']+'] '+row['project']+'\n'+redact(row['result'][-1500:] or '(출력 없음)')+'\n'+hint.strip())
     if first: store.meta('job_notify_baseline',time.time())
 
@@ -843,6 +866,8 @@ def herdr(*args,timeout=30):
     if result.returncode: raise ValueError('Herdr: '+redact(result.stderr))
     return json.loads(result.stdout) if result.stdout.strip() else {}
 
+PERMISSION_PHRASES={'default':(),'project':('프로젝트 권한 허용','allow-project','allow project'),
+                   'all':('권한 전체 허용','allow-all','allow all')}
 TOOL_STEP_LIMIT=int(os.environ.get('MECLAW_TOOL_STEP_LIMIT','1000'))  # tool calls per request; effectively unlimited
 RUN_TIMEOUT=int(os.environ.get('MECLAW_RUN_TIMEOUT','43200'))  # seconds one request may run (12 h)
 WORKER_NAME='meclaw-codex'
@@ -853,13 +878,32 @@ def supervisor_alive(root):
     try: return time.time()-json.loads((Path(root)/'runtime/supervisor.json').read_text()).get('heartbeat',0)<45
     except (OSError,ValueError): return False
 
-def worker_args(home=None):
-    """Codex flags for the worker: writes, commands and network access inside the sandbox run without
-    prompts; paths outside ~/work still ask, and the job parks as blocked until a human answers."""
+def worker_args(home=None,permission='default',project=None):
+    """Codex flags. default: writes, commands and network access inside the sandbox run without prompts;
+    paths outside ~/work still ask and the job parks as blocked until a human answers.
+    project: the job's project directory is also writable and nothing prompts (sandbox kept).
+    all: no sandbox and no prompts. project/all run in a dedicated one-shot worker, never in the standing one."""
     work=str(Path(home or Path.home())/'work')
-    return ['--model','gpt-6.1-terra','-c','model_reasoning_effort=low','--cd',work,'--add-dir',work,
-            '--sandbox','workspace-write','-c','sandbox_workspace_write.network_access=true',
-            '--ask-for-approval','on-request']
+    base=['--model','gpt-6.1-terra','-c','model_reasoning_effort=low']
+    if permission=='project':
+        return base+['--cd',str(project),'--add-dir',str(project),'--add-dir',work,'--sandbox','workspace-write',
+                     '-c','sandbox_workspace_write.network_access=true','--ask-for-approval','never']
+    if permission=='all':
+        return base+['--cd',str(project),'--sandbox','danger-full-access','--ask-for-approval','never']
+    return base+['--cd',work,'--add-dir',work,'--sandbox','workspace-write','-c','sandbox_workspace_write.network_access=true',
+                 '--ask-for-approval','on-request']
+
+def start_elevated_worker(store,job,home=None):
+    """A dedicated Codex pane for one project/all job. Returns (pane, workspace id)."""
+    if not spawn_budget(store): raise ValueError('Worker launch limit reached ('+str(SPAWN_LIMIT)+'/hour); inspect Herdr')
+    name='meclaw-job-'+job['id'][:8]
+    workspace=herdr('workspace','create','--label',name,'--cwd',job['project'],'--no-focus')['result']
+    pane=workspace['root_pane']['pane_id'];workspace_id=workspace.get('workspace',{}).get('workspace_id') or pane.split(':')[0]
+    time.sleep(2)
+    herdr('pane','run',pane,'export MECLAW_WORKER=1')
+    herdr('agent','start',name,'--kind','codex','--pane',pane,'--',*worker_args(home,job['permission'],job['project']),timeout=60)
+    store.event('worker_launch','success','Launched a one-shot Codex worker for job '+job['id']+' with permission '+job['permission'])
+    return pane,workspace_id
 
 def find_worker():
     agents=herdr('agent','list')['result']['agents']
@@ -1005,49 +1049,57 @@ def dispatch(root,worker_pane,supervised=False):
             atomic(status,json.dumps({'heartbeat':time.time(),'dispatcher_pane':os.environ.get('HERDR_PANE_ID'),
                                       'worker_pane':worker_pane,'worker_state':live.get('agent_status'),'max_workers':1}))
             with closing(store.db()) as db:
-                blocked=db.execute("select id from jobs where status='blocked'").fetchall()
+                blocked=db.execute("select id,pane from jobs where status='blocked'").fetchall()
             for row in blocked:
-                agent=herdr('agent','get',worker_pane)['result']['agent']
+                pane=row['pane'] or worker_pane
+                agent=herdr('agent','get',pane)['result']['agent']
                 if agent.get('agent_status') in ('idle','done'):
-                    output=subprocess.run(['herdr','agent','read',worker_pane,'--source','recent-unwrapped','--lines','80'],
+                    output=subprocess.run(['herdr','agent','read',pane,'--source','recent-unwrapped','--lines','80'],
                                           capture_output=True,text=True,timeout=15)
                     store.finish(row['id'],'completed',output.stdout[-16000:],worker_pane)
                     store.event('codex_job','success','Previously blocked worker settled after human input; verify its task result.')
                     store.snapshot()
             job=store.claim() if live.get('agent')=='codex' and live.get('agent_status') in ('idle','done') else None
             if job:
+                job_pane=worker_pane;job_workspace=None
                 try:
-                    agent=herdr('agent','get',worker_pane)['result']['agent']
+                    if job['permission']!='default': job_pane,job_workspace=start_elevated_worker(store,job)
+                    agent=herdr('agent','get',job_pane)['result']['agent']
                     if agent.get('agent')!='codex': raise ValueError('Enrolled pane is not Codex')
-                    if agent.get('agent_status') not in ('idle','done'): raise ValueError('Enrolled worker is not idle')
+                    if agent.get('agent_status') not in ('idle','done'):
+                        if job_workspace is None: raise ValueError('Enrolled worker is not idle')
+                        time.sleep(5);agent=herdr('agent','get',job_pane)['result']['agent']
                     brief=('Work only in '+job['project']+'. Task ID '+job['id']+'.\n'+job['task']+
                            '\nDo not delegate further. Verify the result and report observed checks. Do not answer approval prompts yourself.')
                     # Keep enrollment live during the blocking prompt/wait.
                     waiting=threading.Event()
                     def heartbeat():
                         while not waiting.wait(3):
-                            atomic(status,json.dumps({'heartbeat':time.time(),'worker_pane':worker_pane,'max_workers':1}))
+                            atomic(status,json.dumps({'heartbeat':time.time(),'job_pane':job_pane,'max_workers':1}))  #KEEP
                     thread=threading.Thread(target=heartbeat,daemon=True);thread.start()
-                    cancel_thread=threading.Thread(target=watch_cancel,args=(store,job['id'],worker_pane,waiting,
+                    cancel_thread=threading.Thread(target=watch_cancel,args=(store,job['id'],job_pane,waiting,
                         settle_key_senders()[0]),daemon=True);cancel_thread.start()
-                    try: reply=herdr('agent','prompt',worker_pane,brief,'--wait','--timeout','540000',timeout=550)
+                    try: reply=herdr('agent','prompt',job_pane,brief,'--wait','--timeout','540000',timeout=550)
                     finally: waiting.set();thread.join(timeout=4);cancel_thread.join(timeout=4)
                     state=reply['result']['agent'].get('agent_status')
                     if state=='blocked':
-                        store.finish(job['id'],'blocked','Human input required in Herdr; no automatic approval.',worker_pane)
+                        store.finish(job['id'],'blocked','Human input required in Herdr; no automatic approval.',job_pane)
                     elif state in ('idle','done') and store.cancel_requested(job['id']):
-                        try: stop_background(worker_pane,*settle_key_senders())
+                        try: stop_background(job_pane,*settle_key_senders())
                         except (ValueError,OSError,subprocess.SubprocessError): store.event('codex_job','unknown','/stop could not be sent; a started command may still run')
-                        result=subprocess.run(['herdr','agent','read',worker_pane,'--source','recent-unwrapped','--lines','40'],
+                        result=subprocess.run(['herdr','agent','read',job_pane,'--source','recent-unwrapped','--lines','40'],
                                               capture_output=True,text=True,timeout=15)
                         store.finish(job['id'],'cancelled','Interrupted at the user\'s request. Partial changes may exist; inspect the project (git status).\n'+
-                                     (result.stdout[-4000:] if result.returncode==0 else ''),worker_pane)
+                                     (result.stdout[-4000:] if result.returncode==0 else ''),job_pane)
                     elif state in ('idle','done'):
-                        result=subprocess.run(['herdr','agent','read',worker_pane,'--source','recent-unwrapped','--lines','80'],
+                        result=subprocess.run(['herdr','agent','read',job_pane,'--source','recent-unwrapped','--lines','80'],
                                               capture_output=True,text=True,timeout=15)
-                        store.finish(job['id'],'completed',result.stdout[-16000:] if result.returncode==0 else 'Worker settled; inspect the pane for the result.',worker_pane)
-                    else: store.finish(job['id'],'unknown','Inspect worker state; not replayed.',worker_pane)
-                except Exception as exc: store.finish(job['id'],'unknown',redact(str(exc)),worker_pane)
+                        store.finish(job['id'],'completed',result.stdout[-16000:] if result.returncode==0 else 'Worker settled; inspect the pane for the result.',job_pane)
+                    else: store.finish(job['id'],'unknown','Inspect worker state; not replayed.',job_pane)
+                except Exception as exc: store.finish(job['id'],'unknown',redact(str(exc)),job_pane)
+                if job_workspace is not None and store.job(job['id'])['status'] in ('completed','cancelled'):
+                    try: herdr('workspace','close',job_workspace)  # one-shot worker: gone with its job; blocked/unknown panes stay for a human
+                    except (ValueError,OSError,subprocess.SubprocessError): store.event('codex_job','unknown','Could not close the one-shot worker workspace '+str(job_workspace))
                 store.event('codex_job','unknown' if store.job(job['id'])['status'] not in ('completed','cancelled') else 'success',
                             'Herdr Codex job '+job['id']+' state '+store.job(job['id'])['status']+'; task acceptance remains independently verifiable.')
                 store.snapshot()

@@ -89,6 +89,27 @@ working/idle로 표시된다.
   따른 것이며 실제 작업으로 아직 검증하지 않았다.
 - `--dangerously-bypass-approvals-and-sandbox`는 쓰지 않는다(테스트로 고정).
 
+### 위임 시 권한 단계 (`delegate_codex permission`)
+
+| 단계 | 쓰기 범위 | 승인 프롬프트 | 샌드박스 | 실행 위치 |
+|---|---|---|---|---|
+| `default` | `~/work` | 밖은 요청(`blocked`) | 유지 | 상주 worker |
+| `project` | `~/work` + 그 job의 프로젝트 폴더(예: `~/guix-system`) | 없음(`--ask-for-approval never`) | 유지 | job 전용 일회용 worker |
+| `all` | 제한 없음 | 없음 | 끔(`danger-full-access`) | job 전용 일회용 worker |
+
+- **지시 게이트(코드로 강제)**: 사용자의 **이번 요청 메시지**에 문구가 있어야 한다 — `project`: `프로젝트 권한 허용` /
+  `allow-project`, `all`: `권한 전체 허용` / `allow-all`(`all` 문구는 `project`도 허용). 모델이 스스로 올릴 수 없고,
+  요청이 끝나면 문구 기억은 지워진다. 도구 출력·웹·파일에 있는 문구는 해당하지 않는다.
+- **Telegram**: `all` 금지, `project`는 `~/work` 아래 프로젝트에만(사실상 `default`와 같음).
+- **일회용 worker**: job마다 `meclaw-job-<id>` workspace를 새로 만들어 프로젝트 폴더에서 Codex를 띄우고, `completed`/
+  `cancelled`가 되면 workspace를 닫는다. `blocked`/`unknown`이면 사람이 볼 수 있게 남긴다. 상주 worker의 권한은
+  바뀌지 않는다. 시간당 launch 한도(10회)를 함께 쓴다.
+- **기록과 알림**: job에 `permission`이 저장되고(기존 DB는 자동 이전, 기본 `default`), 완료 알림에 `(권한: project|all)`이
+  표시된다. `--dangerously-bypass-approvals-and-sandbox`는 어느 단계에서도 쓰지 않는다 — `all`은 같은 효과를
+  명시적 두 플래그(`--sandbox danger-full-access --ask-for-approval never`)로 만든다.
+- **위험**: `project`/`all` worker는 네트워크가 열려 있고 외부 내용을 읽으므로 프롬프트 주입이 곧바로 파일 변경(`all`은 홈 전체,
+  키, 서비스)으로 이어질 수 있다. 신뢰하는 과제에만 쓰고 완료 후 `git diff`/`git status`로 확인한다.
+
 ## Telegram
 
 - 허용된 개인 채팅에서 대화·상태 조회·`delegate_codex`·`/job <id>`가 가능하다(`read_file`은 불가).

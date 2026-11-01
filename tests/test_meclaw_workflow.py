@@ -2,6 +2,7 @@ from contextlib import closing
 import importlib.machinery
 import importlib.util
 import json
+import sqlite3
 import time
 from pathlib import Path
 import tempfile
@@ -272,6 +273,85 @@ class MeclawTests(unittest.TestCase):
             out=app.execute('agent_read',{'pane':'w1:p2'},'k','ch')
         self.assertEqual(seen,['recent-unwrapped','visible']);self.assertEqual(out['source'],'visible')
         self.assertIn('trust',out['output'])
+
+    def delegate_app(self):
+        app=m.App(self.store,self.home)
+        for d in ('work/p','guix-system'): (self.home/d).mkdir(parents=True,exist_ok=True)
+        m.atomic(self.store.root/'runtime/supervisor.json',json.dumps({'heartbeat':time.time()}))  # worker may be started on demand
+        return app
+
+    def delegate(self,app,permission,prompt,channel='acp:x:main',project='work/p'):
+        app.user_prompt=prompt
+        return app.execute('delegate_codex',{'task':'t','project':str(self.home/project),'permission':permission},'k'+permission+prompt[:6],channel)
+
+    def test_elevated_permission_needs_the_users_own_phrase(self):
+        app=self.delegate_app()
+        for level in ('project','all'):
+            with self.assertRaises(ValueError,msg=level) as ctx: self.delegate(app,level,'please just do it')
+            self.assertIn('Do not choose it yourself',str(ctx.exception))
+        self.assertEqual(self.delegate(app,'project','수정해줘. 프로젝트 권한 허용','acp:x:main','guix-system')['permission'],'project')
+        self.assertEqual(self.delegate(app,'all','Do it, allow-all','acp:x:main','guix-system')['permission'],'all')
+        self.assertEqual(self.delegate(app,'default','anything')['permission'],'default')
+
+    def test_project_phrase_does_not_grant_all_but_all_covers_project(self):
+        app=self.delegate_app()
+        with self.assertRaises(ValueError): self.delegate(app,'all','allow-project please')
+        self.assertEqual(self.delegate(app,'project','권한 전체 허용')['permission'],'project')
+
+    def test_phrase_is_read_from_the_current_request_only_and_cleared_after(self):
+        app=self.delegate_app()
+        app.user_prompt='allow-all'
+        app.user_prompt=''  # what run() does in its finally block
+        with self.assertRaises(ValueError): app.execute('delegate_codex',{'task':'t','project':str(self.home/'work/p'),'permission':'all'},'k','acp:x:main')
+        with self.assertRaises(ValueError): app.execute('delegate_codex',{'task':'t','project':str(self.home/'work/p'),'permission':'bogus'},'k','acp:x:main')
+
+    def test_telegram_cannot_use_all_and_project_stays_below_work(self):
+        app=self.delegate_app()
+        with self.assertRaises(ValueError): self.delegate(app,'all','allow-all','telegram:42')
+        with self.assertRaises(ValueError): self.delegate(app,'project','allow-project','telegram:42','guix-system')
+        self.assertEqual(self.delegate(app,'project','allow-project','telegram:42')['permission'],'project')
+
+    def test_permission_is_stored_and_old_databases_migrate(self):
+        job=self.store.queue('perm1','ch','t','/p','project')
+        self.assertEqual(self.store.job(job['id'])['permission'],'project')
+        self.assertEqual(self.store.job(self.store.queue('perm2','ch','t','/p')['id'])['permission'],'default')
+        root=self.home/'old-root';(root/'runtime').mkdir(parents=True)
+        with closing(sqlite3.connect(root/'runtime/host.db')) as db:
+            db.execute('create table jobs(id text primary key,dedup text unique,channel text,task text,project text,status text,result text,created text,pane text)')
+            db.execute("insert into jobs values('old','d','c','t','/p','completed','','2026-01-01','')");db.commit()
+        migrated=m.Store(root)
+        self.assertEqual(migrated.job('old')['permission'],'default')
+
+    def test_worker_flags_per_permission_level(self):
+        work=str(self.home/'work');project=str(self.home/'guix-system')
+        default=m.worker_args(self.home)
+        self.assertIn('workspace-write',default);self.assertNotIn('danger-full-access',default);self.assertNotIn('never',default)
+        scoped=m.worker_args(self.home,'project',project)
+        self.assertEqual(scoped[scoped.index('--sandbox')+1],'workspace-write')
+        self.assertEqual(scoped[scoped.index('--ask-for-approval')+1],'never')
+        self.assertIn(project,[scoped[i+1] for i,x in enumerate(scoped) if x=='--add-dir']);self.assertIn(work,scoped)
+        full=m.worker_args(self.home,'all',project)
+        self.assertEqual(full[full.index('--sandbox')+1],'danger-full-access')
+        self.assertEqual(full[full.index('--ask-for-approval')+1],'never')
+        for level in ('default','project','all'):  # the single bypass switch stays unused at every level
+            self.assertNotIn('--dangerously-bypass-approvals-and-sandbox',m.worker_args(self.home,level,project))
+
+    def test_elevated_worker_is_a_dedicated_workspace_in_the_job_project(self):
+        job=self.store.queue('el1','ch','t',str(self.home/'guix-system'),'all');self.store.claim();job=self.store.job(job['id'])
+        calls=[]
+        def fake(*a,**k):
+            calls.append(a)
+            if a[:2]==('workspace','create'): return {'result':{'workspace':{'workspace_id':'w9'},'root_pane':{'pane_id':'w9:p1'}}}
+            return {}
+        with patch.object(m,'herdr',fake),patch.object(m.time,'sleep'):
+            pane,workspace=m.start_elevated_worker(self.store,job,self.home)
+        self.assertEqual((pane,workspace),('w9:p1','w9'))
+        create=[c for c in calls if c[:2]==('workspace','create')][0]
+        self.assertEqual(create[create.index('--cwd')+1],job['project'])
+        start=[c for c in calls if c[:2]==('agent','start')][0]
+        self.assertIn('danger-full-access',start);self.assertNotEqual(start[2],m.WORKER_NAME)  # never the standing worker's name
+        with closing(self.store.db()) as db:
+            self.assertEqual(db.execute("select count(*) from events where kind='worker_launch'").fetchone()[0],1)
 
     def test_agent_control_tools_are_not_exposed_through_mcp(self):
         tail=open(SCRIPT).read().split("Tool not exposed to MCP")[0].split("if body.get('name') not in")[-1]
