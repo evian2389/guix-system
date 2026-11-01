@@ -708,11 +708,12 @@ WORKER_WORKSPACE='meclaw-worker'
 SPAWN_LIMIT=3  # worker launches per hour; a crash loop must not keep starting Codex
 
 def worker_args(home=None):
-    """Codex flags for the worker: writes and commands inside ~/work run without prompts;
-    anything the sandbox blocks (network, paths outside ~/work) asks, and the job parks as blocked."""
+    """Codex flags for the worker: writes, commands and network access inside the sandbox run without
+    prompts; paths outside ~/work still ask, and the job parks as blocked until a human answers."""
     work=str(Path(home or Path.home())/'work')
     return ['--model','gpt-6.1-terra','-c','model_reasoning_effort=low','--cd',work,'--add-dir',work,
-            '--sandbox','workspace-write','--ask-for-approval','on-request']
+            '--sandbox','workspace-write','-c','sandbox_workspace_write.network_access=true',
+            '--ask-for-approval','on-request']
 
 def find_worker():
     agents=herdr('agent','list')['result']['agents']

@@ -59,14 +59,15 @@ working/idle로 표시된다.
 
 ## Codex worker 권한 (`worker_args`)
 
-`codex --sandbox workspace-write --ask-for-approval on-request --cd ~/work --add-dir ~/work`.
+`codex --sandbox workspace-write -c sandbox_workspace_write.network_access=true --ask-for-approval on-request --cd ~/work --add-dir ~/work`.
 
-- `~/work` 안의 파일 쓰기·명령 실행은 승인 없이 진행된다. (아래 샌드박스 동작은 Codex CLI 0.166
-  플래그 설명에 따른 것이며 실제 작업으로 아직 검증하지 않았다.)
-- 샌드박스가 막는 것(네트워크, `~/work` 밖 경로 — `~/guix-system` 포함)은 승인을 요구하고, 그
-  job은 `blocked`로 멈춘다. 사람이 Herdr에서 처리해야 이어진다(MeClaw는 승인에 답하지 않는다).
-- 네트워크가 필요한 작업(`git push`, `npm install` 등)을 무인으로 돌리려면 `worker_args`에
-  `-c sandbox_workspace_write.network_access=true`를 넣는 별도 결정이 필요하다. 기본은 꺼 둔다.
+- `~/work` 안의 파일 쓰기·명령 실행과 **네트워크 접근**(`git push`, `npm install` 등)은 승인 없이 진행된다.
+- 샌드박스가 막는 것(`~/work` 밖 경로 — `~/guix-system` 포함)은 승인을 요구하고, 그 job은 `blocked`로
+  멈춘다. 사람이 Herdr에서 처리해야 이어진다(MeClaw는 승인에 답하지 않는다).
+- 네트워크가 열려 있으므로 worker가 읽는 외부 내용(웹, 패키지, 저장소)이 프롬프트 주입 경로가 될 수
+  있다. 비밀 파일은 `~/work` 안에 두지 않는 것이 안전하다.
+- 샌드박스 동작은 Codex CLI 0.166 설정 구조(`sandbox_workspace_write.network_access`)와 플래그 설명에
+  따른 것이며 실제 작업으로 아직 검증하지 않았다.
 - `--dangerously-bypass-approvals-and-sandbox`는 쓰지 않는다(테스트로 고정).
 
 ## Telegram

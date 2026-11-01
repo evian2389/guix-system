@@ -333,6 +333,7 @@ class WorkerSupervisionTests(unittest.TestCase):
         self.assertEqual(args[args.index('--ask-for-approval')+1],'on-request')
         self.assertEqual(args[args.index('--add-dir')+1],work);self.assertEqual(args[args.index('--cd')+1],work)
         self.assertNotIn('--dangerously-bypass-approvals-and-sandbox',args)
+        self.assertIn('sandbox_workspace_write.network_access=true',args)
 
     def test_existing_worker_is_reused_and_dispatcher_started_once(self):
         fake,calls=self.herdr(agents=[{'name':'meclaw-codex','agent':'codex','pane_id':'w1:p9'}])
