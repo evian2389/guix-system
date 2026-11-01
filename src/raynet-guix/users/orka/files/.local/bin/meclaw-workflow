@@ -152,6 +152,8 @@ class Store:
             raise ValueError('Job is '+state+' and cannot be stopped from MeClaw; the worker may already be acting. Inspect or interrupt it in Herdr.'
                              if state in ('working','blocked','unknown') else 'Job is already '+state)
         return self.job(jid)
+    def has_queued(self):
+        with closing(self.db()) as db: return db.execute("select 1 from jobs where status='queued' limit 1").fetchone() is not None
     def active_jobs(self,channel):
         with closing(self.db()) as db:
             rows=db.execute("select id,status,project from jobs where channel=? and status in ('queued','working','blocked') order by created",(channel,)).fetchall()
@@ -466,6 +468,8 @@ class App:
         if name=='read_file': return self.read_file(args,channel)
         if name=='delegate_codex':
             status=self.execute('herdr_status',{},key,channel)
+            if not status.get('available') and supervisor_alive(self.store.root):
+                status['available']=True  # the supervisor starts the worker when a job is waiting
             if not status.get('available'):
                 raise ValueError('Codex worker unavailable: '+str(status.get('reason','no enrolled dispatcher'))+' '+
                                  str(status.get('remedy','The user must run `meclaw-workflow enroll` inside Herdr.')))
@@ -750,6 +754,10 @@ WORKER_NAME='meclaw-codex'
 WORKER_WORKSPACE='meclaw-worker'
 SPAWN_LIMIT=3  # worker launches per hour; a crash loop must not keep starting Codex
 
+def supervisor_alive(root):
+    try: return time.time()-json.loads((Path(root)/'runtime/supervisor.json').read_text()).get('heartbeat',0)<45
+    except (OSError,ValueError): return False
+
 def worker_args(home=None):
     """Codex flags for the worker: writes, commands and network access inside the sandbox run without
     prompts; paths outside ~/work still ask, and the job parks as blocked until a human answers."""
@@ -788,8 +796,17 @@ def start_worker(store,home=None):
 
 def supervise_step(store,state,home=None):
     """One pass: make sure a worker exists and a dispatcher serves it. Never touches other panes."""
+    try: atomic(store.root/'runtime/supervisor.json',json.dumps({'heartbeat':time.time()}))
+    except OSError: pass
     try:
-        pane=find_worker() or start_worker(store,home)
+        pane=find_worker()
+        if pane is None:
+            # On demand only: a pane the user closed stays closed until delegated work is waiting.
+            if not store.has_queued():
+                child=state.get('child')
+                if child is not None and child.poll() is None: child.terminate();child.wait(timeout=10)
+                state['child']=None;state['error']=None;return
+            pane=start_worker(store,home)
         status={}
         try: status=json.loads((store.root/'runtime/dispatcher.json').read_text())
         except (OSError,ValueError): pass

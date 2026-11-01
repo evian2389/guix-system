@@ -216,8 +216,13 @@ def select_model(model):
 
 def worker_notice():
     """Explain up front when delegation cannot work (dispatcher/worker offline)."""
-    path = Path(os.environ.get('MECLAW_WORKFLOW_ROOT',
-                               Path.home() / '.local/share/meclaw-workflow')) / 'runtime/dispatcher.json'
+    root = Path(os.environ.get('MECLAW_WORKFLOW_ROOT', Path.home() / '.local/share/meclaw-workflow'))
+    path = root / 'runtime/dispatcher.json'
+    try:  # the supervisor starts the worker when delegated work is waiting
+        if time.time() - json.loads((root / 'runtime/supervisor.json').read_text()).get('heartbeat', 0) < 45:
+            return None
+    except (OSError, ValueError):
+        pass
     try:
         status = json.loads(path.read_text())
         if time.time() - status.get('heartbeat', 0) < 20 and status.get('worker_state') != 'unknown':

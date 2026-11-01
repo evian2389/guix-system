@@ -407,7 +407,23 @@ class WorkerSupervisionTests(unittest.TestCase):
         self.assertIn('w1:p9',start.call_args.args[0])
         self.assertFalse([c for c in calls if c[:2] in (('workspace','create'),('agent','start'))])
 
+    def test_closed_worker_stays_closed_until_work_is_waiting(self):
+        fake,calls=self.herdr()
+        with patch.object(m,'herdr',fake),patch.object(m.subprocess,'Popen') as start,patch.object(m.time,'sleep'):
+            for _ in range(5): m.supervise_step(self.store,{},self.home)
+        self.assertFalse([c for c in calls if c[:2] in (('workspace','create'),('agent','start'))])
+        self.assertEqual(start.call_count,0)
+        self.assertTrue(m.supervisor_alive(self.store.root))
+
+    def test_delegation_is_accepted_while_the_supervisor_can_start_the_worker(self):
+        app=m.App(self.store,self.home);(self.home/'work/p').mkdir(parents=True)
+        args={'task':'t','project':str(self.home/'work/p')}
+        with self.assertRaises(ValueError): app.execute('delegate_codex',args,'k1','ch')
+        m.atomic(self.store.root/'runtime/supervisor.json',json.dumps({'heartbeat':time.time()}))
+        self.assertEqual(app.execute('delegate_codex',args,'k2','ch')['status'],'queued')
+
     def test_missing_worker_is_launched_in_its_own_workspace(self):
+        self.store.queue('w1','ch','task','/p')
         fake,calls=self.herdr()
         with patch.object(m,'herdr',fake),patch.object(m.subprocess,'Popen'),patch.object(m.time,'sleep'):
             m.supervise_step(self.store,{},self.home)
@@ -416,6 +432,7 @@ class WorkerSupervisionTests(unittest.TestCase):
         self.assertTrue([c for c in calls if c[:2]==('workspace','create')])
 
     def test_launch_budget_stops_a_crash_loop(self):
+        self.store.queue('w2','ch','task','/p')
         fake,calls=self.herdr()
         with patch.object(m,'herdr',fake),patch.object(m.subprocess,'Popen'),patch.object(m.time,'sleep'):
             for _ in range(5): m.supervise_step(self.store,{},self.home)

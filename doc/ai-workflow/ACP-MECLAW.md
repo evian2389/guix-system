@@ -126,8 +126,10 @@ working/idle로 표시된다.
 ## 문제 해결
 
 - **Herdr 서버를 다시 시작하면 dispatcher와 worker가 함께 종료된다**(pane 번호도 바뀐다). Home
-  서비스 `meclaw-worker`(`meclaw-workflow supervise`)가 15초마다 확인해서 `meclaw-codex` worker가 없으면
-  `meclaw-worker` workspace에 하나를 띄우고 dispatcher를 다시 붙인다. 시간당 최대 3회만 띄우므로
+  서비스 `meclaw-worker`(`meclaw-workflow supervise`)가 15초마다 확인한다. **worker pane을 닫아도 다시
+  만들지 않고**, 위임된 작업이 `queued`로 대기 중일 때만 `meclaw-worker` workspace에 worker를 띄우고
+  dispatcher를 붙인다. 감독이 살아 있는 동안(`runtime/supervisor.json` 하트비트) worker가 없어도
+  `delegate_codex`는 작업을 큐에 넣는다. 시간당 최대 3회만 띄우므로
   충돌 반복이 Codex를 계속 실행하지 않는다(초과하면 `supervisor` 이벤트에 기록). Herdr 서버가 꺼져
   있으면 기다리기만 한다. 수동으로 `meclaw-workflow enroll`을 해도 되고, 신선한 dispatcher가 있으면
   아무것도 바꾸지 않는다.
