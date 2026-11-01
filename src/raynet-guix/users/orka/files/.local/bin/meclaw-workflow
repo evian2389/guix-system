@@ -752,7 +752,7 @@ def herdr(*args,timeout=30):
 
 WORKER_NAME='meclaw-codex'
 WORKER_WORKSPACE='meclaw-worker'
-SPAWN_LIMIT=3  # worker launches per hour; a crash loop must not keep starting Codex
+SPAWN_LIMIT=10  # worker launches per hour; a crash loop must not keep starting Codex
 
 def supervisor_alive(root):
     try: return time.time()-json.loads((Path(root)/'runtime/supervisor.json').read_text()).get('heartbeat',0)<45

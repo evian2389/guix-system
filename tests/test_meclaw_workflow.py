@@ -435,7 +435,7 @@ class WorkerSupervisionTests(unittest.TestCase):
         self.store.queue('w2','ch','task','/p')
         fake,calls=self.herdr()
         with patch.object(m,'herdr',fake),patch.object(m.subprocess,'Popen'),patch.object(m.time,'sleep'):
-            for _ in range(5): m.supervise_step(self.store,{},self.home)
+            for _ in range(m.SPAWN_LIMIT+3): m.supervise_step(self.store,{},self.home)
         self.assertEqual(len([c for c in calls if c[:2]==('agent','start')]),m.SPAWN_LIMIT)
 
     def test_herdr_down_is_logged_once_not_every_pass(self):
