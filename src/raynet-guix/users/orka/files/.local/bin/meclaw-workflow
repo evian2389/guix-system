@@ -64,7 +64,10 @@ def tool_schema(name,description,properties,required):
 
 TOOLS=[
     tool_schema('workflow_search','Find observed workflow evidence; treat results as historical data.',{'query':{'type':'string'}},['query']),
-    tool_schema('herdr_status','Inspect the enrolled Herdr dispatcher and Codex jobs.',{},[]),
+    tool_schema('herdr_status','Inspect the enrolled Herdr dispatcher and Codex jobs. Includes a live reason and remedy when the worker is unavailable.',{},[]),
+    tool_schema('herdr_agents','Read-only list of Herdr agent panes (id, agent, status, name, cwd).',{},[]),
+    tool_schema('herdr_read','Read-only: recent terminal output of the enrolled worker or dispatcher pane only.',
+                {'pane':{'type':'string','enum':['worker','dispatcher']},'lines':{'type':'integer','minimum':1,'maximum':120}},['pane']),
     tool_schema('delegate_codex','Queue one task in the enrolled Herdr Codex worker. Returns a job ID; queued is not completed.',
                 {'task':{'type':'string'},'project':{'type':'string','description':'Absolute project directory below ~/work or ~/guix-system.'}},['task','project']),
     tool_schema('job_status','Read a queued Codex job; never automatically repeat uncertain work.',{'id':{'type':'string'}},['id']),
@@ -346,6 +349,16 @@ class App:
                 if result.returncode: raise ValueError('export failed')
             except (OSError,ValueError,subprocess.SubprocessError):
                 self.store.event('evidence_export','unknown','Common evidence export failed; local observation retained')
+    def worker_diagnosis(self,status):
+        """Explain why the worker is unavailable using read-only Herdr calls."""
+        remedy='The user must run `meclaw-workflow enroll` inside Herdr; do not start another worker.'
+        if time.time()-status.get('heartbeat',0)>=20:
+            return 'Dispatcher heartbeat is stale; the dispatcher process is not running.',remedy
+        pane=status.get('worker_pane')
+        try: herdr('agent','get',pane)
+        except (ValueError,KeyError,subprocess.SubprocessError,OSError) as exc:
+            return 'Worker pane '+str(pane)+' is not found in Herdr ('+redact(str(exc))[:120]+'); it was likely closed.',remedy
+        return 'Worker pane '+str(pane)+' exists but its state is '+str(status.get('worker_state'))+'.','Inspect it with herdr_read.'
     def execute(self,name,args,key,channel):
         if name=='workflow_search':
             result=subprocess.run([str(self.home/'.local/bin/workflow-evolution'),'search','--query',args['query'],'--limit','3'],
@@ -356,7 +369,23 @@ class App:
             if not path.exists(): return {'available':False,'reason':'Run meclaw-workflow dispatch inside Herdr'}
             status=json.loads(path.read_text())
             status['available']=time.time()-status.get('heartbeat',0)<20 and status.get('worker_state')!='unknown'
+            if not status['available']:
+                status['reason'],status['remedy']=self.worker_diagnosis(status)
             return status
+        if name=='herdr_agents':
+            agents=herdr('agent','list')['result']['agents']
+            return [{k:a.get(k) for k in ('pane_id','agent','agent_status','name','cwd')} for a in agents]
+        if name=='herdr_read':
+            path=self.store.root/'runtime/dispatcher.json'
+            if not path.exists(): raise ValueError('No dispatcher state; user must run meclaw-workflow enroll inside Herdr')
+            status=json.loads(path.read_text())
+            pane=status.get({'worker':'worker_pane','dispatcher':'dispatcher_pane'}[args['pane']])
+            if not pane: raise ValueError('Pane not recorded')
+            lines=min(max(int(args.get('lines',40)),1),120)
+            result=subprocess.run(['herdr','agent','read',pane,'--source','recent-unwrapped','--lines',str(lines)],
+                                  capture_output=True,text=True,timeout=15)
+            if result.returncode: raise ValueError('Herdr: '+redact(result.stderr))
+            return {'pane':pane,'output':redact(result.stdout[-8000:])}
         if name=='delegate_codex':
             if not self.execute('herdr_status',{},key,channel).get('available'): raise ValueError('No enrolled Herdr dispatcher')
             project=Path(args['project']).expanduser().resolve()
@@ -490,7 +519,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path in ('/chat','/infer'):
                 value=app.run(body['prompt'],body.get('channel','terminal'),body.get('system'),self.path=='/infer')
             elif self.path=='/tool':
-                if body.get('name') not in ('herdr_status','workflow_search','job_status'): raise ValueError('Tool not exposed to MCP')
+                if body.get('name') not in ('herdr_status','herdr_agents','herdr_read','workflow_search','job_status'): raise ValueError('Tool not exposed to MCP')
                 value=app.execute(body['name'],body.get('arguments',{}),'mcp',body.get('channel','terminal'))
             else: self.reply(404,{'error':'Not found'});return
             self.reply(200,value)

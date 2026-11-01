@@ -42,7 +42,6 @@
   #:use-module (gnu packages games)       ;; For steam-devices-udev-rules
   #:use-module (gnu packages android)     ;; For android-udev-rules
   #:use-module (raynet-guix home-services games)
-  #:use-module (raynet-guix services meclaw)
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (nongnu packages linux)
@@ -152,8 +151,7 @@
                   "/run/current-system/profile/bin/guix, "
                   "/home/orka/.config/guix/current/bin/guix, "
                   "/home/orka/guix-system/env/profile/bin/guix\n"
-                  "Defaults editor=\"/home/orka/.guix-profile/bin/hx\"\n"
-                  "orka ALL=(root) NOPASSWD: /run/current-system/profile/bin/herd restart meclaw\n")))
+                  "Defaults editor=\"/home/orka/.guix-profile/bin/hx\"\n")))
     (packages (append (list
                         btrfs-progs
                         (@ (gnu packages virtualization) bubblewrap)
@@ -196,8 +194,12 @@
        (list
              (service openssh-service-type)      ;; Enable OpenSSH server
              (service nix-service-type)      ;; Nix
-             ;; MeClaw daemon in a delegated cgroup (memory/pids ceilings).
-             (service meclaw-service-type)
+             ;; Guix's /etc/profile loops over /etc/profile.d/*.sh; zsh errors
+             ;; with "no matches found" when the directory is missing/empty.
+             (simple-service 'profile-d-placeholder etc-service-type
+                             (list `("profile.d/00-placeholder.sh"
+                                     ,(plain-file "00-placeholder.sh"
+                                                  "# Keeps /etc/profile.d/*.sh from being an empty glob.\n"))))
              (service plasma-desktop-service-type)
              ;; Add udev rules for Steam devices
              (udev-rules-service 'steam-devices steam-devices-udev-rules)
