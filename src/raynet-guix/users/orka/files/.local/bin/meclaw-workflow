@@ -878,20 +878,25 @@ def enroll(root,worker_pane=None):
     log.close()
     print(json.dumps({'dispatcher_pid':process.pid,'worker_pane':worker_pane}))
 
-def watch_cancel(store,jid,pane,stop,send,send_text,interval=1.0,escalate=10.0,settle=3.0):
+def watch_cancel(store,jid,pane,stop,send,interval=1.0,escalate=10.0):
     """While a job runs, turn a recorded cancel request into key presses on the worker pane:
-    Esc interrupts the turn but leaves a started command running as a background terminal, so `/stop`
-    follows; Ctrl-C only if the worker has not settled after `escalate` seconds."""
-    first=None;second=False;stopped=False
+    Ctrl-C only if the worker has not settled after `escalate` seconds."""
+    first=None;second=False
     while not stop.wait(interval):
         if first is None:
             if store.cancel_requested(jid):
                 first=time.monotonic();send(pane,'esc');store.event('codex_job','unknown','Cancel requested for job '+jid+'; interrupt sent to the worker')
-        else:
-            if not stopped and time.monotonic()-first>=settle:
-                stopped=True;send_text(pane,'/stop');send(pane,'enter');time.sleep(min(.5,settle));send(pane,'enter')  # 2nd Enter: the first may only accept the command completion
-            if not second and time.monotonic()-first>=escalate:
-                second=True;send(pane,'ctrl-c')
+        elif not second and time.monotonic()-first>=escalate:
+            second=True;send(pane,'ctrl-c')
+
+def stop_background(pane,send,send_text,pause=.5):
+    """Esc ends Codex's turn but leaves an already started command running as a background terminal;
+    `/stop` closes it. The second Enter covers a first one that only accepts the command completion."""
+    send_text(pane,'/stop');send(pane,'enter');time.sleep(pause);send(pane,'enter')
+
+def settle_key_senders():
+    return (lambda pane,key: herdr('pane','send-keys',pane,key),lambda pane,text: herdr('pane','send-text',pane,text))
+
 
 def dispatch(root,worker_pane,supervised=False):
     if not supervised and os.environ.get('HERDR_ENV')!='1': raise ValueError('Start this dispatcher inside Herdr')
@@ -934,14 +939,15 @@ def dispatch(root,worker_pane,supervised=False):
                             atomic(status,json.dumps({'heartbeat':time.time(),'worker_pane':worker_pane,'max_workers':1}))
                     thread=threading.Thread(target=heartbeat,daemon=True);thread.start()
                     cancel_thread=threading.Thread(target=watch_cancel,args=(store,job['id'],worker_pane,waiting,
-                        lambda pane,key: herdr('pane','send-keys',pane,key),
-                        lambda pane,text: herdr('pane','send-text',pane,text)),daemon=True);cancel_thread.start()
+                        settle_key_senders()[0]),daemon=True);cancel_thread.start()
                     try: reply=herdr('agent','prompt',worker_pane,brief,'--wait','--timeout','540000',timeout=550)
                     finally: waiting.set();thread.join(timeout=4);cancel_thread.join(timeout=4)
                     state=reply['result']['agent'].get('agent_status')
                     if state=='blocked':
                         store.finish(job['id'],'blocked','Human input required in Herdr; no automatic approval.',worker_pane)
                     elif state in ('idle','done') and store.cancel_requested(job['id']):
+                        try: stop_background(worker_pane,*settle_key_senders())
+                        except (ValueError,OSError,subprocess.SubprocessError): store.event('codex_job','unknown','/stop could not be sent; a started command may still run')
                         result=subprocess.run(['herdr','agent','read',worker_pane,'--source','recent-unwrapped','--lines','40'],
                                               capture_output=True,text=True,timeout=15)
                         store.finish(job['id'],'cancelled','Interrupted at the user\'s request. Partial changes may exist; inspect the project (git status).\n'+

@@ -142,16 +142,18 @@ class MeclawTests(unittest.TestCase):
     def test_watch_cancel_sends_esc_then_ctrl_c_only_after_a_request(self):
         a=self.store.queue('r2','ch','task','/p');self.store.claim()
         sent=[];stop=threading.Event()
-        thread=threading.Thread(target=m.watch_cancel,args=(self.store,a['id'],'w:p1',stop,lambda p,k:sent.append((p,k)),
-                                                            lambda p,t:sent.append((p,'text:'+t)),0.02,0.5,0.1))
+        thread=threading.Thread(target=m.watch_cancel,args=(self.store,a['id'],'w:p1',stop,lambda p,k:sent.append((p,k)),0.02,0.3))
         thread.start();time.sleep(0.15)
         self.assertEqual(sent,[])
         self.store.cancel(a['id'],'ch');time.sleep(0.05)
         self.assertEqual(sent,[('w:p1','esc')])
-        time.sleep(0.2)
-        self.assertEqual([k for _,k in sent],['esc','text:/stop','enter','enter'])  # background commands are stopped too
         time.sleep(0.5);stop.set();thread.join()
-        self.assertEqual(sent[-1],('w:p1','ctrl-c'))
+        self.assertEqual(sent,[('w:p1','esc'),('w:p1','ctrl-c')])
+
+    def test_stop_background_types_stop_and_presses_enter_twice(self):
+        sent=[]
+        m.stop_background('w:p1',lambda p,k:sent.append(k),lambda p,t:sent.append('text:'+t),0)
+        self.assertEqual(sent,['text:/stop','enter','enter'])
 
     def test_cancelled_jobs_free_queue_capacity(self):
         ids=[self.store.queue('c%d'%n,'ch','t','/p')['id'] for n in range(4)]
