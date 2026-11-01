@@ -261,7 +261,7 @@ def cancel_notice(session):
         return None
     lines = ['%s [%s] %s' % (job.get('status'), job.get('id'), job.get('project', '')) for job in active]
     return ('⚠ 이 대화의 응답만 멈췄고, 이미 위임한 작업은 중단되지 않았습니다.\n' + '\n'.join(lines) +
-            '\n대기 중(queued) 작업은 "cancel_job <id>"로 취소할 수 있습니다. 실행 중이면 Herdr의 worker pane에서 직접 중단하세요.\n')
+            '\n작업을 멈추려면 "cancel_job <id>"라고 요청하세요. 대기 중이면 취소되고, 실행 중이면 worker에 중단을 요청합니다(멈췄는지는 job 상태로 확인).\n')
 
 
 def tool_event(session_id, event):

@@ -105,9 +105,10 @@ class MeclawTests(unittest.TestCase):
 
     def test_cancel_refuses_started_foreign_or_unknown_jobs(self):
         a=self.store.queue('k2','ch','task','/p');self.store.claim()
+        self.store.finish(a['id'],'blocked')
         with self.assertRaises(ValueError) as ctx: self.store.cancel(a['id'],'ch')
         self.assertIn('cannot be stopped',str(ctx.exception))
-        self.assertEqual(self.store.job(a['id'])['status'],'working')
+        self.assertEqual(self.store.job(a['id'])['status'],'blocked')
         b=self.store.queue('k3','ch','task','/p')
         with self.assertRaises(ValueError): self.store.cancel(b['id'],'other')
         self.assertEqual(self.store.job(b['id'])['status'],'queued')
@@ -127,9 +128,27 @@ class MeclawTests(unittest.TestCase):
             threads=[threading.Thread(target=cancel),threading.Thread(target=claim)]
             [t.start() for t in threads];[t.join() for t in threads]
             claimed=outcome['claim'] is not None
-            self.assertEqual(claimed,outcome['cancel']=='refused',outcome)
+            self.assertEqual(claimed,outcome['cancel']=='cancel_requested',outcome)  # never both 'cancelled' and claimed
             self.assertEqual(self.store.job(job['id'])['status'],'working' if claimed else 'cancelled')
             if claimed: self.store.finish(job['id'],'completed')
+
+    def test_running_job_gets_a_cancel_request_not_a_status_change(self):
+        a=self.store.queue('r1','ch','task','/p');self.store.claim()
+        self.assertFalse(self.store.cancel_requested(a['id']))
+        self.assertEqual(self.store.cancel(a['id'],'ch')['status'],'cancel_requested')
+        self.assertTrue(self.store.cancel_requested(a['id']))
+        with self.assertRaises(ValueError): self.store.cancel(a['id'],'other')
+
+    def test_watch_cancel_sends_esc_then_ctrl_c_only_after_a_request(self):
+        a=self.store.queue('r2','ch','task','/p');self.store.claim()
+        sent=[];stop=threading.Event()
+        thread=threading.Thread(target=m.watch_cancel,args=(self.store,a['id'],'w:p1',stop,lambda p,k:sent.append((p,k)),0.02,0.15))
+        thread.start();time.sleep(0.15)
+        self.assertEqual(sent,[])
+        self.store.cancel(a['id'],'ch');time.sleep(0.1)
+        self.assertEqual(sent,[('w:p1','esc')])
+        time.sleep(0.25);stop.set();thread.join()
+        self.assertEqual(sent,[('w:p1','esc'),('w:p1','ctrl-c')])
 
     def test_cancelled_jobs_free_queue_capacity(self):
         ids=[self.store.queue('c%d'%n,'ch','t','/p')['id'] for n in range(4)]
@@ -142,7 +161,8 @@ class MeclawTests(unittest.TestCase):
         job=self.store.queue('t1','ch','task','/p')
         self.assertEqual(app.execute('cancel_job',{'id':job['id']},'k','ch')['status'],'cancelled')
         job=self.store.queue('t2','ch','task','/p');self.store.claim()
-        with self.assertRaises(ValueError): app.execute('cancel_job',{'id':job['id']},'k','ch')
+        self.assertEqual(app.execute('cancel_job',{'id':job['id']},'k','ch')['status'],'cancel_requested')
+        self.assertEqual(self.store.job(job['id'])['status'],'working')  # only the dispatcher may settle it
 
     def test_unreported_jobs_are_returned_once_per_state(self):
         a=self.store.queue('u1','acp:x:main','task','/p');self.store.queue('u2','acp:y:main','task','/p')

@@ -81,7 +81,7 @@ TOOLS=[
                  'lines':{'type':'integer','minimum':1,'maximum':400,'description':'Line count, default 200.'}},['path']),
     tool_schema('delegate_codex','Queue one task in the enrolled Herdr Codex worker. Returns a job ID; queued is not completed.',
                 {'task':{'type':'string'},'project':{'type':'string','description':'Absolute project directory below ~/work or ~/guix-system.'}},['task','project']),
-    tool_schema('cancel_job','Cancel a queued Codex job that the worker has not taken yet. Started jobs cannot be stopped from here; say so and point to Herdr.',{'id':{'type':'string'}},['id']),
+    tool_schema('cancel_job','Cancel a Codex job. Queued: cancelled at once. Running: only an interrupt request is recorded and the dispatcher presses Esc in the worker; report it as requested, not stopped, until job_status shows cancelled. Partial changes may remain.',{'id':{'type':'string'}},['id']),
     tool_schema('job_status','Read a queued Codex job; never automatically repeat uncertain work.',{'id':{'type':'string'}},['id']),
 ]
 
@@ -136,7 +136,7 @@ class Store:
         if not row: raise ValueError('Unknown job')
         return dict(row)
     def finish(self,jid,status,result='',pane=''):
-        if status not in ('completed','failed','blocked','unknown'): raise ValueError('Invalid job state')
+        if status not in ('completed','failed','blocked','unknown','cancelled'): raise ValueError('Invalid job state')
         with closing(self.db()) as db,db:
             db.execute('update jobs set status=?,result=?,pane=? where id=?',(status,str(result)[:16000],pane,jid))
     def cancel(self,jid,channel):
@@ -149,9 +149,14 @@ class Store:
             done=db.execute("update jobs set status='cancelled',result='Cancelled before the worker took it.' where id=? and status='queued'",(jid,)).rowcount
         if not done:
             state=self.job(jid)['status']
-            raise ValueError('Job is '+state+' and cannot be stopped from MeClaw; the worker may already be acting. Inspect or interrupt it in Herdr.'
-                             if state in ('working','blocked','unknown') else 'Job is already '+state)
+            if state=='working':
+                # Only a request: the dispatcher (the one process that controls the worker pane) acts on it.
+                self.meta('cancel_requested:'+jid,time.time())
+                return {**self.job(jid),'status':'cancel_requested'}
+            raise ValueError('Job is '+state+' and cannot be stopped from MeClaw; a human must handle it in Herdr.'
+                             if state in ('blocked','unknown') else 'Job is already '+state)
         return self.job(jid)
+    def cancel_requested(self,jid): return self.meta('cancel_requested:'+jid) is not None
     def has_queued(self):
         with closing(self.db()) as db: return db.execute("select 1 from jobs where status='queued' limit 1").fetchone() is not None
     def active_jobs(self,channel):
@@ -873,6 +878,17 @@ def enroll(root,worker_pane=None):
     log.close()
     print(json.dumps({'dispatcher_pid':process.pid,'worker_pane':worker_pane}))
 
+def watch_cancel(store,jid,pane,stop,send,interval=1.0,escalate=10.0):
+    """While a job runs, turn a recorded cancel request into key presses on the worker pane:
+    Esc first, Ctrl-C only if the worker has not settled after `escalate` seconds."""
+    first=None;second=False
+    while not stop.wait(interval):
+        if first is None:
+            if store.cancel_requested(jid):
+                first=time.monotonic();send(pane,'esc');store.event('codex_job','unknown','Cancel requested for job '+jid+'; interrupt sent to the worker')
+        elif not second and time.monotonic()-first>=escalate:
+            second=True;send(pane,'ctrl-c')
+
 def dispatch(root,worker_pane,supervised=False):
     if not supervised and os.environ.get('HERDR_ENV')!='1': raise ValueError('Start this dispatcher inside Herdr')
     store=Store(root)
@@ -913,18 +929,25 @@ def dispatch(root,worker_pane,supervised=False):
                         while not waiting.wait(3):
                             atomic(status,json.dumps({'heartbeat':time.time(),'worker_pane':worker_pane,'max_workers':1}))
                     thread=threading.Thread(target=heartbeat,daemon=True);thread.start()
+                    cancel_thread=threading.Thread(target=watch_cancel,args=(store,job['id'],worker_pane,waiting,
+                        lambda pane,key: herdr('pane','send-keys',pane,key)),daemon=True);cancel_thread.start()
                     try: reply=herdr('agent','prompt',worker_pane,brief,'--wait','--timeout','540000',timeout=550)
-                    finally: waiting.set();thread.join(timeout=4)
+                    finally: waiting.set();thread.join(timeout=4);cancel_thread.join(timeout=4)
                     state=reply['result']['agent'].get('agent_status')
                     if state=='blocked':
                         store.finish(job['id'],'blocked','Human input required in Herdr; no automatic approval.',worker_pane)
+                    elif state in ('idle','done') and store.cancel_requested(job['id']):
+                        result=subprocess.run(['herdr','agent','read',worker_pane,'--source','recent-unwrapped','--lines','40'],
+                                              capture_output=True,text=True,timeout=15)
+                        store.finish(job['id'],'cancelled','Interrupted at the user\'s request. Partial changes may exist; inspect the project (git status).\n'+
+                                     (result.stdout[-4000:] if result.returncode==0 else ''),worker_pane)
                     elif state in ('idle','done'):
                         result=subprocess.run(['herdr','agent','read',worker_pane,'--source','recent-unwrapped','--lines','80'],
                                               capture_output=True,text=True,timeout=15)
                         store.finish(job['id'],'completed',result.stdout[-16000:] if result.returncode==0 else 'Worker settled; inspect the pane for the result.',worker_pane)
                     else: store.finish(job['id'],'unknown','Inspect worker state; not replayed.',worker_pane)
                 except Exception as exc: store.finish(job['id'],'unknown',redact(str(exc)),worker_pane)
-                store.event('codex_job','unknown' if store.job(job['id'])['status']!='completed' else 'success',
+                store.event('codex_job','unknown' if store.job(job['id'])['status'] not in ('completed','cancelled') else 'success',
                             'Herdr Codex job '+job['id']+' state '+store.job(job['id'])['status']+'; task acceptance remains independently verifiable.')
                 store.snapshot()
             stopping.wait(2)

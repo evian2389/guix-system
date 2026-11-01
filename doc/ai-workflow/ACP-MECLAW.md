@@ -94,13 +94,16 @@ working/idle로 표시된다.
 
 ## 위임 작업의 취소·알림·재지시 (한계 포함)
 
-- **대기 중 작업 취소**: 대화에서 `cancel_job <id>`(도구)로 아직 worker가 가져가지 않은(`queued`) 작업만
-  취소한다. 취소와 worker의 가져오기는 SQLite 조건부 UPDATE 하나로 갈리므로 둘 중 정확히 하나만
-  성공한다(경합 테스트로 고정). `working`/`blocked`/`unknown` 작업은 MeClaw가 멈출 수 없고, 도구가
-  그렇게 알려 준다. 다른 채널의 작업은 취소할 수 없다.
+- **작업 취소 (`cancel_job <id>`)**: 대기 중(`queued`) 작업은 즉시 `cancelled`가 된다. 취소와 worker의 가져오기는
+  SQLite 조건부 UPDATE 하나로 갈리므로 둘 중 정확히 하나만 성공한다(경합 테스트). **실행 중(`working`)
+  작업은 "취소 요청"만 기록**하고, pane을 제어하는 별도 프로세스인 dispatcher가 worker pane에 Esc를
+  보낸다(10초 안에 멈추지 않으면 Ctrl-C 한 번). worker가 멈추면 job이 `cancelled`로 바뀌고, 멈췄는지
+  확인하지 못하면 상태는 그대로(`working`/`unknown`)다. 중단 전에 바뀐 파일은 되돌리지 않으므로 결과의
+  안내대로 `git status`로 확인한다. `blocked`/`unknown`은 사람이 Herdr에서 처리한다. 다른 채널의 작업은
+  취소할 수 없다. 모델/bridge는 pane을 직접 조작하지 않는다.
 - **대화 취소(`session/cancel`)**: 응답 생성만 멈춘다. 이 대화에서 위임한 작업이 남아 있으면 화면에
-  "위임한 작업은 중단되지 않았다"와 job 목록·다음 조치를 보여 준다. 실행 중 worker 중단은 Herdr pane에서
-  사람이 한다.
+  "위임한 작업은 중단되지 않았다"와 job 목록을 보여 주고 `cancel_job`을 안내한다. 작업 자체는 자동으로
+  취소하지 않는다.
 - **완료 알림**: 이 대화의 위임 작업이 끝났으면(`completed`/`failed`/`blocked`/`unknown`/`cancelled`)
   세션을 열 때와 **다음 질문을 보내기 직전**에 한 번 보여 준다(상태마다 최대 1회, 결과는 마스킹).
   요청이 끝난 뒤 클라이언트로 먼저 밀어 주는 푸시는 하지 않는다 — Martty/Toad가 유휴 중 알림을 안전하게
