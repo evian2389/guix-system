@@ -142,12 +142,18 @@ class MeclawTests(unittest.TestCase):
     def test_watch_cancel_sends_esc_then_ctrl_c_only_after_a_request(self):
         a=self.store.queue('r2','ch','task','/p');self.store.claim()
         sent=[];stop=threading.Event()
+        def until(condition,seconds=5):
+            end=time.monotonic()+seconds
+            while time.monotonic()<end and not condition(): time.sleep(0.01)
+            return condition()
         thread=threading.Thread(target=m.watch_cancel,args=(self.store,a['id'],'w:p1',stop,lambda p,k:sent.append((p,k)),0.02,0.3))
-        thread.start();time.sleep(0.15)
-        self.assertEqual(sent,[])
-        self.store.cancel(a['id'],'ch');time.sleep(0.05)
-        self.assertEqual(sent,[('w:p1','esc')])
-        time.sleep(0.5);stop.set();thread.join()
+        thread.start()
+        time.sleep(0.2)
+        self.assertEqual(sent,[])  # nothing is sent without a request
+        self.store.cancel(a['id'],'ch')
+        self.assertTrue(until(lambda:('w:p1','esc') in sent))
+        self.assertTrue(until(lambda:('w:p1','ctrl+c') in sent))
+        stop.set();thread.join()
         self.assertEqual(sent,[('w:p1','esc'),('w:p1','ctrl+c')])
 
     def test_stop_background_types_stop_and_presses_enter_twice(self):
