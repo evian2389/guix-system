@@ -18,7 +18,10 @@ import sys
 import threading
 import time
 
-WORKFLOW = str(Path.home() / '.local/bin/meclaw-workflow')
+WORKFLOW = os.environ.get('MECLAW_WORKFLOW_BIN') or str(Path.home() / '.local/bin/meclaw-workflow')
+STATE_DIR = Path(os.environ.get('MECLAW_ACP_STATE') or Path.home() / '.local/state/meclaw-acp')
+DEFAULT_SESSION = 'main'  # one conversation per project directory unless --session/--new says otherwise
+CONTEXT_PREFIX = re.compile(r'^Current project directory \(context only\): "[^"\n]*"\n\n')
 TIMEOUT = int(os.environ.get('MECLAW_ACP_TIMEOUT', '230'))
 SOURCE = 'custom:meclaw-acp'
 AGENT_LABEL = os.environ.get('MECLAW_ACP_HERDR_AGENT', 'meclaw')
@@ -61,6 +64,94 @@ def report_herdr(state):
         subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3)
     except (OSError, subprocess.TimeoutExpired):
         pass
+
+
+def session_id_for(channel):
+    return 'mc-' + hashlib.sha256(channel.encode()).hexdigest()[:12]
+
+
+def load_registry():
+    try:
+        value = json.loads((STATE_DIR / 'sessions.json').read_text())
+        return value if isinstance(value, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_registry(registry):
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        temp = STATE_DIR / ('sessions.json.%d' % os.getpid())
+        temp.write_text(json.dumps(registry, ensure_ascii=False))
+        os.replace(temp, STATE_DIR / 'sessions.json')
+    except OSError:
+        pass  # listing is a convenience; chatting must not depend on it
+
+
+def remember(session_id, session, title=None):
+    registry = load_registry()
+    entry = registry.get(session_id, {})
+    entry.update(channel=session['channel'], cwd=session['cwd'], updated=time.time())
+    if title and not entry.get('title'):
+        entry['title'] = title.strip().splitlines()[0][:60] if title.strip() else None
+    entry.setdefault('title', None)
+    registry[session_id] = entry
+    save_registry(registry)
+
+
+def stored_turns(channel):
+    """Visible user/assistant text of a conversation, oldest first."""
+    try:
+        messages = workflow_json(['history', '--channel', channel]).get('messages', [])
+    except (ValueError, OSError, subprocess.SubprocessError):
+        return None
+    turns = []
+    for message in messages:
+        if message.get('type') != 'text' or not isinstance(message.get('text'), str):
+            continue
+        if message.get('origin') == 'user':
+            turns.append(('user_message_chunk', CONTEXT_PREFIX.sub('', message['text'])))
+        elif message.get('origin') == 'assistant':
+            turns.append(('agent_message_chunk', message['text']))
+    return turns
+
+
+def open_session(session_id, cwd, channel):
+    SESSIONS[session_id] = {'cwd': str(Path(cwd).resolve()), 'proc': None, 'channel': channel}
+    remember(session_id, SESSIONS[session_id])
+    return SESSIONS[session_id]
+
+
+def restore(rid, params, replay):
+    entry = load_registry().get(params.get('sessionId'))
+    if not entry:
+        return reply(rid, error={'code': -32002, 'message': 'Unknown session; start a new one'})
+    session_id = params['sessionId']
+    open_session(session_id, params.get('cwd') or entry['cwd'], entry['channel'])
+    load_catalog()
+    if replay:
+        turns = stored_turns(entry['channel'])
+        if turns is None:
+            update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': '⚠ Earlier messages could not be loaded; the conversation context is still kept.\n\n'})
+        for kind, text in turns or []:
+            update(session_id, kind, content={'type': 'text', 'text': text})
+    reply(rid, model_state())
+    notice = worker_notice()
+    if notice:
+        update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': '⚠ ' + notice + '\n\n'})
+
+
+def list_sessions(rid, params):
+    wanted = params.get('cwd')
+    rows = []
+    for session_id, entry in load_registry().items():
+        if wanted and str(Path(wanted).resolve()) != entry.get('cwd'):
+            continue
+        rows.append({'sessionId': session_id, 'cwd': entry.get('cwd'),
+                     'title': entry.get('title') or 'MeClaw · ' + Path(entry.get('cwd', '')).name,
+                     'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(entry.get('updated', 0)))})
+    rows.sort(key=lambda row: row['updatedAt'], reverse=True)
+    reply(rid, {'sessions': rows[:50]})
 
 
 def channel_for(cwd, session_id):
@@ -196,6 +287,7 @@ def run_prompt(rid, params):
     if session is None:
         return reply(rid, error={'code': -32602, 'message': 'unknown session'})
     session['cancelled'] = False
+    remember(session_id, session, prompt_text(params.get('prompt', [])))
     report_herdr('working')
     try:
         answer = ask_meclaw(session_id, session, prompt_text(params.get('prompt', [])))
@@ -225,17 +317,18 @@ def handle(message):
             log.write(str(method) + '\n')
     if method == 'initialize':
         reply(rid, {'protocolVersion': 1,
-                    'agentCapabilities': {'loadSession': False,
+                    'agentCapabilities': {'loadSession': True,
+                                          'sessionCapabilities': {'list': {}, 'resume': {}},
                                           'promptCapabilities': {'image': False, 'audio': False,
                                                                  'embeddedContext': True}},
                     'agentInfo': {'name': 'meclaw', 'title': 'MeClaw coordinator', 'version': '0.2.0'},
                     'authMethods': []})
     elif method == 'session/new':
-        session_id = 'mc-' + hashlib.sha256(os.urandom(16)).hexdigest()[:12]
-        name = os.environ.get('MECLAW_ACP_SESSION')
+        name = os.environ.get('MECLAW_ACP_SESSION') or DEFAULT_SESSION
         cwd = params.get('cwd') or os.getcwd()
-        SESSIONS[session_id] = {'cwd': str(Path(cwd).resolve()), 'proc': None,
-                                'channel': channel_for(cwd, name or session_id)}
+        channel = channel_for(cwd, name)
+        session_id = session_id_for(channel)
+        open_session(session_id, cwd, channel)
         load_catalog()
         reply(rid, {'sessionId': session_id, **model_state()})
         notice = worker_notice()
@@ -243,6 +336,14 @@ def handle(message):
             update(session_id, 'agent_message_chunk', content={'type': 'text', 'text': '⚠ ' + notice + '\n\n'})
     elif method == 'session/prompt':
         threading.Thread(target=run_prompt, args=(rid, params), daemon=True).start()
+    elif method == 'session/list':
+        list_sessions(rid, params)
+    elif method == 'session/load':
+        threading.Thread(target=restore, args=(rid, params, True), daemon=True).start()
+    elif method == 'session/resume':
+        # ACP's resume restores context without replay, but Martty calls it from /resume and shows
+        # an empty screen otherwise, so replay the visible turns here as well.
+        threading.Thread(target=restore, args=(rid, params, True), daemon=True).start()
     elif method == 'session/set_config_option':
         if params.get('configId') != 'model':
             reply(rid, error={'code': -32602, 'message': 'unknown config option'})

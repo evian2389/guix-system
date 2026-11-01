@@ -567,6 +567,11 @@ class Handler(BaseHTTPRequestHandler):
             if self.path=='/internal/result': value=app.result(body['run'],body['body'],body.get('hop',{}))
             elif self.path=='/models': value=app.models(body.get('refresh',False))
             elif self.path=='/model': value=app.set_model(body['model'])
+            elif self.path=='/history':
+                channel=body.get('channel')
+                if not isinstance(channel,str) or not re.fullmatch(r'[a-zA-Z0-9:_.-]{1,160}',channel): raise ValueError('Invalid channel')
+                if channel.startswith('telegram:'): raise ValueError('History of this channel is not available')
+                value={'messages':app.store.history(channel)}
             elif self.path=='/chat' and body.get('stream'):
                 self.stream_chat(app,body);return
             elif self.path in ('/chat','/infer'):
@@ -898,7 +903,7 @@ def serve(root,binary,telegram=False):
 def main():
     os.umask(0o077)
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command',choices=['setup','serve','ask','infer','mcp','enroll','dispatch','supervise','snapshot','status','models','model'])
+    parser.add_argument('command',choices=['setup','serve','ask','infer','mcp','enroll','dispatch','supervise','snapshot','status','models','model','history'])
     parser.add_argument('--model')
     parser.add_argument('--refresh',action='store_true')
     parser.add_argument('--root',type=Path,default=DEFAULT_ROOT)
@@ -922,6 +927,7 @@ def main():
     elif args.command=='snapshot': print(Store(args.root).snapshot())
     elif args.command=='status': print(json.dumps(request('http://127.0.0.1:'+str(PORT)+'/health')))
     elif args.command=='models': print(json.dumps(client(args.root,'/models',{'refresh':args.refresh})))
+    elif args.command=='history': print(json.dumps(client(args.root,'/history',{'channel':args.channel}),ensure_ascii=False))
     elif args.command=='model':
         if not args.model: parser.error('--model is required')
         print(json.dumps(client(args.root,'/model',{'model':args.model})))

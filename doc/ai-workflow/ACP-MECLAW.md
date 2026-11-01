@@ -26,6 +26,21 @@ toad-meclaw --session NAME  # 대화를 분리
 서비스가 꺼져 있으면 `herd start meclaw`. 대화 중 Herdr 사이드바에는 `meclaw` 에이전트가
 working/idle로 표시된다.
 
+## 세션과 이어 쓰기
+
+- **프로젝트 폴더마다 대화가 하나**다. 같은 폴더에서 `toad-meclaw`/`mm`을 다시 실행하면 MeClaw가
+  이전 대화 맥락(최근 약 30개 메시지)을 기억한 채 이어진다. 폴더가 다르면 별개의 대화다.
+- 새 대화: `mm --new`(또는 `--session 이름`으로 이름 붙인 대화). 같은 이름은 계속 이어진다.
+- 목록과 재개: shim이 ACP `session/list`·`session/load`·`session/resume`을 지원한다. 세션 목록은
+  `~/.local/state/meclaw-acp/sessions.json`에 있고, 대화 본문은 MeClaw 서버에 있다
+  (`meclaw-workflow history --channel …`, Telegram 대화는 제외).
+  - **Martty**: `/resume`으로 목록을 열어 고르면 `session/resume`이 호출되고, 이전 대화가 화면에 다시 나온다.
+  - **Toad**: 세션이 자체 DB에 저장되고 재개 화면에서 `session/load`를 호출한다(아직 직접 확인하지 않음).
+- 화면에 복원되는 것은 사용자/MeClaw 텍스트뿐이다. 도구 호출 카드와 입력 기록(↑)은 복원되지 않는다.
+  ↑ 입력 기록은 Martty 프로세스 안에서만 유지된다.
+- 기록 조회는 bridge의 `/history` 엔드포인트가 필요하다(배포 전에는 "이전 메시지를 불러오지 못했다"는
+  경고가 나오고 맥락은 그대로 유지된다).
+
 ## 동작과 한계
 
 - **도구 진행**: MeClaw가 도구를 호출하면 ACP `tool_call`/`tool_call_update` 카드로 보인다.
