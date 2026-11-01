@@ -1,3 +1,4 @@
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -362,6 +363,187 @@ class SharedWorkflowTests(unittest.TestCase):
                                  'outcome': 'unknown', 'summary': 'literal 100% problem'})
         self.assertEqual(len(self.w.search('100%')['evidence']), 1)
         self.assertEqual(self.w.search("%' OR 1=1 --")['evidence'], [])
+
+class TaskEvaluationTests(unittest.TestCase):
+    """M2 coding-task evaluation: resumable, budgeted, gated; the worker and the grader are faked."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.w = e.Workflow(self.root)
+        self.w.init()
+        (self.w.state / 'suite.json').write_text(json.dumps([
+            {'prompt': 'fixture a', 'expected': 'ok'}, {'prompt': 'fixture b', 'expected': 'ok'}]))
+        self.m2 = self.w.state / 'm2'
+        (self.m2 / 'tests').mkdir(parents=True)
+        (self.m2 / 'regression/tests').mkdir(parents=True)
+        self.tasks = [{'id': '02', 'prompt': 'dev one', 'split': 'dev', 'test': 'x'},
+                      {'id': '04', 'prompt': 'holdout one', 'split': 'holdout', 'test': 'x'}]
+        (self.m2 / 'tasks.json').write_text(json.dumps(self.tasks))
+        (self.m2 / 'regression/tasks.json').write_text(json.dumps([{'id': '01', 'prompt': 'r', 'test': 'x'}]))
+        (self.m2 / 'baseline.json').write_text(json.dumps({'head': 'abc', 'source': str(self.root / 'repo')}))
+        (self.m2 / 'tests/support.py').write_text('# support\n')
+        (self.m2 / 'tests/test_task_04.py').write_text('# holdout test\n')
+        self.write_lock()
+        (self.w.state / 'config.json').write_text(json.dumps({'model': 'm', 'backend': 'meclaw', 'task_repeats': 2,
+                                                              'task_step_budget': 3, 'task_daily_attempts': 100}))
+        with patch.object(e, 'llm', return_value='Check Guix dependencies before retrying.'):
+            self.w.record({'event': 'AfterToolCall', 'result': {'is_error': True, 'content': 'build failed'}})
+            self.cid = self.w.propose()
+
+    def write_lock(self):
+        task = self.tasks[1]
+        lock = {'entries': {'04': {'task_sha256': e.digest(json.dumps(task, ensure_ascii=False, sort_keys=True, separators=(',', ':'))),
+                                   'test_sha256': hashlib.sha256((self.m2 / 'tests/test_task_04.py').read_bytes()).hexdigest()}},
+                'dependencies': {'evolution/m2/tests/support.py': hashlib.sha256((self.m2 / 'tests/support.py').read_bytes()).hexdigest()}}
+        (self.m2 / 'holdout.lock').write_text(json.dumps(lock))
+
+    def fake(self, outcome):
+        """outcome(task_id, arm) -> (task result, regression failures)."""
+        calls = []
+        def attempt(_self, item, task, skill_text, cfg):
+            calls.append((task['id'], item['arm'], item['rep']))
+            result, regress = outcome(task['id'], item['arm'])
+            return {'status': 'ok', 'result': result, 'regression_failed': regress, 'input_tokens': 100, 'output_tokens': 10,
+                    'tool_calls': 2, 'seconds': 1.0}
+        return patch.object(e.Workflow, 'task_attempt', side_effect=attempt, autospec=True), calls
+
+    def run_all(self, outcome):
+        patcher, calls = self.fake(outcome)
+        with patcher:
+            self.w.tasks_start(self.cid)
+            for _ in range(10):
+                step = self.w.tasks_step(self.cid)
+                if step.get('finished'):
+                    break
+        return calls
+
+    def report(self):
+        return json.loads((self.w.archive / self.cid / 'evaluation-tasks.json').read_text())
+
+    def test_plan_interleaves_arms_and_each_step_respects_the_budget(self):
+        patcher, calls = self.fake(lambda t, a: ('pass', []))
+        with patcher:
+            self.w.tasks_start(self.cid)
+            first = self.w.tasks_step(self.cid)
+        self.assertEqual(len(calls), 3)  # task_step_budget
+        self.assertEqual(first['remaining'], 5)
+        self.assertEqual([c[:2] for c in calls[:2]], [('02', 'baseline'), ('02', 'candidate')])
+        self.assertFalse((self.w.archive / self.cid / 'evaluation-tasks.json').exists())
+
+    def test_steps_resume_without_repeating_finished_attempts(self):
+        calls = self.run_all(lambda t, a: ('pass', []))
+        self.assertEqual(len(calls), 8)  # 2 tasks x 2 arms x 2 reps
+        self.assertEqual(len(set(calls)), 8)
+        self.assertEqual(self.report()['model_calls'], 8)
+
+    def test_daily_cap_stops_work_until_tomorrow(self):
+        cfg = json.loads((self.w.state / 'config.json').read_text()); cfg['task_daily_attempts'] = 2
+        (self.w.state / 'config.json').write_text(json.dumps(cfg))
+        patcher, calls = self.fake(lambda t, a: ('pass', []))
+        with patcher:
+            self.w.tasks_start(self.cid)
+            self.w.tasks_step(self.cid); second = self.w.tasks_step(self.cid)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(second['stopped'], 'daily attempt cap reached')
+
+    def test_candidate_that_improves_without_regressions_is_eligible(self):
+        self.run_all(lambda t, a: ('pass', []) if a == 'candidate' else ('fail', []))
+        report = self.report()
+        self.assertTrue(report['eligible'], report['reasons'])
+        self.assertEqual(report['tasks']['04']['baseline'], {'pass': 0, 'fail': 2, 'error': 0})
+        self.assertEqual(report['tasks']['04']['candidate']['pass'], 2)
+
+    def test_regression_failure_or_holdout_loss_or_no_gain_blocks_eligibility(self):
+        self.run_all(lambda t, a: ('pass', ['01']) if a == 'candidate' else ('fail', []))
+        self.assertFalse(self.report()['eligible']); self.assertTrue(any('regression' in r for r in self.report()['reasons']))
+
+    def test_holdout_task_that_gets_worse_blocks_eligibility(self):
+        self.run_all(lambda t, a: ('pass', []) if (a == 'baseline' and t == '04') or (a == 'candidate' and t == '02') else ('fail', []))
+        report = self.report()
+        self.assertFalse(report['eligible']); self.assertTrue(any('holdout' in r for r in report['reasons']))
+
+    def test_no_difference_is_not_eligible(self):
+        self.run_all(lambda t, a: ('pass', []))
+        self.assertFalse(self.report()['eligible'])
+
+    def test_too_many_environment_errors_invalidate_the_evaluation(self):
+        self.run_all(lambda t, a: ('error', []))
+        report = self.report()
+        self.assertFalse(report['eligible']); self.assertTrue(any('error' in r for r in report['reasons']))
+
+    def test_tampered_holdout_is_refused(self):
+        (self.m2 / 'tests/test_task_04.py').write_text('# weakened\n')
+        with self.assertRaises(ValueError) as ctx:
+            self.w.tasks_start(self.cid)
+        self.assertIn('holdout', str(ctx.exception))
+        self.tasks[1]['prompt'] = 'changed'
+        (self.m2 / 'tests/test_task_04.py').write_text('# holdout test\n')
+        (self.m2 / 'tasks.json').write_text(json.dumps(self.tasks))
+        with self.assertRaises(ValueError): self.w.tasks_start(self.cid)
+
+    def test_changed_champion_aborts_a_resumed_run(self):
+        patcher, calls = self.fake(lambda t, a: ('pass', []))
+        with patcher:
+            self.w.tasks_start(self.cid)
+            self.w.tasks_step(self.cid)
+            self.w.active.write_text(self.w.active.read_text() + '\nchanged\n')
+            with self.assertRaises(ValueError) as ctx:
+                self.w.tasks_step(self.cid)
+        self.assertIn('champion', str(ctx.exception))
+
+    def test_nothing_to_do_makes_no_model_call(self):
+        patcher, calls = self.fake(lambda t, a: ('pass', []))
+        with patcher:
+            self.assertEqual(self.w.tasks_step()['evaluated'], [])
+        self.assertEqual(calls, [])
+
+    def test_promotion_requires_a_matching_eligible_task_report_when_configured(self):
+        self.w.evaluate(self.cid)  # fixture report, saturated so not eligible by itself
+        cfg = json.loads((self.w.state / 'config.json').read_text()); cfg['require_task_eval'] = True
+        (self.w.state / 'config.json').write_text(json.dumps(cfg))
+        with patch.object(e, 'llm', return_value='ok'):
+            self.w.evaluate(self.cid)
+        with self.assertRaises(ValueError): self.w.promote(self.cid)  # no task report
+        self.run_all(lambda t, a: ('pass', []) if a == 'candidate' else ('fail', []))
+        self.w.promote(self.cid)
+        self.assertIn('Check Guix dependencies', self.w.active.read_text())
+
+    def test_stale_task_report_cannot_promote(self):
+        cfg = json.loads((self.w.state / 'config.json').read_text()); cfg['require_task_eval'] = True
+        (self.w.state / 'config.json').write_text(json.dumps(cfg))
+        with patch.object(e, 'llm', return_value='ok'):
+            self.w.evaluate(self.cid)
+        self.run_all(lambda t, a: ('pass', []) if a == 'candidate' else ('fail', []))
+        path = self.w.archive / self.cid / 'evaluation-tasks.json'
+        report = json.loads(path.read_text()); report['inputs']['suite'] = '0' * 64; path.write_text(json.dumps(report))
+        with self.assertRaises(ValueError): self.w.promote(self.cid)
+
+    def test_worker_gets_only_the_arms_skill_through_its_home_and_a_minimal_environment(self):
+        seen = {}
+        class Done:
+            returncode = 0
+            stdout = '{"type":"item.completed","item":{"type":"command_execution"}}\n{"type":"turn.completed","usage":{"input_tokens":7,"output_tokens":3}}\n'
+            stderr = ''
+        def run(cmd, **kw):
+            seen['cmd'], seen['env'], seen['home'] = cmd, kw['env'], Path(kw['env']['HOME'])
+            seen['skill'] = (seen['home'] / '.agents/skills/local-workflow/SKILL.md').read_text()
+            return Done()
+        repo = self.root / 'src'; repo.mkdir()
+        with patch.object(e.subprocess, 'run', side_effect=run):
+            result = self.w.run_codex(repo, seen.setdefault('h', None) or self.root / 'hh', 'PROMPT', {'task_model': 'gpt-6-luna', 'task_effort': 'low',
+                                                                                          'task_timeout': 5}, 'ARM SKILL TEXT')
+        self.assertEqual(seen['skill'], 'ARM SKILL TEXT')
+        self.assertLessEqual(set(seen['env']), {'PATH', 'HOME', 'CODEX_HOME', 'LANG', 'LC_ALL', 'LOCALE_ARCHIVE', 'TERM'})
+        self.assertIn('HOME', seen['env']); self.assertIn('CODEX_HOME', seen['env']); self.assertNotEqual(seen['env']['HOME'], str(Path.home()))
+        self.assertNotIn('ANTHROPIC_API_KEY', seen['env']); self.assertNotIn('OPENAI_API_KEY', seen['env'])
+        self.assertIn('gpt-6-luna', seen['cmd']); self.assertIn('--ephemeral', seen['cmd'])
+        self.assertEqual(seen['cmd'][seen['cmd'].index('-s') + 1], 'workspace-write')
+        self.assertIn('sandbox_workspace_write.network_access=false', seen['cmd'])
+        self.assertNotIn('--dangerously-bypass-approvals-and-sandbox', seen['cmd'])
+        self.assertEqual((result['input_tokens'], result['output_tokens'], result['tool_calls']), (7, 3, 1))
+
 
 if __name__ == '__main__':
     unittest.main()

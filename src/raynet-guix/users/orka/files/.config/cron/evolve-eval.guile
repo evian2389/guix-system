@@ -1,0 +1,7 @@
+;; Continue any in-progress coding-task evaluation of a skill candidate in small steps.
+;; Cheap model, per-run budget and a daily attempt cap are set in
+;; ~/work/workflow-evolution/evolution/config.json (task_*). With nothing running this makes no model call.
+;; It never starts an evaluation and never promotes anything.
+(job '(next-hour '(1 4 7 10 13 16 19 22))
+     "/home/orka/.local/bin/workflow-evolution evaluate-step >> /home/orka/.local/state/evolve-eval.log 2>&1"
+     "evolve-eval")

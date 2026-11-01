@@ -69,6 +69,10 @@ promotion is an explicit operation after evidence review. Native tool hooks for
 Codex/Claude/AGY are not installed: use this common submission interface.
 '''
 
+TASK_DEFAULTS = {'task_model': 'gpt-6-luna', 'task_effort': 'low', 'task_repeats': 3, 'task_timeout': 600,
+                 'task_step_budget': 6, 'task_daily_attempts': 18}
+TASK_ENV_KEYS = ('PATH', 'LANG', 'LC_ALL', 'LOCALE_ARCHIVE', 'TERM')
+
 def digest(text):
     return hashlib.sha256(text.encode()).hexdigest()
 
@@ -350,6 +354,13 @@ class Workflow:
             if not isinstance(value, int) or not 1 <= value <= 10:
                 raise ValueError(key + ' must be an integer 1..10')
             config[key] = value
+        for key, default in TASK_DEFAULTS.items():
+            value = config.setdefault(key, default)
+            if key in ('task_model', 'task_effort'):
+                if not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9._-]{1,40}', value):
+                    raise ValueError(key + ' must be a short plain name')
+            elif not isinstance(value, int) or not 1 <= value <= 100000:
+                raise ValueError(key + ' must be a positive integer')
         return config
 
     def record(self, event):
@@ -463,6 +474,286 @@ class Workflow:
         atomic(path / 'evaluation.json', json.dumps(report, indent=2))
         return report
 
+
+    # ---- M2: coding-task evaluation -------------------------------------------------
+    # The champion/candidate skill reaches the worker the way it does in production: as a skill in
+    # ~/.agents/skills of the worker's HOME. Runs are resumable and budgeted so a scheduler (mcron)
+    # can continue them in small steps with a cheap model. Nothing here promotes anything.
+
+    def m2_assets(self):
+        m2 = self.state / 'm2'
+        try:
+            tasks = json.loads((m2 / 'tasks.json').read_text())
+            regression = json.loads((m2 / 'regression/tasks.json').read_text())
+            baseline = json.loads((m2 / 'baseline.json').read_text())
+            lock = (m2 / 'holdout.lock').read_text()
+        except OSError as exc:
+            raise ValueError('M2 assets are missing: ' + str(exc))
+        return m2, tasks, regression, baseline, lock
+
+    def verify_holdout_lock(self, m2, tasks, lock_text):
+        lock = json.loads(lock_text)
+        holdout = {t['id'] for t in tasks if t.get('split') == 'holdout'}
+        if set(lock.get('entries', {})) != holdout:
+            raise ValueError('holdout set differs from holdout.lock')
+        for tid, want in lock['entries'].items():
+            task = next(t for t in tasks if t['id'] == tid)
+            got = digest(json.dumps(task, ensure_ascii=False, sort_keys=True, separators=(',', ':')))
+            test = m2 / 'tests' / ('test_task_' + tid + '.py')
+            if got != want['task_sha256'] or not test.is_file() or \
+                    hashlib.sha256(test.read_bytes()).hexdigest() != want['test_sha256']:
+                raise ValueError('holdout %s changed after it was locked' % tid)
+        for rel, want in lock.get('dependencies', {}).items():
+            path = self.root / rel
+            if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != want:
+                raise ValueError('holdout dependency %s changed after it was locked' % rel)
+
+    def tasks_inputs(self, baseline_text, candidate_text, cfg, tasks, regression, lock_text):
+        task_cfg = {k: cfg[k] for k in ('task_model', 'task_effort', 'task_repeats', 'task_timeout')}
+        return {'baseline': digest(baseline_text), 'candidate': digest(candidate_text),
+                'suite': digest(json.dumps([tasks, regression, lock_text], ensure_ascii=False, sort_keys=True)),
+                'config': digest(json.dumps(task_cfg, sort_keys=True))}
+
+    def tasks_context(self, cid):
+        path = self.candidate_path(cid)
+        cfg = self.config()
+        m2, tasks, regression, baseline, lock_text = self.m2_assets()
+        self.verify_holdout_lock(m2, tasks, lock_text)
+        inputs = self.tasks_inputs(self.active.read_text(), (path / 'SKILL.md').read_text(), cfg, tasks, regression, lock_text)
+        return path, cfg, m2, tasks, regression, baseline, inputs
+
+    def tasks_start(self, cid):
+        path, cfg, m2, tasks, regression, baseline, inputs = self.tasks_context(cid)
+        target = path / 'tasks-run.json'
+        if target.exists():
+            run = json.loads(target.read_text())
+            if run['inputs'] != inputs:
+                raise ValueError('run exists with different evidence; remove tasks-run.json to restart')
+            return {'resumed': True, 'done': len(run['results']), 'total': len(run['plan'])}
+        plan = [{'task': t['id'], 'arm': arm, 'rep': rep}
+                for rep in range(cfg['task_repeats']) for t in tasks for arm in ('baseline', 'candidate')]
+        atomic(target, json.dumps({'created': dt.datetime.now(dt.timezone.utc).isoformat(), 'inputs': inputs,
+                                   'plan': plan, 'results': {}}, indent=1))
+        return {'resumed': False, 'done': 0, 'total': len(plan)}
+
+    def usage_path(self):
+        return self.state / 'm2/runs/usage.json'
+
+    def usage_today(self):
+        try:
+            data = json.loads(self.usage_path().read_text())
+        except (OSError, ValueError):
+            data = {}
+        return data.get(dt.datetime.now(dt.timezone.utc).date().isoformat(), {'attempts': 0, 'input_tokens': 0, 'output_tokens': 0})
+
+    def usage_add(self, result):
+        day = dt.datetime.now(dt.timezone.utc).date().isoformat()
+        try:
+            data = json.loads(self.usage_path().read_text())
+        except (OSError, ValueError):
+            data = {}
+        today = data.setdefault(day, {'attempts': 0, 'input_tokens': 0, 'output_tokens': 0})
+        today['attempts'] += 1
+        today['input_tokens'] += int(result.get('input_tokens', 0))
+        today['output_tokens'] += int(result.get('output_tokens', 0))
+        atomic(self.usage_path(), json.dumps({d: data[d] for d in sorted(data)[-30:]}))
+
+    def tasks_step(self, cid=None, budget=None):
+        """Run up to `budget` pending attempts, saving after each one. Safe to call repeatedly (cron)."""
+        if cid:
+            ids = [cid]
+        else:
+            ids = sorted(p.name for p in self.archive.glob('*') if (p / 'tasks-run.json').exists()
+                         and not (p / 'evaluation-tasks.json').exists()) if self.archive.exists() else []
+        summary = {'evaluated': [], 'finished': False, 'remaining': 0}
+        left = budget
+        for one in ids:
+            try:
+                guard = self.lock('candidate-' + one)
+                guard.__enter__()
+            except BlockingIOError:
+                continue
+            try:
+                result = self.tasks_step_one(one, left)
+            finally:
+                guard.__exit__(None, None, None)
+            summary['evaluated'].append(one)
+            summary['remaining'] += result['remaining']
+            summary['finished'] = result['finished']
+            if result.get('stopped'):
+                summary['stopped'] = result['stopped']
+                break
+            left = result['budget_left']
+            if left is not None and left <= 0:
+                break
+        return summary
+
+    def tasks_step_one(self, cid, budget):
+        path, cfg, m2, tasks, regression, baseline, inputs = self.tasks_context(cid)
+        target = path / 'tasks-run.json'
+        run = json.loads(target.read_text())
+        if run['inputs']['baseline'] != inputs['baseline']:
+            raise ValueError('champion changed since this run started; reevaluate')
+        if run['inputs'] != inputs:
+            raise ValueError('evidence changed since this run started; remove tasks-run.json to restart')
+        budget = cfg['task_step_budget'] if budget is None else budget
+        by_id = {t['id']: t for t in tasks}
+        texts = {'baseline': self.active.read_text(), 'candidate': (path / 'SKILL.md').read_text()}
+        stopped = None
+        for item in run['plan']:
+            key = '%s/%s/%d' % (item['task'], item['arm'], item['rep'])
+            if key in run['results']:
+                continue
+            if budget <= 0:
+                break
+            if self.usage_today()['attempts'] >= cfg['task_daily_attempts']:
+                stopped = 'daily attempt cap reached'
+                break
+            result = self.task_attempt(item, by_id[item['task']], texts[item['arm']], cfg)
+            self.usage_add(result)
+            run['results'][key] = result
+            atomic(target, json.dumps(run, indent=1))
+            budget -= 1
+        remaining = len(run['plan']) - len(run['results'])
+        finished = remaining == 0
+        if finished and not (path / 'evaluation-tasks.json').exists():
+            atomic(path / 'evaluation-tasks.json', json.dumps(self.tasks_report(run, tasks, cfg), indent=2, ensure_ascii=False))
+        return {'remaining': remaining, 'finished': finished, 'stopped': stopped, 'budget_left': budget}
+
+    def task_attempt(self, item, task, skill_text, cfg):
+        """One isolated worker run on a pristine copy, then graded by the evaluator's own tests."""
+        m2, _tasks, _reg, baseline, _lock = self.m2_assets()
+        runs = m2 / 'runs'
+        runs.mkdir(parents=True, exist_ok=True, mode=0o700)
+        tmp = Path(tempfile.mkdtemp(prefix='attempt-', dir=runs))
+        try:
+            repo = tmp / 'repo'
+            repo.mkdir()
+            archive = subprocess.run(['git', '-C', baseline['source'], 'archive', baseline['head']],
+                                     capture_output=True, timeout=120, check=True)
+            subprocess.run(['tar', '-x', '-C', str(repo)], input=archive.stdout, check=True, timeout=120)
+            prompt = (task['prompt'] + '\n\nWork only inside this repository copy. Do not use the network and do not commit. '
+                      'Run the checks you can locally and report briefly what you changed.')
+            outcome = self.run_codex(repo, tmp / 'home', prompt, cfg, skill_text)
+            grade = self.grade(repo, task['id'], m2)
+            return {**outcome, **grade}
+        except (subprocess.SubprocessError, OSError, ValueError) as exc:
+            return {'status': 'error', 'result': 'error', 'regression_failed': [], 'error': redact(str(exc)),
+                    'input_tokens': 0, 'output_tokens': 0, 'tool_calls': 0, 'seconds': 0}
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def run_codex(self, repo, home, prompt, cfg, skill_text):
+        skills = home / '.agents/skills'
+        for shared in sorted((self.root / 'skills').glob('*/SKILL.md')):
+            if shared.parent.name != 'local-workflow':
+                (skills / shared.parent.name).mkdir(parents=True, exist_ok=True)
+                (skills / shared.parent.name / 'SKILL.md').write_text(shared.read_text())
+        (skills / 'local-workflow').mkdir(parents=True, exist_ok=True)
+        (skills / 'local-workflow' / 'SKILL.md').write_text(skill_text)
+        # Auth stays in the real CODEX_HOME; nothing else from this environment reaches the worker.
+        env = {k: os.environ[k] for k in TASK_ENV_KEYS if k in os.environ}
+        env['HOME'] = str(home)
+        env['CODEX_HOME'] = os.environ.get('CODEX_HOME') or str(Path.home() / '.codex')
+        cmd = ['codex', 'exec', '--ephemeral', '--ignore-user-config', '--skip-git-repo-check', '--json',
+               '-m', cfg['task_model'], '-c', 'model_reasoning_effort=' + cfg['task_effort'],
+               '-s', 'workspace-write', '-c', 'sandbox_workspace_write.network_access=false',
+               '-C', str(repo), prompt]
+        started = time.monotonic()
+        try:
+            done = subprocess.run(cmd, env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                                  timeout=cfg['task_timeout'], cwd=str(repo))
+            status = 'ok' if done.returncode == 0 else 'error'
+            out = done.stdout
+        except subprocess.TimeoutExpired as exc:
+            status = 'timeout'
+            out = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or '')
+        tokens_in = tokens_out = calls = 0
+        for line in out.splitlines():
+            if not line.startswith('{'):
+                continue
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if event.get('type') == 'turn.completed':
+                usage = event.get('usage', {})
+                tokens_in += int(usage.get('input_tokens', 0))
+                tokens_out += int(usage.get('output_tokens', 0))
+            elif event.get('type') == 'item.completed' and event.get('item', {}).get('type') == 'command_execution':
+                calls += 1
+        return {'status': status, 'input_tokens': tokens_in, 'output_tokens': tokens_out, 'tool_calls': calls,
+                'seconds': round(time.monotonic() - started, 1)}
+
+    def grade(self, repo, task_id, m2):
+        env = {k: os.environ[k] for k in TASK_ENV_KEYS if k in os.environ}
+        env.update({'M2_REPO': str(repo), 'PYTHONPATH': str(m2 / 'tests'), 'PYTHONDONTWRITEBYTECODE': '1'})
+
+        def run(directory, pattern):
+            with tempfile.TemporaryDirectory() as cwd:
+                done = subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', str(directory), '-p', pattern],
+                                      env=dict(env, HOME=cwd), cwd=cwd, capture_output=True, text=True, timeout=120)
+            if done.returncode == 0:
+                return 'pass'
+            return 'error' if 'errors=' in done.stderr and 'failures=' not in done.stderr else 'fail'
+
+        task = run(m2 / 'tests', 'test_task_%s.py' % task_id)
+        failed = [p.name[len('test_task_'):-3] for p in sorted((m2 / 'regression/tests').glob('test_task_*.py'))
+                  if run(m2 / 'regression/tests', p.name) != 'pass']
+        return {'result': task, 'regression_failed': failed}
+
+    def tasks_report(self, run, tasks, cfg):
+        split = {t['id']: t.get('split', 'dev') for t in tasks}
+        per = {t['id']: {'split': split[t['id']], 'baseline': {'pass': 0, 'fail': 0, 'error': 0},
+                         'candidate': {'pass': 0, 'fail': 0, 'error': 0}} for t in tasks}
+        regress = {'baseline': 0, 'candidate': 0}
+        errors = 0
+        totals = {'input_tokens': 0, 'output_tokens': 0, 'tool_calls': 0, 'seconds': 0.0}
+        arms = {'baseline': dict(totals), 'candidate': dict(totals)}
+        for key, res in run['results'].items():
+            tid, arm, _rep = key.split('/')
+            outcome = res['result'] if res.get('status') == 'ok' or res.get('result') in ('pass', 'fail') else 'error'
+            if res.get('status') in ('timeout', 'error') and res.get('result') != 'pass':
+                outcome = 'error'
+            per[tid][arm][outcome] += 1
+            errors += outcome == 'error'
+            regress[arm] += bool(res.get('regression_failed'))
+            for field in totals:
+                arms[arm][field] += res.get(field, 0)
+        reasons = []
+        attempts = len(run['results'])
+        if attempts and errors / attempts > 0.2:
+            reasons.append('too many errors (%d of %d attempts): evaluation is not trustworthy' % (errors, attempts))
+        if regress['candidate'] > regress['baseline']:
+            reasons.append('regression suite: candidate failed in %d attempts vs %d' % (regress['candidate'], regress['baseline']))
+        dev_gain = sum(v['candidate']['pass'] - v['baseline']['pass'] for v in per.values() if v['split'] != 'holdout')
+        hold = [v for v in per.values() if v['split'] == 'holdout']
+        hold_gain = sum(v['candidate']['pass'] - v['baseline']['pass'] for v in hold)
+        if dev_gain < 0:
+            reasons.append('dev tasks got worse (%+d passes)' % dev_gain)
+        for tid, v in per.items():
+            if v['split'] == 'holdout' and v['candidate']['pass'] < v['baseline']['pass']:
+                reasons.append('holdout %s got worse (%d -> %d passes)' % (tid, v['baseline']['pass'], v['candidate']['pass']))
+        if hold_gain <= 0:
+            reasons.append('no holdout improvement (%+d passes)' % hold_gain)
+        return {'inputs': run['inputs'], 'eligible': not reasons, 'reasons': reasons, 'tasks': per,
+                'scores': [[v['baseline']['pass'], v['candidate']['pass']] for v in per.values()],
+                'regression_failed_attempts': regress, 'errors': errors, 'model_calls': attempts,
+                'arms': {a: {**d, 'seconds': round(d['seconds'], 1)} for a, d in arms.items()},
+                'model': cfg['task_model'], 'repeats': cfg['task_repeats'],
+                'scope': 'small Makefile/Python tasks in guix-system; not a general coding benchmark',
+                'created': dt.datetime.now(dt.timezone.utc).isoformat()}
+
+    def tasks_status(self):
+        rows = []
+        for p in sorted(self.archive.glob('*')) if self.archive.exists() else []:
+            if (p / 'tasks-run.json').exists():
+                run = json.loads((p / 'tasks-run.json').read_text())
+                report = (p / 'evaluation-tasks.json')
+                rows.append({'candidate': p.name, 'done': len(run['results']), 'total': len(run['plan']),
+                             'eligible': json.loads(report.read_text())['eligible'] if report.exists() else None})
+        return {'runs': rows, 'today': self.usage_today()}
+
     def promote(self, cid):
         path = self.candidate_path(cid)
         if not (path / 'evaluation.json').exists():
@@ -471,7 +762,19 @@ class Workflow:
         previous = self.active.read_text()
         candidate = (path / 'SKILL.md').read_text()
         config = json.loads((self.state / 'config.json').read_text())
-        if not (report['eligible'] and report['baseline'] == digest(previous) and report['candidate'] == digest(candidate)
+        need_tasks = bool(config.get('require_task_eval'))
+        fixture_ok = report['eligible'] or (need_tasks and all(c >= b for b, c in report['scores']))
+        if need_tasks:
+            task_report = path / 'evaluation-tasks.json'
+            if not task_report.exists():
+                raise ValueError('coding-task evaluation required; run evaluate-tasks')
+            tr = json.loads(task_report.read_text())
+            _m2, tasks, regression, _base, lock_text = self.m2_assets()
+            self.verify_holdout_lock(_m2, tasks, lock_text)
+            fresh = self.tasks_inputs(previous, candidate, self.config(), tasks, regression, lock_text)
+            if not (tr['eligible'] and tr['inputs'] == fresh):
+                raise ValueError('coding-task evaluation failed or evidence changed; reevaluate')
+        if not (fixture_ok and report['baseline'] == digest(previous) and report['candidate'] == digest(candidate)
                 and report['suite'] == digest((self.state / 'suite.json').read_text())
                 and report['config'] == digest(json.dumps(config, sort_keys=True))):
             raise ValueError('evaluation failed or evidence changed; reevaluate')
@@ -541,8 +844,9 @@ def main():
     parser.add_argument('--query', default='')
     parser.add_argument('--limit', type=int, default=3)
     parser.add_argument('--agent', choices=['codex', 'claude', 'agy', 'microclaw', 'meclaw'])
-    parser.add_argument('command', choices=['wire', 'share-skills', 'record', 'search', 'snapshot', 'init', 'hook', 'status', 'propose', 'evaluate', 'promote', 'reject', 'rollback', 'tick', 'secure-web'])
+    parser.add_argument('command', choices=['wire', 'share-skills', 'record', 'search', 'snapshot', 'init', 'hook', 'status', 'propose', 'evaluate', 'evaluate-tasks', 'evaluate-step', 'task-status', 'promote', 'reject', 'rollback', 'tick', 'secure-web'])
     parser.add_argument('candidate', nargs='?')
+    parser.add_argument('--budget', type=int, help='evaluate-tasks/evaluate-step: attempts to run now')
     args = parser.parse_args()
     w = Workflow(args.root)
     if args.command == 'wire':
@@ -557,7 +861,7 @@ def main():
         print('{"action":"allow"}')
         return
     w.init()
-    if args.command in ('evaluate', 'promote', 'reject') and not args.candidate:
+    if args.command in ('evaluate', 'evaluate-tasks', 'promote', 'reject') and not args.candidate:
         parser.error('candidate id required')
     # record/search/status/snapshot rely on SQLite WAL only, so agents never
     # block each other. Evaluations lock per candidate and may run in parallel;
@@ -581,10 +885,16 @@ def main():
                 result = 'rejected'
             elif args.command in ('evaluate', 'promote'):
                 result = getattr(w, args.command)(args.candidate)
+            elif args.command == 'evaluate-tasks':
+                result = {**w.tasks_start(args.candidate), **w.tasks_step(args.candidate, args.budget)}
+            elif args.command == 'evaluate-step':
+                result = w.tasks_step(None, args.budget) or 'nothing to evaluate'
+            elif args.command == 'task-status':
+                result = w.tasks_status()
             else:
                 result = getattr(w, args.command.replace('-', '_'))()
         finally:
-            if args.command in ('record', 'tick', 'propose', 'evaluate', 'promote', 'reject', 'rollback'):
+            if args.command in ('record', 'tick', 'propose', 'evaluate', 'evaluate-tasks', 'evaluate-step', 'promote', 'reject', 'rollback'):
                 w.snapshot()
         if result is not None:
             print(json.dumps(result, ensure_ascii=False))
