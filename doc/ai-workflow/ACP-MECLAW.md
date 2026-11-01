@@ -106,6 +106,11 @@ working/idle로 표시된다.
   한계: 폴더 제한은 승인 **내용**(예: `~/work` 안의 에이전트가 밖의 경로를 요청)까지 막지 못한다 — 승인 전
   `agent_read`로 읽은 프롬프트 원문을 답변에 인용하게 하는 것이 사후 확인 수단이고, 외부 내용이 모델을 속일
   위험은 남는다. MeClaw Codex job은 `cancel_job`이 `/stop`까지 보내므로 그쪽을 쓴다.
+  **시작된 명령 멈추기(실제 pane에서 확인함)**: Esc는 턴만 멈추고 에이전트가 백그라운드로 돌린 명령은 남는다.
+  Claude Code는 `down` → `enter`(Shell details) → `x`, AGY는 텍스트 `/tasks` + `enter` 후 `k`, Codex는 `/stop`
+  (`cancel_job`이 자동으로 보냄). 각각 `sleep` 프로세스가 사라지는 것으로 확인했다.
+  `blocked` 상태의 전체 화면 에이전트는 `agent_read`가 `visible` 소스로 대신 읽는다(AGY 신뢰 프롬프트에서 발견).
+  한 요청당 도구 호출은 12번까지 허용한다.
 - **작업 취소 (`cancel_job <id>`)**: 대기 중(`queued`) 작업은 즉시 `cancelled`가 된다. 취소와 worker의 가져오기는
   SQLite 조건부 UPDATE 하나로 갈리므로 둘 중 정확히 하나만 성공한다(경합 테스트). **실행 중(`working`)
   작업은 "취소 요청"만 기록**하고, pane을 제어하는 별도 프로세스인 dispatcher가 worker pane에 Esc를
