@@ -127,7 +127,15 @@ if command -v cargo &> /dev/null; then
      cargo install cargo-watch   # not in Guix — file watcher for cargo
      cargo install --git https://github.com/e-tho/bzmenu
      cargo install zeekstd_cli
-     cargo install herdr
+     # herdr self-updates from its own release channel; the crates.io `herdr`
+     # crate is a stale 0.1.0 and must not be used.
+     if command -v herdr &> /dev/null; then
+         # Refuses to replace a running server; stop sessions and rerun if skipped.
+         herdr update || echo "Warning: herdr update failed or skipped"
+     else
+         curl -fsSL https://herdr.dev/install.sh | sh \
+             || echo "Warning: herdr install failed"
+     fi
      # Bookokrat — terminal EPUB/PDF/DJVU reader.
      CC=clang CXX=clang++ cargo install bookokrat
      # Miro PDF — native Wayland/X11 PDF viewer.
