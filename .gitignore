@@ -49,3 +49,7 @@ src/raynet-guix/users/orka/files/.password-store/zeroclaw/
 
 # Large binary (like agy)
 src/raynet-guix/users/orka/files/.local/bin/claude
+
+# Machine-local artifacts
+src/raynet-guix/users/orka/files/.local/bin/toad
+src/raynet-guix/users/orka/files/.local/bin/pi.0.1.15.bak
