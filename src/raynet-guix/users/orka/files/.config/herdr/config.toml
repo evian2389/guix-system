@@ -16,6 +16,40 @@ delivery = "system"
 # Enter prefix mode with Alt+A, instead of the default Ctrl+B.
 prefix = "alt+a"
 
+# Korean (Hangul) IME is composing when a plain letter follows the prefix, so e.g. prefix+n never
+# arrives as "n". Herdr only switches the input source itself on macOS/Windows. Each action
+# below also accepts prefix+alt+<letter>: Alt chords bypass the IME (the same reason the
+# alt+a prefix works in Hangul mode).
+close_pane = ["prefix+x", "prefix+alt+x"]
+close_tab = ["prefix+shift+x", "prefix+alt+shift+x"]
+close_workspace = ["prefix+shift+d", "prefix+alt+shift+d"]
+detach = ["prefix+q", "prefix+alt+q"]
+edit_scrollback = ["prefix+e", "prefix+alt+e"]
+focus_pane_down = ["prefix+j", "prefix+alt+j"]
+focus_pane_left = ["prefix+h", "prefix+alt+h"]
+focus_pane_right = ["prefix+l", "prefix+alt+l"]
+focus_pane_up = ["prefix+k", "prefix+alt+k"]
+goto = ["prefix+g", "prefix+alt+g"]
+new_tab = ["prefix+c", "prefix+alt+c"]
+new_workspace = ["prefix+shift+n", "prefix+alt+shift+n"]
+next_tab = ["prefix+n", "prefix+alt+n"]
+open_notification_target = ["prefix+o", "prefix+alt+o"]
+previous_tab = ["prefix+p", "prefix+alt+p"]
+reload_config = ["prefix+shift+r", "prefix+alt+shift+r"]
+rename_pane = ["prefix+shift+p", "prefix+alt+shift+p"]
+rename_tab = ["prefix+shift+t", "prefix+alt+shift+t"]
+rename_workspace = ["prefix+shift+w", "prefix+alt+shift+w"]
+resize_mode = ["prefix+r", "prefix+alt+r"]
+settings = ["prefix+s", "prefix+alt+s"]
+split_vertical = ["prefix+v", "prefix+alt+v"]
+swap_pane_down = ["prefix+shift+j", "prefix+alt+shift+j"]
+swap_pane_left = ["prefix+shift+h", "prefix+alt+shift+h"]
+swap_pane_right = ["prefix+shift+l", "prefix+alt+shift+l"]
+swap_pane_up = ["prefix+shift+k", "prefix+alt+shift+k"]
+toggle_sidebar = ["prefix+b", "prefix+alt+b"]
+workspace_picker = ["prefix+w", "prefix+alt+w"]
+zoom = ["prefix+z", "prefix+alt+z"]
+
 [theme]
 name = "gruvbox"
 auto_switch = false
