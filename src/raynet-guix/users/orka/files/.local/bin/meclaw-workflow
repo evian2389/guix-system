@@ -593,7 +593,7 @@ class App:
                 if not isinstance(args,dict) or not isinstance(turn.get('id'),str) or not turn['id']: raise ValueError('Invalid tool arguments or call ID')
                 parsed.append((turn,name,args))
         except (ValueError,KeyError,TypeError,AttributeError): state['error']='Malformed native tool call; no action executed'
-        if calls and not state['evaluate'] and state['steps']+len(calls)<=6 and not state.get('error'):
+        if calls and not state['evaluate'] and state['steps']+len(calls)<=TOOL_STEP_LIMIT and not state.get('error'):
             state['steps']+=len(calls)
             emit=state.get('emit') or (lambda event: None)
             for turn,name,args in parsed:
@@ -823,6 +823,7 @@ def herdr(*args,timeout=30):
     if result.returncode: raise ValueError('Herdr: '+redact(result.stderr))
     return json.loads(result.stdout) if result.stdout.strip() else {}
 
+TOOL_STEP_LIMIT=12  # tool calls per request; pane control alternates read and key presses
 WORKER_NAME='meclaw-codex'
 WORKER_WORKSPACE='meclaw-worker'
 SPAWN_LIMIT=10  # worker launches per hour; a crash loop must not keep starting Codex
