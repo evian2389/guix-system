@@ -94,12 +94,14 @@ working/idle로 표시된다.
 
 ## 위임 작업의 취소·알림·재지시 (한계 포함)
 
-- **에이전트 pane 중단 (`interrupt_agent <pane>`)**: Herdr가 알고 있는 어떤 에이전트 pane(Claude Code, AGY 등)에도
-  `esc`(`force`면 `ctrl-c`)를 보낸다. 에이전트 종류·상태 제한은 두지 않는다(Herdr를 통한 제어는 허용하기로
-  했다). pane ID 형식만 검증하고, 키 입력 외에 텍스트 입력이나 pane 닫기는 하지 않는다. 3초 뒤 상태를 다시
-  읽어 `status_now`로 돌려주며 "중단 요청"일 뿐 깨끗한 종료의 증거는 아니다 — 시작된 명령이나 부분 변경이
-  남을 수 있다(Claude/AGY에서 남는지는 미검증). 승인 대기 중인 pane에 Esc가 가면 그 승인 프롬프트가
-  취소될 수 있다. MCP `/tool`에는 노출하지 않는다. MeClaw Codex job은 `cancel_job`이 `/stop`까지 보내므로 그쪽을 쓴다.
+- **Herdr를 통한 에이전트 제어 (Claude Code, AGY 등 모든 Herdr 에이전트 pane)**: 사용자가 허용했다.
+  `agent_read`(출력 읽기, 마스킹), `agent_send`(텍스트 입력 후 Enter), `agent_keys`(키 입력 — **승인 응답은
+  여기서 한다**: 먼저 `agent_read`로 프롬프트를 읽고 무엇을 승인/거부했는지 말한다), `interrupt_agent`
+  (`esc`, `force`면 `ctrl-c`), `agent_close`(pane 닫기). 에이전트 종류·상태 제한은 없고 pane ID와 키 이름 형식,
+  텍스트 길이만 검증한다. 모든 입력·키·닫기는 `events`에 남는다(입력 텍스트는 앞 80자). 전달은 수행의 증거가 아니므로
+  결과는 pane을 다시 읽어 확인한다. MCP `/tool`에는 노출하지 않는다. **주의**: Telegram 대화를 포함해 모든 채널에서
+  쓸 수 있으므로, 외부 내용이 모델을 속여 승인·입력을 보내게 할 위험이 있다. 채널 제한이 필요하면 도구 노출을
+  `telegram:` 채널에서 빼면 된다. MeClaw Codex job은 `cancel_job`이 `/stop`까지 보내므로 그쪽을 쓴다.
 - **작업 취소 (`cancel_job <id>`)**: 대기 중(`queued`) 작업은 즉시 `cancelled`가 된다. 취소와 worker의 가져오기는
   SQLite 조건부 UPDATE 하나로 갈리므로 둘 중 정확히 하나만 성공한다(경합 테스트). **실행 중(`working`)
   작업은 "취소 요청"만 기록**하고, pane을 제어하는 별도 프로세스인 dispatcher가 worker pane에 Esc를

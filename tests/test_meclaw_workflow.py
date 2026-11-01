@@ -188,6 +188,44 @@ class MeclawTests(unittest.TestCase):
         with patch.object(m,'herdr',fake),self.assertRaises(ValueError): app.execute('interrupt_agent',{'pane':'w9:p9'},'k','ch')
         with self.assertRaises(ValueError): app.execute('interrupt_agent',{'pane':'p; rm -rf /'},'k','ch')
 
+    def test_agent_text_keys_and_close_go_through_herdr_for_any_agent(self):
+        for agent in ('claude','agy'):
+            app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':agent,'agent_status':'blocked'}])
+            with patch.object(m,'herdr',fake):
+                app.execute('agent_send',{'pane':'w1:p2','text':'run the tests'},'k','ch')
+                app.execute('agent_keys',{'pane':'w1:p2','keys':['1','enter']},'k','ch')
+                app.execute('agent_close',{'pane':'w1:p2'},'k','ch')
+            self.assertEqual([c for c in calls if c[0]=='pane'],[('pane','send-text','w1:p2','run the tests'),('pane','send-keys','w1:p2','enter'),
+                             ('pane','send-keys','w1:p2','1','enter'),('pane','close','w1:p2')])
+        with closing(self.store.db()) as db:
+            kinds={r[0] for r in db.execute('select kind from events')}
+        self.assertTrue({'agent_send','agent_keys','agent_close'}<=kinds)
+
+    def test_agent_send_without_submit_only_types(self):
+        app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'claude','agent_status':'idle'}])
+        with patch.object(m,'herdr',fake): app.execute('agent_send',{'pane':'w1:p2','text':'draft','submit':False},'k','ch')
+        self.assertEqual([c for c in calls if c[0]=='pane'],[('pane','send-text','w1:p2','draft')])
+
+    def test_agent_control_validates_input(self):
+        app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'claude','agent_status':'idle'}])
+        with patch.object(m,'herdr',fake):
+            for tool,args in (('agent_keys',{'pane':'w1:p2','keys':[]}),('agent_keys',{'pane':'w1:p2','keys':['a b']}),
+                              ('agent_keys',{'pane':'w1:p2','keys':['x']*9}),('agent_send',{'pane':'w1:p2','text':'  '}),
+                              ('agent_close',{'pane':'w9:p9'}),('agent_read',{'pane':'a;b'})):
+                with self.assertRaises(ValueError,msg=tool): app.execute(tool,args,'k','ch')
+        self.assertFalse([c for c in calls if c[0]=='pane'])
+
+    def test_agent_read_masks_secrets(self):
+        app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'claude','agent_status':'idle'}])
+        done=type('R',(),{'returncode':0,'stdout':'token=abcdef123456 ok','stderr':''})()
+        with patch.object(m,'herdr',fake),patch.object(m.subprocess,'run',return_value=done):
+            out=app.execute('agent_read',{'pane':'w1:p2'},'k','ch')
+        self.assertNotIn('abcdef123456',out['output']);self.assertEqual(out['agent'],'claude')
+
+    def test_agent_control_tools_are_not_exposed_through_mcp(self):
+        tail=open(SCRIPT).read().split("Tool not exposed to MCP")[0].split("if body.get('name') not in")[-1]
+        for name in ('agent_read','agent_send','agent_keys','agent_close','interrupt_agent'): self.assertNotIn("'"+name+"'",tail)
+
     def test_interrupt_tool_is_not_exposed_through_mcp(self):
         self.assertNotIn("'interrupt_agent'",open(SCRIPT).read().split("Tool not exposed to MCP")[0].split("if body.get('name') not in")[-1])
 

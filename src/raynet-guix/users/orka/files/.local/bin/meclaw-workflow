@@ -83,6 +83,13 @@ TOOLS=[
                 {'task':{'type':'string'},'project':{'type':'string','description':'Absolute project directory below ~/work or ~/guix-system.'}},['task','project']),
     tool_schema('interrupt_agent','Interrupt any Herdr agent pane (Claude Code, AGY, ...) by sending Esc (force: Ctrl-C). Report the result as requested, not as a clean stop: started commands and partial edits may remain. For MeClaw Codex jobs prefer cancel_job, which also stops started commands.',
                 {'pane':{'type':'string','description':'Pane id from herdr_agents.'},'force':{'type':'boolean','description':'Ctrl-C instead of Esc, only after Esc did not stop it.'}},['pane']),
+    tool_schema('agent_read','Read recent terminal output of any Herdr agent pane (Claude Code, AGY, ...). Use it to see what the agent is doing or which approval it asks before answering with agent_keys.',
+                {'pane':{'type':'string'},'lines':{'type':'integer','minimum':1,'maximum':120}},['pane']),
+    tool_schema('agent_send','Type text into any Herdr agent pane and press Enter (submit=false to type only). This gives the agent a new instruction, so state the scope and verification explicitly.',
+                {'pane':{'type':'string'},'text':{'type':'string'},'submit':{'type':'boolean'}},['pane','text']),
+    tool_schema('agent_keys','Press keys in an agent pane, e.g. ["1"], ["y"], ["enter"], ["down","enter"]. This is how an approval prompt is answered: read the prompt with agent_read first and state what you approved or denied.',
+                {'pane':{'type':'string'},'keys':{'type':'array','items':{'type':'string'},'maxItems':8}},['pane','keys']),
+    tool_schema('agent_close','Close a Herdr agent pane. The agent session and anything it is running are discarded.',{'pane':{'type':'string'}},['pane']),
     tool_schema('cancel_job','Cancel a Codex job. Queued: cancelled at once. Running: only an interrupt request is recorded and the dispatcher presses Esc in the worker; report it as requested, not stopped, until job_status shows cancelled. Partial changes may remain.',{'id':{'type':'string'}},['id']),
     tool_schema('job_status','Read a queued Codex job; never automatically repeat uncertain work.',{'id':{'type':'string'}},['id']),
 ]
@@ -408,6 +415,35 @@ class App:
         except (ValueError,KeyError,subprocess.SubprocessError,OSError) as exc:
             return 'Worker pane '+str(pane)+' is not found in Herdr ('+redact(str(exc))[:120]+'); it was likely closed.',remedy
         return 'Worker pane '+str(pane)+' exists but its state is '+str(status.get('worker_state'))+'.','Inspect it with herdr_read.'
+    def agent_control(self,name,args):
+        # Herdr-mediated control of any agent pane. Every action is recorded; input is validated, not restricted by agent kind.
+        pane=args['pane']
+        if not isinstance(pane,str) or not re.fullmatch(r'[A-Za-z0-9:_.-]{1,40}',pane): raise ValueError('Invalid pane id')
+        agent=next((a for a in herdr('agent','list')['result']['agents'] if a.get('pane_id')==pane),None)
+        if agent is None: raise ValueError('No agent in that pane; list panes with herdr_agents')
+        who=str(agent.get('agent'))+' '+pane
+        if name=='agent_read':
+            lines=min(max(int(args.get('lines',40)),1),120)
+            result=subprocess.run(['herdr','agent','read',pane,'--source','recent-unwrapped','--lines',str(lines)],capture_output=True,text=True,timeout=15)
+            if result.returncode: raise ValueError('Herdr: '+redact(result.stderr))
+            return {'pane':pane,'agent':agent.get('agent'),'status':agent.get('agent_status'),'output':redact(result.stdout[-8000:])}
+        if name=='agent_send':
+            text=args['text']
+            if not isinstance(text,str) or not text.strip() or len(text)>20000: raise ValueError('Text must be 1..20000 characters')
+            herdr('pane','send-text',pane,text)
+            if args.get('submit',True): herdr('pane','send-keys',pane,'enter')
+            self.store.event('agent_send','unknown','Typed '+str(len(text))+' characters into '+who+': '+text[:80])
+            return {'pane':pane,'sent_chars':len(text),'submitted':bool(args.get('submit',True)),'note':'Input delivered, not proof the agent accepted or did the work; read the pane and verify.'}
+        if name=='agent_keys':
+            keys=args['keys']
+            if not isinstance(keys,list) or not 1<=len(keys)<=8 or not all(isinstance(k,str) and re.fullmatch(r'[A-Za-z0-9_+-]{1,16}',k) for k in keys):
+                raise ValueError('keys must be 1..8 key names such as 1, y, enter, esc, down, ctrl-c')
+            herdr('pane','send-keys',pane,*keys)
+            self.store.event('agent_keys','unknown','Pressed '+' '.join(keys)+' in '+who+' (was '+str(agent.get('agent_status'))+')')
+            return {'pane':pane,'pressed':keys,'status_before':agent.get('agent_status'),'note':'Keys delivered; read the pane to confirm the effect.'}
+        herdr('pane','close',pane)
+        self.store.event('agent_close','unknown','Closed '+who)
+        return {'pane':pane,'closed':True,'note':'The agent session and its work are gone.'}
     def read_file(self,args,channel):
         if channel.startswith('telegram:'): raise ValueError('read_file is not available from Telegram')
         raw=args.get('path')
@@ -486,6 +522,7 @@ class App:
                 raise ValueError('Project must be below ~/work or ~/guix-system')
             job=self.store.queue(key,channel,args['task'],project)
             return {k:job[k] for k in ('id','status','project')}
+        if name in ('agent_read','agent_send','agent_keys','agent_close'): return self.agent_control(name,args)
         if name=='interrupt_agent':
             pane=args['pane']
             if not isinstance(pane,str) or not re.fullmatch(r'[A-Za-z0-9:_.-]{1,40}',pane): raise ValueError('Invalid pane id')
