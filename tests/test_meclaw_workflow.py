@@ -249,6 +249,19 @@ class MeclawTests(unittest.TestCase):
         with patch.object(m,'herdr',fake),patch.object(m.subprocess,'run',return_value=done):
             self.assertEqual(app.execute('agent_read',{'pane':'w1:p2'},'k','telegram:42')['output'],'hi')
 
+    def test_agent_read_falls_back_to_the_visible_screen_for_a_blocked_agent(self):
+        app,fake,calls=self.interrupt_app(lambda:[{'pane_id':'w1:p2','agent':'agy','agent_status':'blocked'}])
+        seen=[]
+        def run(cmd,**k):
+            seen.append(cmd[cmd.index('--source')+1])
+            if cmd[cmd.index('--source')+1]=='recent-unwrapped':
+                return type('R',(),{'returncode':1,'stdout':'','stderr':'cannot read 40 lines while blocked'})()
+            return type('R',(),{'returncode':0,'stdout':'Do you trust this folder?','stderr':''})()
+        with patch.object(m,'herdr',fake),patch.object(m.subprocess,'run',side_effect=run):
+            out=app.execute('agent_read',{'pane':'w1:p2'},'k','ch')
+        self.assertEqual(seen,['recent-unwrapped','visible']);self.assertEqual(out['source'],'visible')
+        self.assertIn('trust',out['output'])
+
     def test_agent_control_tools_are_not_exposed_through_mcp(self):
         tail=open(SCRIPT).read().split("Tool not exposed to MCP")[0].split("if body.get('name') not in")[-1]
         for name in ('agent_read','agent_send','agent_keys','agent_close','interrupt_agent'): self.assertNotIn("'"+name+"'",tail)

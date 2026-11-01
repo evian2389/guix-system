@@ -439,9 +439,14 @@ class App:
         self.guard_remote(name,agent,who,channel)
         if name=='agent_read':
             lines=min(max(int(args.get('lines',40)),1),120)
-            result=subprocess.run(['herdr','agent','read',pane,'--source','recent-unwrapped','--lines',str(lines)],capture_output=True,text=True,timeout=15)
+            source='recent-unwrapped'
+            result=subprocess.run(['herdr','agent','read',pane,'--source',source,'--lines',str(lines)],capture_output=True,text=True,timeout=15)
+            if result.returncode:
+                # A blocked full-screen (alternate screen) agent, e.g. at an approval prompt, only exposes what is on screen.
+                source='visible'
+                result=subprocess.run(['herdr','agent','read',pane,'--source',source,'--lines',str(lines)],capture_output=True,text=True,timeout=15)
             if result.returncode: raise ValueError('Herdr: '+redact(result.stderr))
-            return {'pane':pane,'agent':agent.get('agent'),'status':agent.get('agent_status'),'output':redact(result.stdout[-8000:])}
+            return {'pane':pane,'agent':agent.get('agent'),'status':agent.get('agent_status'),'source':source,'output':redact(result.stdout[-8000:])}
         if name=='agent_send':
             text=args['text']
             if not isinstance(text,str) or not text.strip() or len(text)>20000: raise ValueError('Text must be 1..20000 characters')
