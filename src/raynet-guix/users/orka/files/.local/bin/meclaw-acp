@@ -156,6 +156,13 @@ def list_sessions(rid, params):
                      'updatedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(entry.get('updated', 0)))})
     rows.sort(key=lambda row: row['updatedAt'], reverse=True)
     reply(rid, {'sessions': rows[:50]})
+    # Clients hide the session they are in, so a project with one conversation shows an empty picker with no
+    # explanation. Say why, in the open conversation.
+    others = [row for row in rows if row['sessionId'] not in SESSIONS]
+    if not others and SESSIONS:
+        update(next(iter(SESSIONS)), 'agent_message_chunk', content={'type': 'text', 'text':
+               'ℹ 이 프로젝트에는 지금 대화 외에 이어갈 세션이 없습니다. 다른 대화는 `mm --session 이름`으로 만들 수 있고, '
+               '같은 폴더에서 `mm`을 다시 실행하면 이 대화가 그대로 이어집니다.\n\n'})
 
 
 def channel_for(cwd, session_id):

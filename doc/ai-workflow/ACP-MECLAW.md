@@ -34,7 +34,9 @@ working/idle로 표시된다.
 - 목록과 재개: shim이 ACP `session/list`·`session/load`·`session/resume`을 지원한다. 세션 목록은
   `~/.local/state/meclaw-acp/sessions.json`에 있고, 대화 본문은 MeClaw 서버에 있다
   (`meclaw-workflow history --channel …`, Telegram 대화는 제외).
-  - **Martty**: `/resume`으로 목록을 열어 고르면 `session/resume`이 호출되고, 이전 대화가 화면에 다시 나온다.
+  - **Martty**: `/resume`은 현재 세션을 목록에서 뺀다. 프로젝트에 다른 세션이 없으면 선택창 없이 아무것도 안 뜨므로,
+    shim이 "이어갈 세션이 없다"는 안내를 대화에 띄운다(`mm --session 이름`으로 세션을 더 만들 수 있다).
+  - **Martty** 목록: `/resume`으로 목록을 열어 고르면 `session/resume`이 호출되고, 이전 대화가 화면에 다시 나온다.
   - **Toad**: 세션이 자체 DB에 저장되고 재개 화면에서 `session/load`를 호출한다(아직 직접 확인하지 않음).
 - 화면에 복원되는 것은 사용자/MeClaw 텍스트뿐이다. 도구 호출 카드와 입력 기록(↑)은 복원되지 않는다.
   ↑ 입력 기록은 Martty 프로세스 안에서만 유지된다.

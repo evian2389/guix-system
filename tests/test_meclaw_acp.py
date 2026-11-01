@@ -168,6 +168,19 @@ class ShimTests(unittest.TestCase):
             {'id':2,'method':'session/prompt','params':{'sessionId':sid,'prompt':[{'type':'text','text':'ping'}]}}])
         self.assertNotIn('중단되지 않았','\n'.join(str(n) for n in notes))
 
+    def test_list_explains_when_there_is_nothing_else_to_resume(self):
+        sid=self.new()
+        responses,notes=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
+            {'id':2,'method':'session/new','params':{'cwd':str(self.cwd),'mcpServers':[]}},
+            {'id':3,'method':'session/list','params':{'cwd':str(self.cwd)}}])
+        self.assertEqual([s['sessionId'] for s in responses[3]['result']['sessions']],[sid])
+        self.assertTrue(any('이어갈 세션이 없습니다' in n['params']['update']['content']['text'] for n in notes))
+        other=self.new(MECLAW_ACP_SESSION='side')
+        responses,notes=self.talk([{'id':1,'method':'initialize','params':{'protocolVersion':1}},
+            {'id':2,'method':'session/new','params':{'cwd':str(self.cwd),'mcpServers':[]}},
+            {'id':3,'method':'session/list','params':{'cwd':str(self.cwd)}}])
+        self.assertFalse(any('이어갈 세션이 없습니다' in n['params']['update']['content']['text'] for n in notes))
+
     def test_restore_refuses_a_session_from_another_project(self):
         sid=self.new()
         other=self.cwd.parent/'other';other.mkdir()
