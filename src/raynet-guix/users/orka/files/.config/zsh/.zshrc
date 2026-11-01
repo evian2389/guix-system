@@ -76,6 +76,10 @@ fi
   if [ -e ~/.nix-profile/etc/profile.d/nix.sh ]; then
   . ~/.nix-profile/etc/profile.d/nix.sh
   fi
+  # Nix-built programs need their own locale archive (not Guix's GUIX_LOCPATH).
+  if [ -e ~/.nix-profile/lib/locale/locale-archive ]; then
+    export LOCALE_ARCHIVE=~/.nix-profile/lib/locale/locale-archive
+  fi
   #
   # ################
   if [[ "$TERM_PROGRAM" != "WarpTerminal" && -z "$WARP_BOOTSTRAPPED" ]]; then

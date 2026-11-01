@@ -29,6 +29,8 @@ if command -v nix &> /dev/null; then
     nix_install_if_missing rust-analyzer nixpkgs#rust-analyzer
     nix_install_if_missing wiremix nixpkgs#wiremix
     nix_install_if_missing yazi nixpkgs#yazi
+    # Locale data for Nix-built programs (they ignore Guix's GUIX_LOCPATH).
+    nix_install_if_missing glibc-locales nixpkgs#glibcLocales
     nix_install_if_missing bun nixpkgs#bun
     nix_install_if_missing ripasso-cursive nixpkgs#ripasso-cursive
     nix_install_if_missing nodejs nixpkgs#nodejs
