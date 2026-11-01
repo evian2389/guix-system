@@ -1,0 +1,3 @@
+#!/bin/sh
+# Short name for toad-meclaw (Toad is the main MeClaw frontend). Same options: tm [--session NAME | --new]
+exec "$HOME/.local/bin/toad-meclaw" "$@"

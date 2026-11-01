@@ -5,7 +5,7 @@
 
 ## 작업 개요 (끝난 것)
 
-- **프론트엔드**: Pi를 쓰지 않고 ACP 클라이언트(Martty `mm`, Toad `toad-meclaw`)로 MeClaw를 쓴다.
+- **프론트엔드**: Pi를 쓰지 않고 ACP 클라이언트(주: Toad `tm`/`toad-meclaw`, 보조: Martty `mm`)로 MeClaw를 쓴다.
   `meclaw-acp`(stdio shim)가 bridge(`meclaw-workflow`, 포트 10964)와 이어 준다. 도구 진행 카드, 모델 선택기,
   프로젝트 폴더별 세션 이어쓰기, `/resume`(모든 프로젝트, 현재 폴더 우선) 동작.
 - **서비스**: Home Shepherd `meclaw`(bridge+Telegram), `meclaw-worker`(Codex worker 감독, 위임 작업이 대기 중일 때만
@@ -60,7 +60,7 @@
 | ai-wiki 정리(C-2) | `~/work/ai-wiki` | 같음 |
 | guix-system 코드·문서 수정(A-1, C 대부분) | `~/guix-system` | worker 샌드박스는 `~/work`만 쓰기 허용 → **`~/guix-system` 쓰기는 승인 프롬프트로 job이 `blocked`가 된다** |
 
-- `mm`은 **작업할 폴더에서 실행**한다(세션이 폴더별로 분리됨). 예: `cd ~/work/workflow-evolution && mm`.
+- `tm`(또는 `mm`)은 **작업할 폴더에서 실행**한다(세션이 폴더별로 분리됨). 예: `cd ~/work/workflow-evolution && tm`.
 - `~/guix-system`을 고치는 일은 Claude Code로 하거나, 같은 세션에서 `blocked`된 worker pane을 Herdr에서 직접 승인한다.
   MeClaw가 대신 승인하게 하려면 `agent_keys`로 요청한다(사용자가 명시해야 함).
 - `make reconfigure-home`, `herd restart`는 사람이 실행하거나 명시적으로 요청한 경우에만.

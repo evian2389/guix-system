@@ -18,9 +18,10 @@ flowchart LR
 
 ```sh
 cd ~/work/your-project
-toad-meclaw                 # Toad (Python 3.14, Nix python314 + uv tool)
-mm                          # Martty (npm -g); martty-meclaw 의 새 이름
-toad-meclaw --session NAME  # 대화를 분리
+tm                          # Toad (주 프론트엔드, toad-meclaw의 짧은 이름; Python 3.14, Nix python314 + uv tool)
+toad-meclaw                 # tm 과 같음
+mm                          # Martty (npm -g, 보조 프론트엔드)
+tm --session NAME           # 대화를 분리 (tm --new: 새 대화)
 ```
 
 서비스가 꺼져 있으면 `herd start meclaw`. 대화 중 Herdr 사이드바에는 `meclaw` 에이전트가
