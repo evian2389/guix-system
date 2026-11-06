@@ -8,14 +8,16 @@
      "fe3b5f72aa676c69f4d43507bdd18fb051906917"
      (openpgp-fingerprint
       "7C9E 7EBA 828C 58DF DACE  5BED 4DCC 7AB7 FC75 319B"))))
-  (channel
-    (name 'emacs)
-    (url "https://github.com/garrgravarr/guix-emacs")
-    (introduction
-     (make-channel-introduction
-      "d676ef5f94d2c1bd32f11f084d47dcb1a180fdd4"
-      (openpgp-fingerprint
-       "2DDF 9601 2828 6172 F10C  51A4 E80D 3600 684C 71BA"))))
+  ;; Disabled: upstream merge commit ae1c8da7 is signed by GitHub web-flow key,
+  ;; which breaks `guix pull` authentication. Not using emacs channel.
+  ; (channel
+  ;   (name 'emacs)
+  ;   (url "https://github.com/garrgravarr/guix-emacs")
+  ;   (introduction
+  ;    (make-channel-introduction
+  ;     "d676ef5f94d2c1bd32f11f084d47dcb1a180fdd4"
+  ;     (openpgp-fingerprint
+  ;      "2DDF 9601 2828 6172 F10C  51A4 E80D 3600 684C 71BA"))))
   (channel
     (name 'abbe)
     (url "https://codeberg.org/group/guix-modules.git")

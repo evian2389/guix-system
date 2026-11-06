@@ -45,7 +45,7 @@
   #:use-module (gnu home)
   #:use-module (gnu home services)
   #:use-module (nongnu packages linux)
-  #:use-module (abbe packages ghostty)
+  #:use-module ((px packages terminals) #:select (ghostty))
   #:use-module (srfi srfi-1)                 ;; fold, filter
   #:use-module (srfi srfi-13))               ;; string-prefix?
 

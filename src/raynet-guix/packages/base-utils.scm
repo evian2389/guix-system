@@ -65,7 +65,7 @@
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (nongnu packages messaging)     ; for element desktop messenger
-  #:use-module (abbe packages ghostty)         ; for ghostty
+  #:use-module ((px packages terminals) #:select (ghostty))  ; ghostty 1.4.0 (px channel, binary)
   #:use-module (abbe packages zsh)         ; for ghostty
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (shika packages satty)
@@ -75,7 +75,6 @@
   ; #:use-module (px packages tools)
   #:export (development-tools
             system-tools
-            ghostty-fixed
             7z-compat))
 
 (define-public 7z-compat
@@ -106,20 +105,6 @@
 @command{7zz} executable shipped by the 7zip package.")
     (home-page "https://7-zip.org/")
     (license license:lgpl2.1+)))
-
-(define-public ghostty-fixed
-  (package
-    (inherit ghostty)
-    (arguments
-     (substitute-keyword-arguments (package-arguments ghostty)
-       ((#:phases phases)
-        #~(modify-phases #$phases
-            (add-after 'install 'fix-desktop-file
-              (lambda _
-                (let ((desktop-file (string-append #$output "/share/applications/com.mitchellh.ghostty.desktop")))
-                  (substitute* desktop-file
-                    (("^Exec=\\./bin/ghostty") (string-append "Exec=" #$output "/bin/ghostty"))
-                    (("^TryExec=\\./bin/ghostty") (string-append "TryExec=" #$output "/bin/ghostty"))))))))))))
 
 (define-public development-tools
   (list
@@ -202,7 +187,7 @@
     xdg-desktop-portal-gtk
     power-profiles-daemon
     wlogout
-    ghostty-fixed
+    ghostty
     zoxide
     ripgrep
     sshfs

@@ -23,7 +23,6 @@
   #:use-module (raynet-guix home-services audio)
   #:use-module (raynet-guix home-services niri)
   #:use-module (raynet-guix home-services udiskie)
-  #:use-module (raynet-guix packages xwayland-satellite)
   #:use-module (raynet-guix home-services finance)
   #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding, font-nerd-font-jetbrainsmono
   #:use-module (gnu services)
@@ -54,7 +53,7 @@
    bibata-cursor-theme
    xrdb
    xwayland-run
-   xwayland-satellite-0.8.3
+   xwayland-satellite
    xorg-server-xwayland
    ))
 
