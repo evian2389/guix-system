@@ -46,6 +46,7 @@
    font-google-noto-serif-cjk
    font-nerd-font-d2coding
    font-nerd-font-jetbrainsmono
+   font-nerd-symbols       ; Symbols Nerd Font (Mono) for herdr/TUI icons
    font-iosevka-aile
    font-iosevka-ss08
    zsh-autosuggestions
