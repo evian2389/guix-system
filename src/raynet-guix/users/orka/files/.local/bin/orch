@@ -83,8 +83,8 @@ if [[ -n "${XDG_RUNTIME_DIR:-}" &&
       -d "$XDG_RUNTIME_DIR" &&
       ! -L "$XDG_RUNTIME_DIR" &&
       -O "$XDG_RUNTIME_DIR" &&
-      -w "$XDG_RUNTIME_DIR" &&
-      is_tmpfs "$XDG_RUNTIME_DIR" ]]; then
+      -w "$XDG_RUNTIME_DIR" ]] &&
+   is_tmpfs "$XDG_RUNTIME_DIR"; then
     runtime_root="$(cd -- "$XDG_RUNTIME_DIR" && pwd -P)" ||
         fail "cannot resolve XDG_RUNTIME_DIR: $XDG_RUNTIME_DIR"
     state_base="$runtime_root/herdr-orch"
