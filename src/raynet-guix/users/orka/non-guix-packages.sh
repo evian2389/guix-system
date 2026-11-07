@@ -157,20 +157,30 @@ if command -v cargo &> /dev/null; then
                  printf '\n[mcp_servers.ai-wiki.tools.%s]\napproval_mode = "approve"\n' "$t" >> "$HOME/.codex/config.toml"
              done
          fi
-         # Antigravity (agy): replace the old filesystem-server entry; other servers are kept.
-         python3 - "$HOME/.gemini/antigravity/mcp_config.json" "$HOME" <<'PYEOF'
+         # Antigravity: "ai-wiki" = wiki-mcp (docs/, read-only); "ai-wiki-meta" = the old
+         # filesystem server limited to meta/ and harnesses/. Other servers are kept.
+         # agy (CLI) reads ~/.gemini/config/mcp_config.json, the IDE antigravity/mcp_config.json.
+         for agy_cfg in "$HOME/.gemini/config/mcp_config.json" "$HOME/.gemini/antigravity/mcp_config.json"; do
+         python3 - "$agy_cfg" "$HOME" <<'PYEOF'
 import json, os, sys
 path, home = sys.argv[1], sys.argv[2]
 cfg = json.load(open(path)) if os.path.exists(path) else {}
-want = {"command": home + "/.cargo/bin/wiki-mcp",
-        "args": ["--wiki-root", home + "/work/ai-wiki"],
-        "description": "Personal AI knowledge wiki (read-only search/get_page/related/harness/list_index over ai-wiki docs/). Query for personal projects, system design, past decisions, agent harness setup."}
-if cfg.get("mcpServers", {}).get("ai-wiki") != want:
-    cfg.setdefault("mcpServers", {})["ai-wiki"] = want
+wiki = home + "/work/ai-wiki"
+want = {
+    "ai-wiki": {"command": home + "/.cargo/bin/wiki-mcp", "args": ["--wiki-root", wiki],
+                "description": "Personal AI knowledge wiki docs/ (read-only search/get_page/related/harness/list_index). Query for personal projects, system design, past decisions, agent harness setup."},
+    "ai-wiki-meta": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", wiki + "/meta", wiki + "/harnesses"],
+                     "description": "ai-wiki meta/ (todo, dream-agent protocol, notifications, openkb-setup) and harnesses/ (per-harness docs: hermes index, configuration, patterns)."},
+}
+servers = cfg.setdefault("mcpServers", {})
+if any(servers.get(k) != v for k, v in want.items()):
+    servers.update(want)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    json.dump(cfg, open(path, "w"), indent=2, ensure_ascii=False)
-    open(path, "a").write("\n")
+    with open(path, "w") as f:
+        json.dump(cfg, f, indent=2, ensure_ascii=False)
+        f.write("\n")
 PYEOF
+         done
          # Claude Code is a native binary that needs the ld.so wrapper on Guix.
          if [ -x "$HOME/.local/bin/claude-wrapper" ] && ! "$HOME/.local/bin/claude-wrapper" mcp get ai-wiki &> /dev/null; then
              "$HOME/.local/bin/claude-wrapper" mcp add --scope user ai-wiki -- "$HOME/.cargo/bin/wiki-mcp" --wiki-root "$HOME/work/ai-wiki"
