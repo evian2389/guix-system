@@ -1,0 +1,36 @@
+# Taskwarrior 3 configuration adapted from ~/dotfiles.
+data.location=~/notes/taskwarrior
+include default.theme
+uda.reminder.type=date
+uda.reminder.label=Reminder
+# --- Jira integration (disabled on this machine) ---
+# To enable: see optional/taskwarrior-jira/README.md, then uncomment below.
+# context.jira.read=+jira
+# context.jira.write=
+# uda.jiraissuetype.type=string
+# uda.jiraissuetype.label=Issue Type
+# uda.jirasummary.type=string
+# uda.jirasummary.label=Jira Summary
+# uda.jiraurl.type=string
+# uda.jiraurl.label=Jira URL
+# uda.jiradescription.type=string
+# uda.jiradescription.label=Jira Description
+# uda.jiraid.type=string
+# uda.jiraid.label=Jira Issue ID
+# uda.jiraestimate.type=numeric
+# uda.jiraestimate.label=Estimate
+# uda.jirafixversion.type=string
+# uda.jirafixversion.label=Fix Version
+# uda.jiracreatedts.type=date
+# uda.jiracreatedts.label=Created At
+# uda.jirastatus.type=string
+# uda.jirastatus.label=Jira Status
+# uda.jirasubtasks.type=string
+# uda.jirasubtasks.label=Jira Subtasks
+# uda.jiraparent.type=string
+# uda.jiraparent.label=Jira Parent
+# taskwarrior-tui: open the selected Jira issue in Zen Browser
+# uda.taskwarrior-tui.shortcuts.1=~/.config/taskwarrior-tui/shortcut-scripts/open-jira.sh
+# uda.taskwarrior-tui.keyconfig.shortcut1=o
+# uda.taskwarrior-tui.shortcuts.2=~/.config/taskwarrior-tui/shortcut-scripts/sync-jira.sh
+# uda.taskwarrior-tui.keyconfig.shortcut2=S

@@ -1,0 +1,6 @@
+;; Replaces dotfiles' taskwarrior-reminder.timer (every minute).
+;; The Jira sync (bugwarrior, every 30 min) is intentionally not enabled here:
+;; (job '(next-minute (range 0 60 30))
+;;      "$HOME/.local/bin/bugwarrior pull --quiet")
+(job '(next-minute (range 0 60 1))
+     "$HOME/.local/bin/taskwarrior-reminder")
