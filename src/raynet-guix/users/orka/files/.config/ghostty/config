@@ -4,7 +4,6 @@
   #font-family = Iosevka Nerd Font
   # font-family = SFMono Nerd Font
   font-size = 12
-  command = shell:exec "$HOME/.cargo/bin/herdr"
   gtk-single-instance = false
   theme = Gruvbox Dark Hard
   shell-integration-features = no-cursor,sudo,no-title,ssh-terminfo,ssh-env

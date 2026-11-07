@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /nix/store/pqyiidz5mi73wv5f91d48s9plcqyj5bz-glibc-2.44-57/lib/ld-linux-x86-64.so.2 --library-path /nix/store/jj4c8rz4s21flyxh0mr9scplx9czy7z0-steam-run-1.0.0.87-fhsenv-rootfs/usr/lib64 /home/orka/.local/bin/herdr-gpui.real "$@"

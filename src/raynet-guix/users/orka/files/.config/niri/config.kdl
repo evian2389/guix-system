@@ -131,6 +131,7 @@ binds {
     //Mod+M { spawn "mpv $(wl-paste)"; }
     Mod+M { spawn "sh" "-c" "mpv $(wl-paste)"; }
     Mod+Y hotkey-overlay-title="File Manager: Yazi" { spawn "ghostty" "-e" "yazi"; }
+    Mod+Period hotkey-overlay-title="Herdr" { spawn "sh" "/home/orka/.config/niri/focus-herdr-gpui.sh"; }
 
     // Standard Niri Controls
     Mod+Q hotkey-overlay-title="Close Window" { close-window; }
