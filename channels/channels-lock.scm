@@ -22,7 +22,7 @@
        (name 'pantherx)
        (url "https://codeberg.org/gofranz/panther.git")
        (branch "master")
-       (commit "23b682ec982567bfa13ea516afe2bcfc50e401fa")
+       (commit "f1038d623484cb337766009afbd7b14b2f9b0745")
        (introduction
         (make-channel-introduction
          "54b4056ac571611892c743b65f4c47dc298c49da"
@@ -42,7 +42,7 @@
        (name 'guix)
        (url "https://git.guix.gnu.org/guix.git")
        (branch "master")
-       (commit "8942b0390677f7e1afbef48baf1e010541201340")
+       (commit "362ed62e5294e91847ade9e820c5d307f5eda157")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
