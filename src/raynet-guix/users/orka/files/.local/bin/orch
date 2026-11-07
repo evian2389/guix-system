@@ -102,7 +102,19 @@ if [[ -L "$orch_link" ]]; then
     link_target="$(readlink -- "$orch_link")" ||
         fail "cannot read existing .orchestration symlink"
     if [[ "$link_target" != "$state_root" ]]; then
-        fail ".orchestration already points elsewhere ($link_target); refusing to replace it"
+        # Sandboxed agents (e.g. codex workspace-write) cannot write XDG_RUNTIME_DIR,
+        # so the derived path differs. Trust an existing link only if it is a
+        # user-owned, private, tmpfs-backed directory directly under a herdr-orch base.
+        case "$link_target" in
+            /run/user/"$uid"/herdr-orch/*|/dev/shm/herdr-orch-"$uid"/*) ;;
+            *) fail ".orchestration already points elsewhere ($link_target); refusing to replace it" ;;
+        esac
+        if [[ -L "$link_target" || ! -d "$link_target" || ! -O "$link_target" ]] ||
+           ! is_tmpfs "$link_target"; then
+            fail ".orchestration target is not a user-owned tmpfs directory ($link_target)"
+        fi
+        state_root="$link_target"
+        state_base="$(dirname -- "$link_target")"
     fi
 elif [[ -e "$orch_link" ]]; then
     fail ".orchestration already exists and is not the expected symlink; refusing to move it"
