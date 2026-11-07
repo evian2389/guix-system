@@ -16,7 +16,7 @@
   export XMODIFIERS=@im=fcitx
   export GLFW_IM_MODULE=fcitx
 
-  export BROWSER=google-chrome
+  export BROWSER="$HOME/.local/bin/zen"
 
   export XDG_DATA_DIRS="$HOME/.local/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS"
   export PATH=$PATH:$HOME/.npm-global/bin:$HOME/.local/bin:~/.cargo/bin:~/.npm-packages/bin:~/.config/emacs/bin/:~/.nix-profile/bin:~/.surrealdb

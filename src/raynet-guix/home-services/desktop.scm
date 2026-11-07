@@ -107,17 +107,7 @@
 
 (define (home-desktop-environment-variables config)
   '(("_JAVA_AWT_WM_NONREPARENTING" . "1")
-    ;; BROWSER is used by agents and terminal tools that bypass xdg-open.
-    ;; Point it at the local Flatpak wrapper because google-chrome.desktop is
-    ;; still registered as the default handler but its executable is absent.
-    ("BROWSER" . "/home/orka/.local/bin/zen")
     ("XDG_DATA_DIRS" . "$HOME/.nix-profile/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:$XDG_DATA_DIRS")))
-
-(define (home-desktop-mimeapps config)
-  (list
-   `( ".local/share/applications/mimeapps.list"
-      ,(plain-file "mimeapps.list"
-                   "[Default Applications]\nx-scheme-handler/http=app.zen_browser.zen.desktop\nx-scheme-handler/https=app.zen_browser.zen.desktop\ntext/html=app.zen_browser.zen.desktop\napplication/xhtml+xml=app.zen_browser.zen.desktop\n"))))
 
 (define home-desktop-service-type
   (service-type (name 'home-desktop)
@@ -128,8 +118,5 @@
                         home-desktop-profile-service)
                        (service-extension
                         home-environment-variables-service-type
-                        home-desktop-environment-variables)
-                       (service-extension
-                        home-files-service-type
-                        home-desktop-mimeapps)))
+                        home-desktop-environment-variables)))
                 (default-value #f)))
