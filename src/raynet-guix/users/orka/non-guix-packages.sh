@@ -182,7 +182,9 @@ if command -v cargo &> /dev/null; then
      # Remove the manually tested binary from cargo/bin so the wrapper on PATH
      # always supplies Guix's loader and native runtime library paths.
      rm -f "$HOME/.cargo/bin/microclaw" "$HOME/.local/bin/moltis"
-     if command -v herd &> /dev/null; then
+     # The old moltis service may no longer exist in the home config; only stop it
+     # when shepherd still knows about it (otherwise herd prints an error).
+     if command -v herd &> /dev/null && herd status moltis &> /dev/null; then
          herd stop moltis || true
      fi
 
