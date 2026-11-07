@@ -81,7 +81,7 @@ reconfigure-home:
 		chmod +x $(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh; \
 		$(CONFIG_DIR)/users/$(DEFAULT_USER)/non-guix-packages.sh; \
 	fi
-	stow --adopt -d $(CONFIG_DIR)/users/$(DEFAULT_USER) -t $(HOME) files
+	stow --no-folding --adopt -d $(CONFIG_DIR)/users/$(DEFAULT_USER) -t $(HOME) files
 
 install-user-packages:
 	@echo "Installing extra packages for user $(DEFAULT_USER)..."
