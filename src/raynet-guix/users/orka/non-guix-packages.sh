@@ -276,4 +276,12 @@ else
     echo "Warning: glibc ld-linux not found at $GLIBC_LD, skipping wrapper update"
 fi
 
+# DeepTutor Matrix channel (Matrix SDK is not packaged in Guix).
+DEEPTUTOR_MATRIX_PIP="$HOME/work/ai-tutor/.deeptutor-1.7.1-venv/bin/pip"
+if [ -x "$DEEPTUTOR_MATRIX_PIP" ]; then
+    "$DEEPTUTOR_MATRIX_PIP" install "deeptutor[matrix-e2e]==1.7.1"
+else
+    echo "Warning: DeepTutor venv not found; skipping Matrix extra."
+fi
+
 echo "Non-Guix package installation/update complete."
