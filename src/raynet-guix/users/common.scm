@@ -24,6 +24,7 @@
   #:use-module (raynet-guix home-services niri)
   #:use-module (raynet-guix home-services udiskie)
   #:use-module (raynet-guix home-services finance)
+  #:use-module (raynet-guix packages fonts)  ; font-jetbrains-mono-hangul-nerd-font-mono
   #:use-module (abbe packages nerd-fonts)    ; For font-nerd-font-d2coding, font-nerd-font-jetbrainsmono
   #:use-module (gnu services)
   #:use-module (guix gexp) ; For define*
@@ -47,6 +48,7 @@
    font-nerd-font-d2coding
    font-nerd-font-jetbrainsmono
    font-nerd-symbols       ; Symbols Nerd Font (Mono) for herdr/TUI icons
+   font-jetbrains-mono-hangul-nerd-font-mono ; JetBrains Mono + D2Coding Hangul + Nerd icons
    font-iosevka-aile
    font-iosevka-ss08
    zsh-autosuggestions

@@ -48,6 +48,37 @@
                                      #:directory "/home/orka/work/ai-tutor"
                                      #:log-file "/home/orka/work/ai-tutor/data/logs/deeptutor-service.log"))
                            (stop #~(make-kill-destructor)))))
+;; fontdb-based GUI apps (herdr-gpui) only scan ~/.local/share/fonts, ~/.fonts and
+    ;; the <dir>s of the fonts.conf named by FONTCONFIG_FILE (DejaVu) -- not the Guix
+    ;; profile's share/fonts -- so they report "Configured fonts not installed".
+    ;; Verified via /proc/<pid>/maps: only DejaVu and ~/.local/share/fonts/* are loaded.
+    ;; Copy the few needed files there (a copy: fontdb's symlink handling is
+    ;; unverified, and ~/.local/share/fonts/guix-cjk already uses real files).
+    (simple-service 'gui-app-fonts
+                    home-activation-service-type
+                    #~(begin
+                        (let ((dir (string-append (getenv "HOME") "/.local/share/fonts/guix-nerd")))
+                          (unless (file-exists? dir)
+                            (mkdir dir))
+                          (for-each
+                           (lambda (src+files)
+                             (for-each
+                              (lambda (f)
+                                (let ((dst (string-append dir "/" f)))
+                                  (when (file-exists? dst) (delete-file dst))
+                                  (copy-file (string-append (car src+files) "/" f) dst)
+                                  (chmod dst #o644)))
+                              (cdr src+files)))
+                           (list
+                            (cons #$(file-append (@ (gnu packages fonts) font-nerd-symbols)
+                                                 "/share/fonts/truetype")
+                                  '("SymbolsNerdFontMono-Regular.ttf" "SymbolsNerdFont-Regular.ttf"))
+                            (cons #$(file-append (@ (raynet-guix packages fonts) font-jetbrains-mono-hangul-nerd-font-mono)
+                                                 "/share/fonts/truetype")
+                                  '("JetBrainsMonoHangulNerdFontMono-Regular.ttf"
+                                    "JetBrainsMonoHangulNerdFontMono-Bold.ttf"
+                                    "JetBrainsMonoHangulNerdFontMono-Italic.ttf"
+                                    "JetBrainsMonoHangulNerdFontMono-BoldItalic.ttf")))))))
     (simple-service 'notes-vault-environment
                     home-environment-variables-service-type
                     '(("NOTES_VAULT_DIR" . "$HOME/notes/nvim-vault")
