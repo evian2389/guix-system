@@ -144,7 +144,24 @@ if command -v cargo &> /dev/null; then
      cargo install --locked himalaya
      cargo install --locked --git https://github.com/pimalaya/sirup.git sirup
      cargo install --locked ortie   # OAuth 2.0 token manager (Gmail XOAUTH2 / Outlook) for himalaya + sirup
-     cargo install --locked ortie   # OAuth 2.0 token manager (Gmail XOAUTH2 / Outlook) for himalaya + sirup
+     # ai-wiki read-only MCP server (file based, stdio). Built from the local
+     # ai-wiki checkout and registered as "ai-wiki" for Codex and Claude Code.
+     if [ -f "$HOME/work/ai-wiki/agents/wiki-mcp/Cargo.toml" ]; then
+         cargo install --locked --path "$HOME/work/ai-wiki/agents/wiki-mcp"
+         if command -v codex &> /dev/null && ! codex mcp get ai-wiki &> /dev/null; then
+             codex mcp add ai-wiki -- "$HOME/.cargo/bin/wiki-mcp" --wiki-root "$HOME/work/ai-wiki"
+         fi
+         # Codex refuses MCP tool calls without a per-tool approval when run with -a never.
+         if ! grep -q 'mcp_servers.ai-wiki.tools' "$HOME/.codex/config.toml" 2>/dev/null; then
+             for t in search get_page related harness list_index; do
+                 printf '\n[mcp_servers.ai-wiki.tools.%s]\napproval_mode = "approve"\n' "$t" >> "$HOME/.codex/config.toml"
+             done
+         fi
+         # Claude Code is a native binary that needs the ld.so wrapper on Guix.
+         if [ -x "$HOME/.local/bin/claude-wrapper" ] && ! "$HOME/.local/bin/claude-wrapper" mcp get ai-wiki &> /dev/null; then
+             "$HOME/.local/bin/claude-wrapper" mcp add --scope user ai-wiki -- "$HOME/.cargo/bin/wiki-mcp" --wiki-root "$HOME/work/ai-wiki"
+         fi
+     fi
      # herdr self-updates from its own release channel; the crates.io `herdr`
      # crate is a stale 0.1.0 and must not be used.
      if command -v herdr &> /dev/null; then
