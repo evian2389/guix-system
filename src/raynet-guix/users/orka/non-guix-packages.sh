@@ -157,6 +157,20 @@ if command -v cargo &> /dev/null; then
                  printf '\n[mcp_servers.ai-wiki.tools.%s]\napproval_mode = "approve"\n' "$t" >> "$HOME/.codex/config.toml"
              done
          fi
+         # Antigravity (agy): replace the old filesystem-server entry; other servers are kept.
+         python3 - "$HOME/.gemini/antigravity/mcp_config.json" "$HOME" <<'PYEOF'
+import json, os, sys
+path, home = sys.argv[1], sys.argv[2]
+cfg = json.load(open(path)) if os.path.exists(path) else {}
+want = {"command": home + "/.cargo/bin/wiki-mcp",
+        "args": ["--wiki-root", home + "/work/ai-wiki"],
+        "description": "Personal AI knowledge wiki (read-only search/get_page/related/harness/list_index over ai-wiki docs/). Query for personal projects, system design, past decisions, agent harness setup."}
+if cfg.get("mcpServers", {}).get("ai-wiki") != want:
+    cfg.setdefault("mcpServers", {})["ai-wiki"] = want
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    json.dump(cfg, open(path, "w"), indent=2, ensure_ascii=False)
+    open(path, "a").write("\n")
+PYEOF
          # Claude Code is a native binary that needs the ld.so wrapper on Guix.
          if [ -x "$HOME/.local/bin/claude-wrapper" ] && ! "$HOME/.local/bin/claude-wrapper" mcp get ai-wiki &> /dev/null; then
              "$HOME/.local/bin/claude-wrapper" mcp add --scope user ai-wiki -- "$HOME/.cargo/bin/wiki-mcp" --wiki-root "$HOME/work/ai-wiki"
