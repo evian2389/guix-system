@@ -110,6 +110,11 @@ fi
                        (ssh-support? #t)
                        (default-cache-ttl 1200)
                        (max-cache-ttl 7200)
+                       ;; GUI prompt: pinentry-curses draws on the TTY of whatever TUI
+                       ;; (herdr pane, Claude Code, ...) started gpg/pass, so the
+                       ;; password prompt fights with that TUI for input and mouse events.
+                       (pinentry-program (file-append (@ (gnu packages gnupg) pinentry)
+                                                      "/bin/pinentry-gtk-2"))
                        (extra-content "allow-loopback-pinentry\nallow-emacs-pinentry\n")))
              ;; Add common home services here
              )))))
