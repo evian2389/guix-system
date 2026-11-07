@@ -5,15 +5,21 @@
 
 downloads-dir = "/tmp/himalaya-downloads"
 
-# --- Gmail (TODO: enable after `sirup configure` + app password/OAuth) --------
-# Needs sirup running:  sirup start --account gmail
-#
-# [accounts.gmail]
-# default = true
-# email = "YOU@gmail.com"
-# display-name = "YOU"
-# imap.server = "unix:///run/user/1000/sirup/gmail-imap.sock"
-# smtp.server = "unix:///run/user/1000/sirup/gmail-smtp.sock"
-#
-# Alternative without sirup: himalaya's native Gmail REST backend
-# (see config.sample.toml upstream, "Gmail config").
+# himalaya v2 requires an `accounts` table even when it is empty. `himalaya configure`
+# appends `[accounts.<name>]` below; keep this line.
+[accounts]
+
+# --- Gmail via OAuth2 ----------------------------------------------------------
+# Token manager: ortie (account "gmail"; refreshes tokens on demand).
+# Needs sirup running first:  sirup start --account gmail
+[accounts.gmail]
+default = true
+email = "evian2389@gmail.com"
+imap.server = "unix:///run/user/1000/sirup/gmail-imap.sock"
+smtp.server = "unix:///run/user/1000/sirup/gmail-smtp.sock"
+# This account's special folders are in mixed locales (checked with `mailbox list`):
+# Drafts/Trash are English (roles detected), All Mail is "[Gmail]/전체보관함".
+# No `sent` alias: Gmail saves sent mail itself when sending through SMTP.
+mailbox.alias.drafts = "[Gmail]/Drafts"
+mailbox.alias.trash = "[Gmail]/Trash"
+mailbox.alias.archive = "[Gmail]/전체보관함"

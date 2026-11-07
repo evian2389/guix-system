@@ -143,6 +143,8 @@ if command -v cargo &> /dev/null; then
      # sockets). Installed via cargo first; himalaya is also in Guix (px channel).
      cargo install --locked himalaya
      cargo install --locked --git https://github.com/pimalaya/sirup.git sirup
+     cargo install --locked ortie   # OAuth 2.0 token manager (Gmail XOAUTH2 / Outlook) for himalaya + sirup
+     cargo install --locked ortie   # OAuth 2.0 token manager (Gmail XOAUTH2 / Outlook) for himalaya + sirup
      # herdr self-updates from its own release channel; the crates.io `herdr`
      # crate is a stale 0.1.0 and must not be used.
      if command -v herdr &> /dev/null; then

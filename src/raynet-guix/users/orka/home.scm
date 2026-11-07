@@ -35,6 +35,51 @@
    #:extra-packages (append orka-extra-packages extra-packages)
    #:extra-services
    (list
+;; sirup: pre-authenticated Gmail IMAP/SMTP sessions on Unix sockets
+    ;; ($XDG_RUNTIME_DIR/sirup/gmail-{imap,smtp}.sock, tmpfs) for himalaya / himalaya.nvim.
+    ;; Auto-started at login: starting reads the OAuth token (ortie -> pass -> gpg),
+    ;; which shows the GUI pinentry. The graphical session may not be ready yet at
+    ;; that moment, so failures are retried (a few times, then it gives up);
+    ;; restart manually with `herd restart sirup`.
+    ;; shepherd has no DISPLAY/WAYLAND_DISPLAY, so pass them for the GUI pinentry.
+    (simple-service 'sirup-service
+                    home-shepherd-service-type
+                    (list (shepherd-service
+                           (provision '(sirup))
+                           (documentation "sirup: Gmail IMAP/SMTP sessions on Unix sockets for himalaya.")
+                           (respawn? #t)
+                           (respawn-limit #~'(5 . 300))
+                           (auto-start? #t)
+                           (start #~(let* ((home (getenv "HOME"))
+                                           (runtime (or (getenv "XDG_RUNTIME_DIR") "/run/user/1000"))
+                                           (ca "/run/current-system/profile/etc/ssl/certs/ca-certificates.crt"))
+                                      ;; a killed sirup leaves its socket files behind
+                                      (for-each (lambda (f)
+                                                  (when (file-exists? f) (delete-file f)))
+                                                (list (string-append runtime "/sirup/gmail-imap.sock")
+                                                      (string-append runtime "/sirup/gmail-smtp.sock")))
+                                      (make-forkexec-constructor
+                                       ;; wait (up to ~2 min) for the Wayland socket, so the GUI
+                                       ;; pinentry can show up when started right at login
+                                       (list "/run/current-system/profile/bin/bash" "-c"
+                                             (string-append
+                                              "for i in $(seq 60); do [ -S \"$XDG_RUNTIME_DIR/wayland-1\" ] && break; sleep 2; done; "
+                                              "exec " home "/.cargo/bin/sirup start --account gmail"))
+                                       #:directory home
+                                       #:log-file (string-append home "/.local/state/sirup.log")
+                                       #:environment-variables
+                                       (list (string-append "HOME=" home)
+                                             (string-append "XDG_RUNTIME_DIR=" runtime)
+                                             (string-append "GNUPGHOME=" home "/.gnupg")
+                                             (string-append "DBUS_SESSION_BUS_ADDRESS=unix:path=" runtime "/bus")
+                                             "DISPLAY=:0"
+                                             "WAYLAND_DISPLAY=wayland-1"
+                                             (string-append "PATH=" home "/.cargo/bin:" home "/.local/bin:"
+                                                            home "/.guix-home/profile/bin:"
+                                                            "/run/current-system/profile/bin")
+                                             (string-append "SSL_CERT_FILE=" ca)
+                                             (string-append "SSL_CERT_DIR=/run/current-system/profile/etc/ssl/certs")))))
+                           (stop #~(make-kill-destructor)))))
     (simple-service 'deeptutor-service
                     home-shepherd-service-type
                     (list (shepherd-service
