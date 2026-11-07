@@ -1,0 +1,19 @@
+# himalaya (v2) configuration.
+# Policy: no mail data on the SSD. himalaya reads IMAP live through a sirup
+# socket (which lives in $XDG_RUNTIME_DIR, a tmpfs); downloads go to /tmp.
+# Secrets never live here: use `password.command = ["pass", "show", ...]`.
+
+downloads-dir = "/tmp/himalaya-downloads"
+
+# --- Gmail (TODO: enable after `sirup configure` + app password/OAuth) --------
+# Needs sirup running:  sirup start --account gmail
+#
+# [accounts.gmail]
+# default = true
+# email = "YOU@gmail.com"
+# display-name = "YOU"
+# imap.server = "unix:///run/user/1000/sirup/gmail-imap.sock"
+# smtp.server = "unix:///run/user/1000/sirup/gmail-smtp.sock"
+#
+# Alternative without sirup: himalaya's native Gmail REST backend
+# (see config.sample.toml upstream, "Gmail config").

@@ -116,6 +116,18 @@ else
 fi
 
 
+echo "Installing OKF (Open Knowledge Format) reference tooling via uv..."
+# Pinned to a commit; used for `reference-agent visualize --bundle ~/work/ai-wiki/docs`.
+# Not in Guix or nixpkgs. Heavy deps (google-adk) are only needed for the
+# BigQuery enrich agent, but the CLI imports them, so a full install is used.
+if command -v uv &> /dev/null; then
+    uv tool install --python 3.12 --force \
+        "git+https://github.com/GoogleCloudPlatform/open-knowledge-format@ad30107c31c06aec8a7d5636e0d1058118604e6f" \
+        || echo "Warning: OKF tool install failed"
+else
+    echo "Warning: uv not found. Skipping OKF tooling."
+fi
+
 echo "Installing/Updating Rust packages..."
 export PATH="$HOME/.nix-profile/bin:$HOME/.cargo/bin:$PATH"
 
@@ -127,6 +139,10 @@ if command -v cargo &> /dev/null; then
      cargo install cargo-watch   # not in Guix — file watcher for cargo
      cargo install --git https://github.com/e-tho/bzmenu
      cargo install zeekstd_cli
+     # Mail stack (Gmail later): himalaya CLI + sirup (pre-authenticated IMAP/SMTP
+     # sockets). Installed via cargo first; himalaya is also in Guix (px channel).
+     cargo install --locked himalaya
+     cargo install --locked --git https://github.com/pimalaya/sirup.git sirup
      # herdr self-updates from its own release channel; the crates.io `herdr`
      # crate is a stale 0.1.0 and must not be used.
      if command -v herdr &> /dev/null; then

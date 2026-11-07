@@ -1,0 +1,14 @@
+# sirup configuration. Sockets default to $XDG_RUNTIME_DIR/sirup/ (tmpfs).
+# Generate an account with `sirup configure`, or fill the template by hand.
+# Keep credentials out of this file: use password.command / token.command.
+
+# --- Gmail (TODO) -------------------------------------------------------------
+# [accounts.gmail]
+# default = true
+# imap.server = "imap.gmail.com"
+# imap.sasl.xoauth2.username = "YOU@gmail.com"
+# imap.sasl.xoauth2.token.command = ["pass", "show", "mail/gmail-token"]
+# smtp.server = "smtp.gmail.com"
+# smtp.sasl.xoauth2.username = "YOU@gmail.com"
+# smtp.sasl.xoauth2.token.command = ["pass", "show", "mail/gmail-token"]
+# (An app password works too: imap.sasl.plain.* with password.command.)
