@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""Create a dedicated Matrix device session for MeClaw and save its token (mode 600).
+
+The password is prompted locally and is never saved or printed. Based on
+~/work/ai-tutor/deeptutor-matrix-e2ee-login.py.
+"""
+import getpass, json, os, sys, tempfile, urllib.request, urllib.error
+from pathlib import Path
+
+CONFIG = Path.home() / ".config/meclaw/matrix.json"
+DEVICE_NAME = "MeClaw"
+
+def call(method, url, body=None, token=None, timeout=30):
+    headers = {"Content-Type": "application/json"}
+    if token: headers["Authorization"] = "Bearer " + token
+    req = urllib.request.Request(url, method=method, headers=headers,
+                                 data=None if body is None else json.dumps(body).encode())
+    with urllib.request.urlopen(req, timeout=timeout) as r: return json.load(r)
+
+def main():
+    cfg = json.loads(CONFIG.read_text())
+    hs, user = cfg["homeserver"].rstrip("/"), cfg["user_id"]
+    if not hs.startswith("https://"): print("Homeserver must use https."); return 1
+    token_path = Path(cfg.get("token_file", "~/.config/meclaw/matrix-token")).expanduser()
+    try:
+        flows = call("GET", hs + "/_matrix/client/v3/login").get("flows", [])
+    except (urllib.error.URLError, ValueError) as e:
+        print("Could not read login methods:", type(e).__name__); return 1
+    if not any(f.get("type") == "m.login.password" for f in flows):
+        print("Homeserver does not advertise password login."); return 1
+    password = getpass.getpass(f"Password for {user} (input is hidden): ")
+    if not password: print("No password entered; nothing changed."); return 1
+    try:
+        session = call("POST", hs + "/_matrix/client/v3/login", {
+            "type": "m.login.password", "identifier": {"type": "m.id.user", "user": user},
+            "password": password, "initial_device_display_name": DEVICE_NAME})
+    except urllib.error.HTTPError as e:
+        try: code = json.load(e).get("errcode", "unknown")
+        except ValueError: code = "unknown"
+        print(f"Login rejected (HTTP {e.code}, {code})."); return 1
+    except (urllib.error.URLError, ValueError) as e:
+        print("Login request failed:", type(e).__name__); return 1
+    finally:
+        del password
+    if session.get("user_id") != user or not session.get("access_token"):
+        print("Unexpected login response; nothing saved."); return 1
+    token_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".tok-", dir=token_path.parent)
+    with os.fdopen(fd, "w") as f:
+        os.fchmod(fd, 0o600); f.write(session["access_token"])
+    os.replace(tmp, token_path)
+    print(f"Saved token for device {session.get('device_id')} to {token_path} (not displayed).")
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())

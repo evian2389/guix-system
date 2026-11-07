@@ -286,6 +286,8 @@ def configure(repository,home):
                '\nargs = ["mcp"]\nstartup_timeout_sec = 20\ntool_timeout_sec = 240\n')
     return root
 
+REMOTE_CHANNELS=('telegram:','matrix:')
+
 def telegram_settings(path):
     config=json.loads(Path(path).read_text()).get('channels',{}).get('telegram',{})
     accounts=config.get('accounts',{})
@@ -430,13 +432,13 @@ class App:
             return 'Worker pane '+str(pane)+' is not found in Herdr ('+redact(str(exc))[:120]+'); it was likely closed.',remedy
         return 'Worker pane '+str(pane)+' exists but its state is '+str(status.get('worker_state'))+'.','Inspect it with herdr_read.'
     def guard_remote(self,name,agent,who,channel):
-        if channel.startswith('telegram:') and name!='agent_read':
+        if channel.startswith(REMOTE_CHANNELS) and name!='agent_read':
             # Remote channel: act only on panes working below ~/work, judged by Herdr's own cwd, not by anything the model says.
             work=(self.home/'work').resolve()
             cwds=[agent.get(k) for k in ('cwd','foreground_cwd') if agent.get(k)]
             if not cwds or not all(Path(c).expanduser().resolve()==work or work in Path(c).expanduser().resolve().parents for c in cwds):
                 self.store.event('agent_control_denied','unknown','Telegram '+name+' refused for '+who+' outside ~/work')
-                raise ValueError('From Telegram, agents can only be controlled in panes whose directory is below ~/work')
+                raise ValueError('From a remote chat, agents can only be controlled in panes whose directory is below ~/work')
     user_prompt=''  # the user's message of the request in progress; set by run() so tools can demand explicit phrases
     def check_permission(self,permission,project,channel):
         if permission not in PERMISSION_PHRASES: raise ValueError('permission must be default, project or all')
@@ -447,10 +449,10 @@ class App:
         if permission not in allowed:
             raise ValueError('Permission "'+permission+'" needs the user to say '+' or '.join('"'+p+'"' for p in PERMISSION_PHRASES[permission])+
                              ' in this very message. Do not choose it yourself; ask the user.')
-        if channel.startswith('telegram:'):
+        if channel.startswith(REMOTE_CHANNELS):
             work=(self.home/'work').resolve()
-            if permission=='all': raise ValueError('Permission "all" is not available from Telegram')
-            if not (project==work or work in project.parents): raise ValueError('From Telegram, permission "project" only applies below ~/work')
+            if permission=='all': raise ValueError('Permission "all" is not available from a remote chat')
+            if not (project==work or work in project.parents): raise ValueError('From a remote chat, permission "project" only applies below ~/work')
         return permission
     def agent_control(self,name,args,channel=''):
         # Herdr-mediated control of any agent pane. Every action is recorded; input is validated, not restricted by agent kind.
@@ -489,7 +491,7 @@ class App:
         self.store.event('agent_close','unknown','Closed '+who)
         return {'pane':pane,'closed':True,'note':'The agent session and its work are gone.'}
     def read_file(self,args,channel):
-        if channel.startswith('telegram:'): raise ValueError('read_file is not available from Telegram')
+        if channel.startswith(REMOTE_CHANNELS): raise ValueError('read_file is not available from a remote chat')
         raw=args.get('path')
         if not isinstance(raw,str) or not raw or '\0' in raw: raise ValueError('Invalid path')
         requested=Path(raw).expanduser()
@@ -718,11 +720,11 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path=='/history':
                 channel=body.get('channel')
                 if not isinstance(channel,str) or not re.fullmatch(r'[a-zA-Z0-9:_.-]{1,160}',channel): raise ValueError('Invalid channel')
-                if channel.startswith('telegram:'): raise ValueError('History of this channel is not available')
+                if channel.startswith(REMOTE_CHANNELS): raise ValueError('History of this channel is not available')
                 value={'messages':app.store.history(channel)}
             elif self.path=='/jobs':
                 channel=body.get('channel')
-                if not isinstance(channel,str) or not re.fullmatch(r'[a-zA-Z0-9:_.-]{1,160}',channel) or not channel.startswith('acp:'): raise ValueError('Invalid channel')
+                if not isinstance(channel,str) or not re.fullmatch(r'[a-zA-Z0-9:_.-]{1,160}',channel) or not channel.startswith(('acp:','matrix:')): raise ValueError('Invalid channel')
                 value={'active':app.store.active_jobs(channel)}
                 if body.get('consume'):
                     value['finished']=[{'id':j['id'],'status':j['status'],'project':j['project'],'permission':j['permission'],'result':redact(j['result'][-800:])}
@@ -797,12 +799,12 @@ def telegram_loop(app,credentials):
             app.store.event('telegram','unknown','Telegram transport or response failed; no automatic task replay')
             app.stopping.wait(5)
 
-def notify_finished_jobs(app,send):
+def notify_finished_jobs(app,send,prefix='telegram'):
     """Tell the originating Telegram chat when a delegated job reaches a settled state.
     At-most-once: the marker is written before sending, so a failure never repeats a message."""
     store=app.store
     with closing(store.db()) as db:
-        rows=db.execute("select id,channel,project,status,result,permission from jobs where channel like 'telegram:%' and status in ('completed','failed','blocked','unknown')").fetchall()
+        rows=db.execute("select id,channel,project,status,result,permission from jobs where channel like ? and status in ('completed','failed','blocked','unknown')",(prefix+':%',)).fetchall()
     first=store.meta('job_notify_baseline') is None
     for row in rows:
         marker='job_notified:'+row['id']+':'+row['status']

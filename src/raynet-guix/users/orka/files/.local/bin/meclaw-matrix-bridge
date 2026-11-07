@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""End-to-end encrypted Matrix bridge for MeClaw (Codex work queue).
+
+Runs under a Python that has matrix-nio with E2EE (the DeepTutor venv). It receives
+messages from allowed users, hands them to `meclaw-workflow ask` on a `matrix:<hash>`
+channel (the same remote-chat restrictions as Telegram apply), replies in the room, and
+reports finished delegated jobs. Config: ~/.config/meclaw/matrix.json; token: token_file.
+"""
+import asyncio, hashlib, json, os, subprocess, sys, urllib.request
+from pathlib import Path
+
+VENV_PYTHON = Path.home() / "work/ai-tutor/.deeptutor-1.7.1-venv/bin/python"
+if sys.prefix == sys.base_prefix and VENV_PYTHON.is_file():
+    os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), str(Path(__file__).resolve()), *sys.argv[1:]])
+
+from nio import (AsyncClient, AsyncClientConfig, InviteMemberEvent, MegolmEvent, RoomMessageText,
+                 SyncResponse, LoginError)
+
+CONFIG = Path.home() / ".config/meclaw/matrix.json"
+STATE = Path.home() / ".local/share/meclaw/matrix"
+WORKFLOW = os.environ.get("MECLAW_WORKFLOW") or str(Path.home() / ".local/bin/meclaw-workflow")
+ASK_TIMEOUT = 600
+
+def load():
+    cfg = json.loads(CONFIG.read_text())
+    allowed = {str(u) for u in cfg.get("allowed_users", [])}
+    if not allowed: raise SystemExit("matrix.json needs a nonempty allowed_users")
+    hs = cfg.get("homeserver", "https://matrix.org").rstrip("/")
+    if not hs.startswith("https://"): raise SystemExit("homeserver must use https")
+    tp = Path(cfg.get("token_file", "~/.config/meclaw/matrix-token")).expanduser()
+    if not tp.is_file() or tp.stat().st_mode & 0o077: raise SystemExit("token file missing or not chmod 600")
+    return hs, cfg["user_id"], tp.read_text().strip(), allowed, set(cfg.get("rooms", []))
+
+def channel(room): return "matrix:" + hashlib.sha256(room.encode()).hexdigest()[:16]
+
+def workflow(*args, timeout=30):
+    out = subprocess.run([sys.executable, WORKFLOW, *args], capture_output=True, text=True, timeout=timeout)
+    if out.returncode: raise RuntimeError((out.stderr or "MeClaw request failed").strip()[-500:])
+    return json.loads(out.stdout)
+
+def model_command(arg):
+    """/model → show the current and available models; /model <id> → switch (shared by every MeClaw channel)."""
+    try:
+        data = workflow("models")
+        ids = [m["id"] for m in data.get("models", [])]
+        current = data.get("current")
+        if not arg:
+            return "현재 모델: " + str(current) + "\n사용 가능: " + ", ".join(ids) + "\n변경: /model <id>  (모든 MeClaw 채널에 공통 적용, Codex 워커는 그대로)"
+        if arg not in ids:
+            return "알 수 없는 모델: " + arg[:80] + "\n사용 가능: " + ", ".join(ids)
+        result = workflow("model", "--model", arg)
+        return "모델 변경: " + str(current) + " → " + str(result.get("model", arg))
+    except Exception as exc:
+        return "모델 명령 오류: " + str(exc)[:300]
+
+async def main():
+    hs, user, token, allowed, rooms = load()
+    STATE.mkdir(parents=True, exist_ok=True); STATE.chmod(0o700)
+    rooms_file = STATE / "rooms.json"
+    known = json.loads(rooms_file.read_text()) if rooms_file.exists() else {}  # channel -> room id
+    client = AsyncClient(hs, user, store_path=str(STATE),
+                         config=AsyncClientConfig(store_sync_tokens=True, encryption_enabled=True))
+    try:
+        req = urllib.request.Request(hs + "/_matrix/client/v3/account/whoami", headers={"Authorization": "Bearer " + token})
+        with urllib.request.urlopen(req, timeout=20) as r: who = json.load(r)
+    except Exception:
+        await client.close(); raise SystemExit("token rejected by homeserver or homeserver unreachable")
+    device = who.get("device_id")
+    if not device or who.get("user_id") != user: await client.close(); raise SystemExit("token belongs to a different account")
+    client.restore_login(user, device, token)
+    started = asyncio.get_event_loop().time()
+    ready = asyncio.Event()
+
+    async def say(room, text):
+        if client.should_query_keys: await client.keys_query()
+        if room in client.rooms and client.rooms[room].encrypted:
+            try: await client.share_group_session(room, ignore_unverified_devices=True)
+            except Exception: pass  # already shared for this session
+        for i in range(0, len(text), 3500):
+            await client.room_send(room, "m.room.message", {"msgtype": "m.text", "body": text[i:i+3500]},
+                                   ignore_unverified_devices=True)
+
+    async def on_invite(room, event):
+        if event.state_key == user and event.sender in allowed and (not rooms or room.room_id in rooms):
+            await client.join(room.room_id)
+
+    async def on_message(room, event):
+        if not ready.is_set() or event.sender == user or event.sender not in allowed: return
+        if rooms and room.room_id not in rooms: return
+        ch = channel(room.room_id)
+        if ch not in known:
+            known[ch] = room.room_id; rooms_file.write_text(json.dumps(known)); rooms_file.chmod(0o600)
+        text = event.body.strip()
+        cmd = text.split(maxsplit=1)
+        if cmd and cmd[0] in ("/model", "/models"):
+            await say(room.room_id, await asyncio.to_thread(model_command, cmd[1].strip() if len(cmd) > 1 else ""))
+            return
+        try:
+            answer = (await asyncio.to_thread(workflow, "ask", "--channel", ch, "--prompt", text, timeout=ASK_TIMEOUT))["text"]
+        except Exception as exc:
+            answer = "MeClaw 오류: " + str(exc)[:500]
+        await say(room.room_id, answer)
+
+    async def on_undecryptable(room, event):
+        # Keys are shared on request; ask the sender's devices once and move on.
+        if event.sender in allowed:
+            try: await client.request_room_key(event)
+            except Exception: pass
+
+    async def notify():
+        while True:
+            await asyncio.sleep(10)
+            if not ready.is_set(): continue
+            for ch, room in list(known.items()):
+                try:
+                    done = (await asyncio.to_thread(workflow, "jobs", "--channel", ch, "--consume")).get("finished", [])
+                except Exception: continue
+                label = {"completed": "작업 종료", "failed": "작업 실패", "blocked": "승인 대기", "unknown": "상태 불명"}
+                for j in done:
+                    try:
+                        await say(room, f"{label.get(j['status'], j['status'])} [{j['id']}] {j['project']}\n{j['result'] or '(출력 없음)'}\n결과는 직접 검증하세요.")
+                    except Exception: pass
+
+    client.add_event_callback(on_invite, InviteMemberEvent)
+    client.add_event_callback(on_message, RoomMessageText)
+    client.add_event_callback(on_undecryptable, MegolmEvent)
+    # Skip the backlog: only messages that arrive after the first sync are handled.
+    await client.sync(timeout=0, full_state=True)
+    ready.set()
+    print(f"matrix bridge up as {user} device {device} (E2EE)", flush=True)
+    task = asyncio.create_task(notify())
+    try:
+        await client.sync_forever(timeout=25000, full_state=False)
+    finally:
+        task.cancel(); await client.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())

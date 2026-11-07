@@ -5,6 +5,9 @@
   #:use-module (gnu packages vim)   ; neovim
   #:use-module (gnu packages emacs)   ; emacs
   #:use-module (gnu packages game-development) ; for godot
+  #:use-module (gnu packages matrix) ; for Matrix / Element partner support
+  #:use-module (gnu packages python-xyz) ; for python-mistune
+  #:use-module (gnu packages python-web) ; for python-nh3
   #:use-module (abbe packages neovim)        ; for neovim
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
@@ -16,6 +19,9 @@
    (list
     godot
     chatgpt
+    python-matrix-nio
+    python-mistune
+    python-nh3
          )))
 
 orka-manifest
