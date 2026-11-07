@@ -9,6 +9,7 @@
   #:use-module (gnu system mapped-devices) ; Moved for potential order dependency
   #:use-module (gnu system nss)
   #:use-module (gnu services)
+  #:use-module (gnu services shepherd)
   #:use-module (gnu services base)
   #:use-module (gnu services linux)
   #:use-module (gnu services audio)
@@ -19,6 +20,8 @@
   #:use-module (gnu services cups)
   #:use-module (gnu services dbus)
   #:use-module (gnu services nix)
+  #:use-module (abbe services tailscale)
+  #:use-module ((abbe packages golang) #:select (tailscale))
   #:use-module (gnu services ssh)            ;; For openssh-service-type
   #:use-module (gnu services guix)           ;; For guix-service-type
   #:use-module (guix gexp)                  ;; For plain-file
@@ -193,6 +196,65 @@
       (append
        (list
              (service openssh-service-type)      ;; Enable OpenSSH server
+             ;; Tailscale mesh VPN. State survives system generations.
+             ;; Store TLS certificates and other daemon state under a var root.
+             (simple-service 'tailscaled-with-statedir
+                             shepherd-root-service-type
+                             (list (shepherd-service
+                                    (provision '(tailscaled))
+                                    (documentation "Run Tailscale with persistent certificate storage.")
+                                    (requirement '(user-processes networking))
+                                    (respawn? #t)
+                                    (start #~(make-forkexec-constructor
+                                              (list #$(file-append tailscale "/bin/tailscaled")
+                                                    "-state" "/var/lib/tailscaled.state"
+                                                    "-statedir" "/var/lib/tailscale"
+                                                    "-verbose" "10")
+                                              #:environment-variables
+                                              '("PATH=/run/current-system/profile/sbin:/run/current-system/profile/bin"
+                                                "TS_DEBUG_FIREWALL_MODE=nftables"
+                                                "TS_NO_LOGS_NO_SUPPORT=true")
+                                              #:log-file "/var/log/tailscaled.log"))
+                                    (stop #~(make-kill-destructor)))))
+             (simple-service 'tailscale-cli-profile
+                             profile-service-type
+                             (list tailscale))
+             ;; Deny unsolicited inbound traffic. SSH is reachable only over
+             ;; Tailscale; UDP 41641 keeps direct Tailscale paths available.
+             (service nftables-service-type
+                      (nftables-configuration
+                       (ruleset
+                        (plain-file "ser8-firewall.nft" "\
+table inet filter {
+  chain input {
+    type filter hook input priority filter; policy drop;
+
+    ct state invalid drop
+    ct state { established, related } accept
+    iifname \"lo\" accept
+
+    # Network configuration and diagnostics.
+    ip protocol icmp accept
+    meta l4proto ipv6-icmp accept
+    udp sport 67 udp dport 68 accept
+    udp sport 547 udp dport 546 accept
+
+    # Tailscale direct WireGuard traffic and SSH from tailnet peers.
+    udp dport 41641 accept
+    iifname \"tailscale0\" tcp dport 22 accept
+
+    reject with icmpx type port-unreachable
+  }
+
+  chain forward {
+    type filter hook forward priority filter; policy drop;
+  }
+
+  chain output {
+    type filter hook output priority filter; policy accept;
+  }
+}
+"))))
              (service nix-service-type)      ;; Nix
              ;; Guix's /etc/profile loops over /etc/profile.d/*.sh; zsh errors
              ;; with "no matches found" when the directory is missing/empty.
