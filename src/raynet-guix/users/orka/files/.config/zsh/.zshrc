@@ -130,6 +130,9 @@ fi
   alias oculante='flatpak run io.github.woelper.Oculante'
   alias agy='/home/orka/.local/bin/agy-wrapper'
   alias surreal='/home/orka/.local/bin/surreal-wrapper'
+  # tubetui detects kitty graphics via KITTY_WINDOW_ID, which ghostty/herdr-gpui don't set,
+  # and it disables thumbnails when HERDR_ENV is present (verified in herdr-gpui).
+  alias tt='env -u HERDR_ENV KITTY_WINDOW_ID=1 tubetui'
   # Native self-updating Claude Code: the autoupdater repoints ~/.local/bin/claude,
   # and claude-wrapper runs it through the Guix Home glibc ld.so.
   alias claude="$HOME/.local/bin/claude-wrapper"
