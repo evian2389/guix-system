@@ -44,7 +44,6 @@ if command -v nix &> /dev/null; then
     nix_install_if_missing python314 nixpkgs#python314
     nix_install_if_missing xclip nixpkgs#xclip
     nix_install_if_missing wl-clipboard nixpkgs#wl-clipboard
-
     if command -v uv &> /dev/null && [ -x "$HOME/.nix-profile/bin/python3.14" ]; then
         uv tool install -U --python "$HOME/.nix-profile/bin/python3.14" batrachian-toad || true
     fi
@@ -106,7 +105,6 @@ if command -v flatpak &> /dev/null; then
     flatpak install -y flathub io.github.woelper.Oculante
     flatpak install -y flathub com.usebottles.bottles
     flatpak install -y flathub com.discordapp.Discord
-    flatpak install -y flathub app.zen_browser.zen
     #flatpak install -y flathub art.graphite.Graphite # image editor, not stable
     # Steam: prefer the Guix (nonguix) home-games-service-type. Flatpak Steam disabled —
     # re-enable this (and the home service) once Guix `steam` builds again.
@@ -139,6 +137,7 @@ if command -v cargo &> /dev/null; then
      cargo install cargo-watch   # not in Guix — file watcher for cargo
      cargo install --git https://github.com/e-tho/bzmenu
      cargo install zeekstd_cli
+     cargo install taskwarrior-tui   # not in Guix — TUI for Taskwarrior
      # Mail stack (Gmail later): himalaya CLI + sirup (pre-authenticated IMAP/SMTP
      # sockets). Installed via cargo first; himalaya is also in Guix (px channel).
      cargo install --locked himalaya

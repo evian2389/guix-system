@@ -12,7 +12,7 @@
        (name 'abbe)
        (url "https://codeberg.org/group/guix-modules.git")
        (branch "mainline")
-       (commit "8fd26e917bbbbfcefcc3603d404290b070fea4d9")
+       (commit "2ec20892ce37022a181c2fd64c428f01d26b2781")
        (introduction
         (make-channel-introduction
          "8c754e3a4b49af7459a8c99de130fa880e5ca86a"
@@ -22,7 +22,7 @@
        (name 'pantherx)
        (url "https://codeberg.org/gofranz/panther.git")
        (branch "master")
-       (commit "f1038d623484cb337766009afbd7b14b2f9b0745")
+       (commit "c79b2e4cbe86d3fb5fe70c6d457416e433df0e16")
        (introduction
         (make-channel-introduction
          "54b4056ac571611892c743b65f4c47dc298c49da"
@@ -42,9 +42,19 @@
        (name 'guix)
        (url "https://git.guix.gnu.org/guix.git")
        (branch "master")
-       (commit "362ed62e5294e91847ade9e820c5d307f5eda157")
+       (commit "72a00b3ed07f7dafdfaeef1659b11eb3961e9448")
        (introduction
         (make-channel-introduction
          "9edb3f66fd807b096b48283debdcddccfea34bad"
          (openpgp-fingerprint
-          "BBB0 2DDF 2CEA F6A8 0D1D  E643 A2A0 6DF2 A33A 54FA")))))
+          "BBB0 2DDF 2CEA F6A8 0D1D  E643 A2A0 6DF2 A33A 54FA"))))
+      (channel
+       (name 'saayix)
+       (url "https://codeberg.org/look/saayix")
+       (branch "main")
+       (commit "35b12cebcec341313cfa5a76b525378fcc342707")
+       (introduction
+        (make-channel-introduction
+         "12540f593092e9a177eb8a974a57bb4892327752"
+         (openpgp-fingerprint
+          "3FFA 7335 973E 0A49 47FC  0A8C 38D5 96BE 07D3 34AB")))))

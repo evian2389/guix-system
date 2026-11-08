@@ -12,12 +12,14 @@
   #:use-module (nongnu packages chrome)      ; for google-chrome-stable
   #:use-module (nongnu packages mozilla)     ; for firefox
   #:use-module (px packages ai)               ; for chatgpt
+  #:use-module (saayix packages binaries)     ; for Zen Browser
   #:export (orka-manifest))
 
 (define orka-manifest
   (packages->manifest
    (list
     godot
+    zen-browser-bin
     chatgpt
     python-matrix-nio
     python-mistune

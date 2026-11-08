@@ -1,0 +1,22 @@
+{
+	"name": "Vimium C",
+	"@time": "11/8/2026, 7:39:01 PM",
+	"time": 1794134341616,
+	"environment": {
+		"extension": "2.12.3",
+		"platform": "linux",
+		"firefox": 154
+	},
+	"extAllowList": [
+		"# extension id or hostname",
+		"f2mpv@yossarian.net",
+		""
+	],
+	"keyLayout": 2,
+	"keyMappings": [
+		"#!no-check",
+		"map <v-m> sendToExtension id=\"ff2mpv@yossarian.net\" raw",
+		""
+	],
+	"vimSync": true
+}

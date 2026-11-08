@@ -19,16 +19,18 @@
   #:use-module (raynet-guix home-services microclaw)  ; For home-microclaw-service-type
   #:use-module (raynet-guix home-services meclaw)
   #:use-module (raynet-guix home-services taskwarrior)
+  #:use-module (raynet-guix home-services ff2mpv)
   #:use-module (srfi srfi-1)
   #:use-module (guix utils)
   #:use-module (raynet-guix packages base-utils)
+  #:use-module (raynet-guix packages tubetui)
   #:use-module (raynet-guix users common)
   #:export (orka-home-environment))
 
 (define orka-extra-packages
   (append development-tools
           system-tools
-          (list zk fractal taskwarrior)))
+          (list zk fractal taskwarrior tubetui)))
 
 (define orka-home-environment
   (common-home-environment
@@ -123,7 +125,10 @@
                                   '("JetBrainsMonoHangulNerdFontMono-Regular.ttf"
                                     "JetBrainsMonoHangulNerdFontMono-Bold.ttf"
                                     "JetBrainsMonoHangulNerdFontMono-Italic.ttf"
-                                    "JetBrainsMonoHangulNerdFontMono-BoldItalic.ttf")))))))
+                                    "JetBrainsMonoHangulNerdFontMono-BoldItalic.ttf"))
+                            (cons #$(file-append (@ (gnu packages fonts) font-google-noto-emoji)
+                                                 "/share/fonts/truetype")
+                                  '("NotoColorEmoji.ttf")))))))
     (simple-service 'notes-vault-environment
                     home-environment-variables-service-type
                     '(("NOTES_VAULT_DIR" . "$HOME/notes/nvim-vault")
@@ -145,6 +150,7 @@
               (telegram? #f)
               (matrix? #t)))
     (service home-taskwarrior-service-type)
+    (service home-ff2mpv-service-type)
     ; (service home-dotfiles-service-type
     ;          (home-dotfiles-configuration
     ;           (source-directory (string-append (getcwd) "/src/raynet-guix/users/orka/files"))

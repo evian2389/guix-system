@@ -1,0 +1,17 @@
+[session]
+browser = "firefox:/home/orka/.zen/m0hrpfvg.Default (release)"
+cookies_file = ""
+
+[player]
+mode = "window"
+language = "subtitles"
+sub_lang = "ko"
+background_audio = true
+prefer_codec = "avc1"
+
+[ui]
+lang = "en"
+icons = "nerd"
+thumbnails = true
+mouse = true
+hide_shorts = true

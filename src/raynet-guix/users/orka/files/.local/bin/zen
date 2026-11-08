@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec flatpak run app.zen_browser.zen "$@"
+exec "$HOME/.guix-profiles/orka-extra/bin/zen" "$@"
