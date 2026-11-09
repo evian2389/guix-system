@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=ChatGPT Codex
+Comment=ChatGPT desktop app with Codex (Nix, GPU/IME wrapper)
+Exec=codex-app %u
+Icon=codex-desktop
+Type=Application
+Terminal=false
+Categories=Development;Utility;
+StartupWMClass=codex-desktop

@@ -44,6 +44,9 @@ if command -v nix &> /dev/null; then
     nix_install_if_missing python314 nixpkgs#python314
     nix_install_if_missing xclip nixpkgs#xclip
     nix_install_if_missing wl-clipboard nixpkgs#wl-clipboard
+    # ChatGPT/Codex desktop app (official Linux .deb repackaged for Nix). Launch via
+    # ~/.local/bin/codex-app, which adds Wayland IME and the Nix-Mesa GPU wiring.
+    nix_install_if_missing codex-desktop-linux github:ilysenko/codex-desktop-linux
     if command -v uv &> /dev/null && [ -x "$HOME/.nix-profile/bin/python3.14" ]; then
         uv tool install -U --python "$HOME/.nix-profile/bin/python3.14" batrachian-toad || true
     fi

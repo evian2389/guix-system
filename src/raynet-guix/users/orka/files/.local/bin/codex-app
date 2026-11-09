@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Launch the Nix-packaged Codex desktop app (ilysenko/codex-desktop-linux) on Guix.
+#  - NIXOS_OZONE_WL=1: native Wayland + text-input-v3 so fcitx5 Hangul input works
+#    (without it the wrapper falls back to XWayland and IME does not work).
+#  - Point Nix's Mesa at itself: its libgbm/EGL look in the NixOS-only
+#    /run/opengl-driver, which Guix lacks, so GL init failed and the GPU was disabled.
+set -euo pipefail
+
+app_bin="$(readlink -f "$(command -v codex-desktop || echo "$HOME/.nix-profile/bin/codex-desktop")")"
+if [ ! -x "$app_bin" ]; then
+    echo "codex-app: codex-desktop not found; run: nix profile install github:ilysenko/codex-desktop-linux" >&2
+    exit 1
+fi
+
+app_root="${app_bin%/bin/codex-desktop}"
+mesa="$(nix-store -qR "$app_root" 2>/dev/null | grep -- '-mesa-[0-9]' | head -n1 || true)"
+
+export NIXOS_OZONE_WL=1
+if [ -n "$mesa" ]; then
+    export GBM_BACKENDS_PATH="$mesa/lib/gbm"
+    export LIBGL_DRIVERS_PATH="$mesa/lib/dri"
+    export __EGL_VENDOR_LIBRARY_FILENAMES="$mesa/share/glvnd/egl_vendor.d/50_mesa.json"
+else
+    echo "codex-app: Nix mesa not found in closure; GPU acceleration may be disabled" >&2
+fi
+
+exec "$app_bin" "$@"
